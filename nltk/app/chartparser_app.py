@@ -1716,7 +1716,7 @@ class ChartParserApp(object):
     def _init_animation(self):
         # Are we stepping? (default=yes)
         self._step = tkinter.IntVar(self._root)
-        self._step.set(1)
+        self._step.set(0) #Change to 1 to enable stepping by default
 
         # What's our animation speed (default=fast)
         self._animate = tkinter.IntVar(self._root)
@@ -2232,20 +2232,24 @@ class ChartParserApp(object):
 def app():
     grammar = CFG.fromstring("""
     # Grammatical productions.
-        S -> NP VP
-        VP -> VP PP | V NP | V
+        S -> NP V NP |  NP V  |NP V CMP | NP V NP CMP | S CONJ S
+        CMP -> S
         NP -> Det N | NP PP
         PP -> P NP
     # Lexical productions.
-        NP -> 'John' | 'I'
-        Det -> 'the' | 'my' | 'a'
-        N -> 'dog' | 'cookie' | 'table' | 'cake' | 'fork'
-        V -> 'ate' | 'saw'
+        NP -> 'Märkte' | 'Monopole' | 'Kartelle'
+        Det -> 'der' | 'die' | 'das'
+        N -> 'Markt'
+        CONJ -> 'und'
+        V -> 'müssen' | 'muss' |'getrennt' | 'zerschlagen' | 'werden' | 'kann' |'akzeptieren'
         P -> 'on' | 'under' | 'with'
     """)
 
-    sent = 'John ate the cake on the table with a fork'
-    sent = 'John ate the cake on the table'
+
+
+    # sent = 'John ate the cake on the table with a fork'
+    # sent = 'der Markt muss Monopole zerschlagen und kann Kartelle akzeptieren'
+    sent = 'der Markt muss Monopole zerschlagen und kann Kartelle akzeptieren'
     tokens = list(sent.split())
 
     print('grammar= (')
