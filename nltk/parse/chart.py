@@ -1126,6 +1126,8 @@ class TopDownPredictRule(AbstractChartRule):
                             virtual_node = TreeEdge(span=(edge.end(), edge.end()), lhs = node.lhs(), rhs=node.rhs(), dot=node.dot())
                             if chart.insert(virtual_node, ()):
                                 yield virtual_node
+
+
                         #print(childedge, list(filter(lambda node: node.lhs().symbol()[-1] == 'P' and node.dot() > 0, self.edge_iterator(chart, childedge))))
                     # edges = list(chart.select(start=0, end=0)) #start=edge.start(), end = edge.end
                     # print(edges)
