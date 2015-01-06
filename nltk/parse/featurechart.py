@@ -565,11 +565,17 @@ def run_profile():
 
 if __name__ == '__main__':
     from nltk.data import load
-    demo()
-    print()
-    grammar = load('grammars/book_grammars/feat0.fcfg')
-    cp = FeatureChartParser(grammar, trace=2)
-    sent = 'Kim likes children'
+    #demo()
+    #print()
+
+    import os
+    os.chdir(os.path.dirname(__file__))
+    print(os.getcwd())
+
+    sent = 'ich sehe den Mann' # den Mann mit dem Hund
+    grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
+    #sent = 'Kim likes children'
+    cp = FeatureChartParser(grammar, trace=3)
     tokens = sent.split()
     trees = cp.parse(tokens)
     for tree in trees:

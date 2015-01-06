@@ -2245,10 +2245,11 @@ def app():
         P -> 'on' | 'under' | 'with'
     """)
 
-
+    # NP -> epsilon regel. Chartparser can't draw it
 
     # sent = 'John ate the cake on the table with a fork'
     # sent = 'der Markt muss Monopole zerschlagen und kann Kartelle akzeptieren'
+    #sent = 'der Markt muss Monopole zerschlagen und kann Kartelle akzeptieren'
     sent = 'der Markt muss Monopole zerschlagen und kann Kartelle akzeptieren'
     tokens = list(sent.split())
 
