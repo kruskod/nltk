@@ -1,0 +1,113 @@
+## Natural Language Toolkit: pg_german.fcfg
+##
+## Example of a feature-based performance grammar for German
+
+% start S
+#####################
+# Grammar Productions
+#####################
+
+SUBJ[CASE=nom,NUM=?n,PER=?p] -> NP[CASE=nom]
+DOBJ[CASE=acc] -> NP[CASE=acc]
+COMP[STYPE=sub] -> HD_CP S
+IOBJ[CASE=dat] -> NP[CASE=dat]
+IOBJ[CASE=dat] -> PP
+MODS -> ADVP
+MODS -> MODS MODS
+MODS -> PP
+NP[CASE=?c] -> HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+NP[CASE=?c] -> DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+NP[CASE=?c] -> DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] ADJP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+NP[CASE=?c] -> ADJP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+NP[CASE=?c] -> HD_PPRON[CASE=?c, NUM=?n, PER=?p, GND=?g]
+PP -> HD_PREP[CASE=?c] NP[CASE=?c]
+DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] -> HD_DET[CASE=?c, NUM=?n, PER=?p, GND=?g]
+ADVP -> HD_ADV
+ADJP[CASE=?c, NUM=?n, PER=?p, GND=?g] -> HD_ADJ[CASE=?c, NUM=?n, PER=?p, GND=?g]
+
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v]
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] DOBJ[CASE=acc]
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] IOBJ[CASE=dat]
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] DOBJ[CASE=acc] IOBJ[CASE=dat]
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] MODS
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] DOBJ[CASE=acc] MODS
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] IOBJ[CASE=dat] MODS
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] DOBJ[CASE=acc] IOBJ[CASE=dat] MODS
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] MODS
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] COMP[STYPE=sub]
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] COMP[STYPE=sub] MODS 
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] COMP[STYPE=sub] IOBJ[CASE=dat]
+S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] COMP[STYPE=sub] IOBJ[CASE=dat] MODS
+
+#####################
+# Lexical Productions
+#####################
+
+HD_N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Hans'
+HD_N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Hansens'
+HD_N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Hans'
+HD_N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Hans'
+
+HD_PPRON[NUM=sg,PER=1] -> 'ich'
+
+# masc
+HD_DET[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'der'
+HD_DET[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'des'
+HD_DET[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'dem'
+HD_DET[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'den'
+
+
+# fem
+HD_DET[CASE=nom,NUM=sg,PER=3,GND=fem] -> 'die'
+HD_DET[CASE=gen,NUM=sg,PER=3,GND=fem] -> 'der'
+HD_DET[CASE=dat,NUM=sg,PER=3,GND=fem] -> 'der'
+HD_DET[CASE=acc,NUM=sg,PER=3,GND=fem] -> 'die'
+
+# neut
+HD_DET[CASE=nom,NUM=sg,PER=3,GND=neut] -> 'das'
+HD_DET[CASE=gen,NUM=sg,PER=3,GND=neut] -> 'des'
+HD_DET[CASE=dat,NUM=sg,PER=3,GND=neut] -> 'dem'
+HD_DET[CASE=acc,NUM=sg,PER=3,GND=neut] -> 'das'
+
+# Plural determiners
+HD_DET[CASE=nom,NUM=pl,PER=3,GND=masc] -> 'die'
+HD_DET[CASE=nom,NUM=pl,PER=3,GND=fem] -> 'die'
+HD_DET[CASE=nom,NUM=pl,PER=3,GND=neut] -> 'die'
+
+HD_DET[CASE=gen,NUM=pl,PER=3,GND=masc] -> 'der'
+HD_DET[CASE=gen,NUM=pl,PER=3,GND=fem] -> 'der'
+HD_DET[CASE=gen,NUM=pl,PER=3,GND=neut] -> 'der'
+
+HD_DET[CASE=dat,NUM=pl,PER=3,GND=masc] -> 'den'
+HD_DET[CASE=dat,NUM=pl,PER=3,GND=fem] -> 'den'
+HD_DET[CASE=dat,NUM=pl,PER=3,GND=neut] -> 'den'
+
+HD_DET[CASE=acc,NUM=pl,PER=3,GND=masc] -> 'die'
+HD_DET[CASE=acc,NUM=pl,PER=3,GND=fem] -> 'die'
+HD_DET[CASE=acc,NUM=pl,PER=3,GND=neut] -> 'die'
+
+HD_N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Hund'
+HD_N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Hundes'
+HD_N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Hund'
+HD_N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Hund'
+HD_N[CASE=nom,NUM=pl,PER=3,GND=masc] -> 'Hunde'
+HD_N[CASE=gen,NUM=pl,PER=3,GND=masc] -> 'Hunde'
+HD_N[CASE=dat,NUM=pl,PER=3,GND=masc] -> 'Hunden'
+HD_N[CASE=acc,NUM=pl,PER=3,GND=masc] -> 'Hunde'
+
+HD_N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Mann'
+HD_N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Mannes'
+HD_N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Mann'
+HD_N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Mann'
+
+HD_N[CASE=nom,NUM=pl,PER=3,GND=masc] -> 'Maenner'
+HD_N[CASE=gen,NUM=pl,PER=3,GND=masc] -> 'Maenner'
+HD_N[CASE=dat,NUM=pl,PER=3,GND=masc] -> 'Maennern'
+HD_N[CASE=acc,NUM=pl,PER=3,GND=masc] -> 'Maenner'
+
+HD_V[NUM=sg,PER=3, VAL=macc] -> 'sieht'
+HD_V[NUM=pl,PER=3, VAL=macc] -> 'sehen'
+HD_V[NUM=sg,PER=1, VAL=macc] -> 'sehe'
+
+HD_PREP[CASE=dat] -> 'mit'
+HD_PREP[CASE=acc] -> 'ohne'
