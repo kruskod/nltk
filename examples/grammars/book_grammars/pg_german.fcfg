@@ -7,23 +7,24 @@
 # Grammar Productions
 #####################
 
-SUBJ[CASE=nom,NUM=?n,PER=?p] -> NP[CASE=nom]
-DOBJ[CASE=acc] -> NP[CASE=acc]
-COMP[STYPE=sub] -> HD_CP S
-IOBJ[CASE=dat] -> NP[CASE=dat]
-IOBJ[CASE=dat] -> PP
-MODS -> ADVP
-MODS -> MODS MODS
-MODS -> PP
-NP[CASE=?c] -> HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
-NP[CASE=?c] -> DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+DETP[CASE=?c,NUM=?n,PER=?p,GND=?g] -> HD_DET[CASE=?c,NUM=?n,PER=?p,GND=?g]
 NP[CASE=?c] -> DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] ADJP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+NP[CASE=?c] -> DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
 NP[CASE=?c] -> ADJP[CASE=?c, NUM=?n, PER=?p, GND=?g] HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
+NP[CASE=?c] -> HD_N[CASE=?c, NUM=?n, PER=?p, GND=?g]
 NP[CASE=?c] -> HD_PPRON[CASE=?c, NUM=?n, PER=?p, GND=?g]
 PP -> HD_PREP[CASE=?c] NP[CASE=?c]
-DETP[CASE=?c, NUM=?n, PER=?p, GND=?g] -> HD_DET[CASE=?c, NUM=?n, PER=?p, GND=?g]
 ADVP -> HD_ADV
 ADJP[CASE=?c, NUM=?n, PER=?p, GND=?g] -> HD_ADJ[CASE=?c, NUM=?n, PER=?p, GND=?g]
+SUBJ[CASE=nom,NUM=?n,PER=?p] -> NP[CASE=?c]
+DOBJ[CASE=acc] -> NP[CASE=?c]
+COMP[STYPE=sub] -> HD_CP S
+IOBJ[CASE=dat] -> NP[CASE=?c]
+IOBJ[CASE=dat] -> PP
+
+MODS -> MODS MODS
+MODS -> PP
+MODS -> ADVP
 
 S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v]
 S -> SUBJ[CASE=nom,NUM=?n,PER=?p] HD_V[NUM=?n,PER=?p, VAL=?v] DOBJ[CASE=acc]
@@ -98,7 +99,7 @@ HD_N[CASE=acc,NUM=pl,PER=3,GND=masc] -> 'Hunde'
 HD_N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Mann'
 HD_N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Mannes'
 HD_N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Mann'
-HD_N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Mann'
+HD_N[CASE=acc, NUM=sg, PER=3, GND=masc] -> 'Mann'
 
 HD_N[CASE=nom,NUM=pl,PER=3,GND=masc] -> 'Maenner'
 HD_N[CASE=gen,NUM=pl,PER=3,GND=masc] -> 'Maenner'
@@ -112,3 +113,5 @@ HD_V[NUM=sg,PER=1, VAL=macc] -> 'sehe'
 HD_PREP[CASE=dat] -> 'mit'
 HD_PREP[CASE=acc] -> 'ohne'
 HD_ADJ[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'kleinen'
+HD_CP -> 'hd_cp'
+HD_ADV -> 'hd_adv'
