@@ -111,3 +111,4 @@ HD_V[NUM=sg,PER=1, VAL=macc] -> 'sehe'
 
 HD_PREP[CASE=dat] -> 'mit'
 HD_PREP[CASE=acc] -> 'ohne'
+HD_ADJ[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'kleinen'
