@@ -572,10 +572,10 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(__file__))
     print(os.getcwd())
 
-    sent = 'ich sehe den Mann' # den Mann mit dem Hund
+    sent = 'ich sehe den Mann'
     grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #sent = 'Kim likes children'
-    cp = FeatureChartParser(grammar, trace=3)
+    cp = FeatureTopDownChartParser(grammar, trace=3)
     tokens = sent.split()
     trees = cp.parse(tokens)
     for tree in trees:

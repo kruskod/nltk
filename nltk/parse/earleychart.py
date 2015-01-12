@@ -28,7 +28,7 @@ algorithm, originally formulated by Jay Earley (1970).
 from __future__ import print_function, division
 
 from nltk.compat import xrange
-from nltk.parse.chart import (Chart, ChartParser, EdgeI, LeafEdge, LeafInitRule,
+from nltk.parse.chart import (Chart, ChartParser, EdgeI, LeafEdge, LeafInitRule, PGLeafInitRule,
                               BottomUpPredictRule, BottomUpPredictCombineRule,
                               TopDownInitRule, SingleEdgeFundamentalRule,
                               EmptyPredictRule,
@@ -324,6 +324,8 @@ class IncrementalChartParser(ChartParser):
                 for rule in inference_rules:
                     new_edges = list(rule.apply(chart, grammar, edge))
                     trace_new_edges(chart, rule, new_edges, trace, trace_edge_width)
+                    if isinstance(rule, FeatureScannerRule):
+                        print(new_edges)
                     for new_edge in new_edges:
                         if new_edge.end()==end:
                             agenda.append(new_edge)
@@ -358,7 +360,7 @@ class IncrementalLeftCornerChartParser(IncrementalChartParser):
 # Incremental FCFG Chart Parsers
 #////////////////////////////////////////////////////////////
 
-EARLEY_FEATURE_STRATEGY = [LeafInitRule(),
+EARLEY_FEATURE_STRATEGY = [PGLeafInitRule(),
                            FeatureTopDownInitRule(),
                            FeatureCompleterRule(),
                            FeatureScannerRule(),
@@ -367,7 +369,7 @@ TD_INCREMENTAL_FEATURE_STRATEGY = [LeafInitRule(),
                                    FeatureTopDownInitRule(),
                                    FeatureTopDownPredictRule(),
                                    FeatureCompleteFundamentalRule()]
-BU_INCREMENTAL_FEATURE_STRATEGY = [LeafInitRule(),
+BU_INCREMENTAL_FEATURE_STRATEGY = [PGLeafInitRule(),
                                    FeatureEmptyPredictRule(),
                                    FeatureBottomUpPredictRule(),
                                    FeatureCompleteFundamentalRule()]
@@ -411,15 +413,15 @@ class FeatureIncrementalBottomUpLeftCornerChartParser(FeatureIncrementalChartPar
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='I saw John with a dog with my cookie', numparses=5):
+         sent='ich sehe den Mann mit dem Hund', numparses=0):
     """
     A demonstration of the Earley parsers.
     """
-    import sys, time
-    from nltk.parse.chart import demo_grammar
-
+    import time
     # The grammar for ChartParser and SteppingChartParser:
-    grammar = demo_grammar()
+    from nltk.data import load
+
+    grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     if print_grammar:
         print("* Grammar")
         print(grammar)
@@ -432,7 +434,7 @@ def demo(print_times=True, print_grammar=False,
     print()
 
     # Do the parsing.
-    earley = EarleyChartParser(grammar, trace=trace)
+    earley = FeatureIncrementalBottomUpChartParser(grammar, trace=trace)
     t = time.clock()
     chart = earley.chart_parse(tokens)
     parses = list(chart.parses(grammar.start()))
