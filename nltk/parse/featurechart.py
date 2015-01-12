@@ -575,7 +575,7 @@ if __name__ == '__main__':
     sent = 'ich sehe den Mann'
     grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #sent = 'Kim likes children'
-    cp = FeatureTopDownChartParser(grammar, trace=3)
+    cp = FeatureTopDownChartParser(grammar, trace=2)
     tokens = sent.split()
     trees = cp.parse(tokens)
     for tree in trees:

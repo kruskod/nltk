@@ -434,7 +434,7 @@ def demo(print_times=True, print_grammar=False,
     print()
 
     # Do the parsing.
-    earley = FeatureIncrementalBottomUpChartParser(grammar, trace=trace)
+    earley = FeatureIncrementalTopDownChartParser(grammar, trace=trace)
     t = time.clock()
     chart = earley.chart_parse(tokens)
     parses = list(chart.parses(grammar.start()))
