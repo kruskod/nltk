@@ -26,7 +26,7 @@ from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
                               TopDownPredictRule,
-                              TopDownInitRule, CachedTopDownPredictRule)
+                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule)
 
 #////////////////////////////////////////////////////////////
 # Tree Edge
@@ -307,7 +307,7 @@ class FeatureTopDownInitRule(TopDownInitRule):
             if chart.insert(new_edge, ()):
                 yield new_edge
 
-class FeatureTopDownPredictRule(TopDownPredictRule):
+class FeatureTopDownPredictRule(AbstractChartRule):
     """
     A rule licensing edges corresponding to the grammar productions
     for the nonterminal following an incomplete edge's dot.  In
@@ -317,6 +317,8 @@ class FeatureTopDownPredictRule(TopDownPredictRule):
 
     :note: This rule corresponds to the Predictor Rule in Earley parsing.
     """
+    NUM_EDGES = 1
+
     def apply(self, chart, grammar, edge):
         if edge.is_complete(): return
         for prod in grammar.productions(lhs=edge.nextsym()):
@@ -430,7 +432,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 
 TD_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureTopDownInitRule(),
-                       FeatureCachedTopDownPredictRule(),
+                       FeatureTopDownPredictRule(),
                        FeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
@@ -443,7 +445,7 @@ BU_LC_FEATURE_STRATEGY = [LeafInitRule(),
 
 class FeatureChartParser(ChartParser):
     def __init__(self, grammar,
-                 strategy=BU_LC_FEATURE_STRATEGY,
+                 strategy=TD_FEATURE_STRATEGY,
                  trace_chart_width=20,
                  chart_class=FeatureChart,
                  **parser_args):
@@ -589,18 +591,17 @@ def pg_demo():
     from nltk.data import load
     import itertools
     import time
-    sent = 'ich sehe den Mann mit dem Hund'
+    sent = 'ich sehe den Mann'
 
     t = time.clock()
     grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     tokens = sent.split()
-    for comb in itertools.permutations(tokens):
-        cp = FeatureTopDownChartParser(grammar, trace=0)
-        trees = cp.parse(comb)
-        for tree in trees:
-            print(tree)
+    # for comb in itertools.permutations(tokens):
+    cp = FeatureTopDownChartParser(grammar, trace=1)
+    trees = cp.parse(tokens)
+    for tree in trees:
+        print(tree)
     print("Execution time: ", (time.clock() - t))
-
 
 if __name__ == '__main__': pg_demo()
 
