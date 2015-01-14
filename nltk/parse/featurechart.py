@@ -569,9 +569,9 @@ if __name__ == '__main__':
     from nltk.data import load
     demo()
     print()
-    grammar = load('grammars/book_grammars/feat0.fcfg')
-    cp = FeatureChartParser(grammar, trace=2)
-    sent = 'Kim likes children'
+    grammar = load('grammars/book_grammars/german.fcfg')
+    cp = FeatureTopDownChartParser(grammar, trace=2)
+    sent = 'ich sehe den Hund'
     tokens = sent.split()
     trees = cp.parse(tokens)
     for tree in trees:
