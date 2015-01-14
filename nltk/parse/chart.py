@@ -1517,11 +1517,11 @@ class SteppingChartParser(ChartParser):
         the parsing algorithm.
     """
 
-    def __init__(self, grammar, strategy=[], trace=0):
+    def __init__(self, grammar, strategy=[], chart_class=Chart, trace=0):
         self._chart = None
         self._current_chartrule = None
         self._restart = False
-        ChartParser.__init__(self, grammar, strategy, trace)
+        ChartParser.__init__(self, grammar, strategy, trace, chart_class)
 
     #////////////////////////////////////////////////////////////
     # Initialization
@@ -1529,7 +1529,7 @@ class SteppingChartParser(ChartParser):
 
     def initialize(self, tokens):
         "Begin parsing the given tokens."
-        self._chart = Chart(list(tokens))
+        self._chart = self._chart_class(tokens)
         self._restart = True
 
     #////////////////////////////////////////////////////////////
