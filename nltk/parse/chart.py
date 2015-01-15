@@ -1521,7 +1521,7 @@ class SteppingChartParser(ChartParser):
         self._chart = None
         self._current_chartrule = None
         self._restart = False
-        ChartParser.__init__(self, grammar, strategy, trace, chart_class)
+        ChartParser.__init__(self, grammar, strategy, trace, chart_class=chart_class)
 
     #////////////////////////////////////////////////////////////
     # Initialization
