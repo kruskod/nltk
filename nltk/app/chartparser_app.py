@@ -2286,4 +2286,3 @@ if __name__ == '__main__':
     pg_app()
 
 __all__ = ['app']
-
