@@ -2326,6 +2326,159 @@ class FeatStructReader(object):
             position = m.end()
 
 ######################################################################
+class CelexFeatStructReader(FeatStructReader):
+
+    def fromstring(self, s, fstruct=None):
+        """
+        Convert a string representation of a feature structure (as
+        displayed by repr) into a ``FeatStruct``.  This process
+        imposes the following restrictions on the string
+        representation:
+
+        - Feature names cannot contain any of the following:
+          whitespace, parentheses, quote marks, equals signs,
+          dashes, commas, and square brackets.  Feature names may
+          not begin with plus signs or minus signs.
+        - Only the following basic feature value are supported:
+          strings, integers, variables, None, and unquoted
+          alphanumeric strings.
+        - For reentrant values, the first mention must specify
+          a reentrance identifier and a value; and any subsequent
+          mentions must use arrows (``'->'``) to reference the
+          reentrance identifier.
+        """
+        s = s.strip()
+        value, position = self.read_partial(s, 0, {}, fstruct)
+        if position != len(s):
+            self._error(s, 'end of string', position)
+        return value
+
+    _FEATURE_CLOSE = re.compile("\[([^\[\]]*?)\]")
+
+    def read_partial(self, s, position=0, reentrances=None, fstruct=None):
+        """
+        Helper function that reads in a feature structure.
+
+        :param s: The string to read.
+        :param position: The position in the string to start parsing.
+        :param reentrances: A dictionary from reentrance ids to values.
+            Defaults to an empty dictionary.
+        :return: A tuple (val, pos) of the feature structure created by
+            parsing and the position where the parsed feature structure ends.
+        :rtype: bool
+        """
+        try:
+            return self._read_partial(s, position)
+        except ValueError as e:
+            if len(e.args) != 2: raise
+            self._error(s, *e.args)
+
+    def _read_partial(self, s, position):
+        # Read up to the open bracket.
+        match = self._START_FSTRUCT_RE.match(s, position)
+        if not match:
+            match = self._BARE_PREFIX_RE.match(s, position)
+            if not match:
+                raise ValueError('open bracket or identifier', position)
+        position = match.end()
+
+        fstruct = dict()
+
+        # If there was a prefix feature, record it.
+        if match.group(2):
+            if self._prefix_feature is None:
+                raise ValueError('open bracket or identifier', match.start(2))
+            prefixval = match.group(2).strip()
+            if prefixval.startswith('?'):
+                prefixval = Variable(prefixval)
+            fstruct[self._prefix_feature] = prefixval
+
+        # If group 3 is empty, then we just have a bare prefix, so
+        # we're done.
+        if not match.group(3):
+            return self._finalize(s, match.end(), fstruct)
+
+        # Build a list of the features defined by the structure.
+        # Each feature has one of the three following forms:
+        #     name = value
+        #     name -> (target)
+        #     +name
+        #     -name
+        while position < len(s):
+            # Use these variables to hold info about each feature:
+            value = None
+
+            # Check for the close bracket.
+            match = self._END_FSTRUCT_RE.match(s, position)
+            if match is not None:
+                return self._finalize(s, match.end(), fstruct)
+
+            import re
+            str = '[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Sonderstempels'
+            p =
+            p.findall(str)
+
+            # Get the feature name's name
+            match = self._FEATURE_NAME_RE.match(s, position)
+            if match is None: raise ValueError('feature name', position)
+            name = match.group(2)
+            position = match.end()
+
+            # Check if it's a special feature.
+            if name[0] == '*' and name[-1] == '*':
+                name = self._features.get(name[1:-1])
+                if name is None:
+                    raise ValueError('known special feature', match.start(2))
+
+            # Check if this feature has a value already.
+            if name in fstruct:
+                raise ValueError('new name', match.start(2))
+
+            # Boolean value ("+name" or "-name")
+            if match.group(1) == '+': value = True
+            if match.group(1) == '-': value = False
+
+            # Assignment ("= value").
+            if value is None:
+                match = self._ASSIGN_RE.match(s, position)
+                if match:
+                    position = match.end()
+                    value, position = (
+                        self._read_value(name, s, position, ()))
+                # None of the above: error.
+                else:
+                    raise ValueError('equals sign', position)
+
+            # Store the value.
+            fstruct[name] = value
+
+            # If there's a close bracket, handle it at the top of the loop.
+            if self._END_FSTRUCT_RE.match(s, position):
+                continue
+
+            # Otherwise, there should be a comma
+            match = self._COMMA_RE.match(s, position)
+            if match is None: raise ValueError('comma', position)
+            position = match.end()
+
+        # We never saw a close bracket.
+        raise ValueError('close bracket', position)
+
+    def _finalize(self, s, pos, fstruct):
+        """
+        Called when we see the close brace -- checks for a slash feature,
+        and adds in default values.
+        """
+        # Add the slash feature (if any)
+        match = self._SLASH_RE.match(s, pos)
+        if match:
+            name = self._slash_feature
+            v, pos = self._read_value(name, s, match.end(), reentrances)
+            fstruct[name] = v
+
+        return fstruct, pos
+
+######################################################################
 #{ Demo
 ######################################################################
 

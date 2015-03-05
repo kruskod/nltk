@@ -1,0 +1,57 @@
+ADJP0[
+[case=dat, decl_type=strong, degree=positive, gender=feminine, inflected=true, number=singular]
+ OR [case=gen, decl_type=strong, degree=positive, gender=feminine, inflected=true, number=plural]
+ OR [case=gen, decl_type=strong, degree=positive, gender=feminine, inflected=true, number=singular]
+ OR [case=gen, decl_type=strong, degree=positive, gender=masculine, inflected=true, number=plural]
+ OR [case=gen, decl_type=strong, degree=positive, gender=neuter, inflected=true, number=plural]
+ OR [case=nom, decl_type=mixed, degree=positive, gender=masculine, inflected=true, number=singular]
+ OR [case=nom, decl_type=strong, degree=positive, gender=masculine, inflected=true, number=singular]
+] -> händeringende
+
+S22 -> (S
+    (cmpr (CP [branch=facultative]))
+    (cmp (S [status=Fin,cmpr=da\""s,branch=obligatory]))
+    (hd
+        (v [[perf_aux=haben,personal=true,sepPrefix=none,slot=E1,status=Infin,vcat=VF] OR [perf_aux=haben,personal=true,sepPrefix=none,status=Fin,vcat=VF] OR 		[perf_aux=haben,personal=true,sepPrefix=none,status=PInfin,vcat=VF] OR [perf_aux=haben,personal=true,sepPrefix=none,status=Infin,vcat=VF] OR [perf_aux=haben,personal=true,sepPrefix=none,status=PInfin,vcat=VF],POS=verb,branch=obligatory]))
+    (mod (ADVP [branch=facultative])) (mod (S [branch=facultative])) (mod (PP [particle=false,branch=facultative]))
+    (mod (NP [case=gen/dat/acc,branch=facultative]))
+    (subj (S [status=Fin,number=singular,person=3rd,inheritedFeature=wh,branch=facultative]))
+    (subj (NP [status=Fin,case=nom,inheritedFeature=number/person/wh,branch=facultative])))
+
+NP18 -> (NP
+    (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative]))
+    (mod (S [branch=facultative]))
+    (det (NP [case=gen,decl_type=strong,branch=facultative]))
+    (mod (PP [particle=false,branch=facultative]))
+    (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative]))
+    (q (QP [inheritedFeature=number,branch=facultative]))
+    (hd
+        (n [[gender=feminine,properNoun=false]
+            OR [gender=masculine,properNoun=false]
+            OR [gender=neuter,properNoun=false],POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory]))
+    )
+
+NP25 -> (NP
+    (hd
+        (poss.pro [person=3rd,refnumber=plural,refperson=2nd,refpolite=false,POS=possessive_pronoun,ref=def,branch=obligatory])
+    )
+)
+
+
+NP0 -> (NP (q (QP [inheritedFeature=number,branch=facultative]))
+    (mod (PP [particle=false,branch=facultative]))
+    (hd
+        (n [gender=neuter,properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])
+    )
+    (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative]))
+    (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative]))
+    (det (NP [case=gen,decl_type=strong,branch=facultative]))
+    (mod (S [branch=facultative])))
+
+NP1 -> (NP (q (QP [inheritedFeature=number,branch=facultative])) (mod (PP [particle=false,branch=facultative])) (hd (n [gender=masculine,properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])) (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative])) (mod (S [branch=facultative])) (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative])) (det (NP [case=gen,decl_type=strong,branch=facultative])))
+
+NP10 -> (NP (det (NP [case=gen,decl_type=strong,branch=facultative])) (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative])) (q (QP [inheritedFeature=number,branch=facultative])) (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative])) (hd (n [properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])) (mod (PP [particle=false,branch=facultative])) (mod (S [branch=facultative])))
+
+
+NP0[case=dat, decl_type=strong, gender=neuter, number=singular] -> Geräucherter
+NP[case=dat, decl_type=strong, gender=neuter, number=singular, key=NP0] - > Geräucherter
