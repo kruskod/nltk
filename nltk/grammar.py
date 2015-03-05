@@ -353,7 +353,6 @@ class Production(object):
         """
         return self._hash
 
-
 @python_2_unicode_compatible
 class DependencyProduction(Production):
     """
@@ -1513,4 +1512,3 @@ __all__ = ['Nonterminal', 'nonterminals',
 	   'DependencyGrammar', 'DependencyProduction',
            'ProbabilisticDependencyGrammar',
 	   'induce_pcfg', 'read_grammar']
-
