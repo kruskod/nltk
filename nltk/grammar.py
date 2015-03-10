@@ -1218,7 +1218,6 @@ def _read_production(line, nonterm_parser, probabilistic=False):
     else:
         return [Production(lhs, rhs) for rhs in rhsides]
 
-
 #################################################################
 # Reading Phrase Structure Grammars
 #################################################################
