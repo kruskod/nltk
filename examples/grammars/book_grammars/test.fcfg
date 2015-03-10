@@ -1,8 +1,1 @@
-NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Sonderstempels
-NP0[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Sanskrits
-NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Schinkens
-NP0[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Wahlplakats
-NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Kneipenwirtes
-NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Schachts
-NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Beigeschmackes
-NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Mitinhabers
+HD_N[CASE=nom,NUM=pl/singular,PER=3,GND=masc] -> 'Maenner'

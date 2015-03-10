@@ -611,7 +611,7 @@ def pg_demo():
     from nltk.data import load
     from nltk.data import _open
     from nltk.featstruct import CelexFeatStructReader, FeatStructReader, FeatStruct
-    from nltk.featstruct import SLASH, TYPE
+    from nltk.featstruct import SLASH, TYPE, pair_checker
     import itertools, re
     import time
     import nltk
@@ -630,6 +630,13 @@ def pg_demo():
     # if match is None: raise ValueError('wrong feature name', position)
     # exit(1)
     #a = FeatStruct(morefeatures = ['a','b'])
+
+    #print(pair_checker('""', 0))
+    # print(pair_checker("(())", 0))
+    # print(pair_checker("(())", 1))
+    # print(pair_checker("([])", 1))
+    # print(pair_checker("([[]]", 0))
+
 
     opened_resource = _open('../../examples/grammars/book_grammars/test.fcfg')
    #  opened_resource = _open('../../examples/grammars/book_grammars/pg_german.fcfg')
@@ -652,4 +659,3 @@ def pg_demo():
 
 if __name__ == '__main__':
     pg_demo()
-
