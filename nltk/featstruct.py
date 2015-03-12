@@ -348,6 +348,8 @@ class FeatStruct(SubstituteBindingsI):
             hashval *= 37
             if isinstance(fval, FeatStruct):
                 hashval += fval._calculate_hashvalue(visited)
+            elif hasattr(fval, '__iter__'):
+                hashval += calculate_collection_hash(fval, visited)
             else:
                 hashval += hash(fval)
             # Convert to a 32 bit int.
@@ -2660,6 +2662,19 @@ def interactive_demo(trace=False):
         print('\nType "Enter" to continue unifying; or "q" to quit.')
         input = sys.stdin.readline().strip()
         if input in ('q', 'Q', 'x', 'X'): return
+
+def calculate_collection_hash(fval, visited = list()):
+    hash_val = 7
+    if isinstance(fval, FeatStruct):
+        hash_val += fval._calculate_hashvalue(visited)
+    elif isinstance(fval, tuple):
+        for item in fval:
+            hash_val += calculate_collection_hash(item)
+    elif isinstance(fval, dict):
+        hash_val+= hash(frozenset(fval.items()))
+    else:
+        hash_val += hash(fval)
+    return hash_val
 
 def demo(trace=False):
     """
