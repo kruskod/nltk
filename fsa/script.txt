@@ -1,0 +1,5 @@
+iconv -f UTF-16 -t UTF-8 lexfootexport.txt > lexfootexportUTF8.txt
+
+cat lexfootexportUTF8.txt | grep -v "ЗНАЧ" | awk -F'\t' '{print $1 $2 " -> " $3}' > lexfootexport.fcfg 
+
+

@@ -637,9 +637,8 @@ def pg_demo():
     # print(pair_checker("([])", 1))
     # print(pair_checker("([[]]", 0))
 
-
     opened_resource = _open('../../examples/grammars/book_grammars/test.fcfg')
-   #  opened_resource = _open('../../examples/grammars/book_grammars/pg_german.fcfg')
+    #opened_resource = _open('../../examples/grammars/book_grammars/pg_german.fcfg')
     binary_data = opened_resource.read()
     string_data = binary_data.decode('utf-8')
 
