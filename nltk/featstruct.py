@@ -1894,6 +1894,8 @@ class RangeFeature(Feature):
 SLASH = SlashFeature('slash', default=False, display='slash')
 TYPE = Feature('type', display='prefix')
 EXPRESSION = Feature('expression', display='prefix')
+LEXFRAMEKEY = Feature('lexframekey', display='prefix')
+
 
 ######################################################################
 # Specialized Feature Values
@@ -2356,6 +2358,9 @@ class CelexFeatStructReader(FeatStructReader):
             self._error(s, 'end of string', position)
         return value
 
+    _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?((?P<type>\??[a-zA-Z-]+)\d*)?(?P<close_bracket>\[)')
+
+
     _FEATURE_CLOSE = re.compile("\[[^\[\]]*?\]")
     _READ_SYM_VALUE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
 
@@ -2381,34 +2386,42 @@ class CelexFeatStructReader(FeatStructReader):
         :rtype: bool
         """
         try:
-            return self._read_partial(s, position)
+            return self._read_partial(s, position, fstruct)
         except ValueError as e:
             if len(e.args) != 2: raise
             self._error(s, *e.args)
 
-    def _read_partial(self, s, position):
+    def _read_partial(self, s, position, fstruct = None):
         # Read up to the open bracket.
         match = self._START_FSTRUCT_RE.match(s, position)
-        if not match:
+        if fstruct is None:
+                fstruct = self._fdict_class()
+        if match:
+             type_match_index = 3
+             bracket_index = 4
+             if match.group(type_match_index) and match.group(2) != match.group(type_match_index):
+                fstruct[LEXFRAMEKEY] = match.group(2)
+        else:
             match = self._BARE_PREFIX_RE.match(s, position)
             if not match:
                 raise ValueError('open bracket or identifier', position)
+            type_match_index = 2
+            bracket_index = 3
+
         position = match.end() - 1
 
-        fstruct = self._fdict_class()
-
         # If there was a prefix feature, record it.
-        if match.group(2):
+        if match.group(type_match_index):
             if self._prefix_feature is None:
                 raise ValueError('open bracket or identifier', match.start(2))
-            prefixval = match.group(2).strip()
+            prefixval = match.group(type_match_index).strip()
             if prefixval.startswith('?'):
                 prefixval = Variable(prefixval)
             fstruct[self._prefix_feature] = prefixval
 
         # If group 3 is empty, then we just have a bare prefix, so
         # we're done.
-        if not match.group(3):
+        if not match.group(bracket_index):
             return self._finalize(s, match.end(), fstruct)
 
         # Build a list of the features defined by the structure.

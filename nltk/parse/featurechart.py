@@ -611,7 +611,7 @@ def pg_demo():
     from nltk.data import load
     from nltk.data import _open
     from nltk.featstruct import CelexFeatStructReader, FeatStructReader, FeatStruct
-    from nltk.featstruct import SLASH, TYPE, pair_checker
+    from nltk.featstruct import SLASH, TYPE, EXPRESSION, pair_checker
     import itertools, re
     import time
     import nltk
