@@ -1,1 +1,1 @@
-HD_N[CASE=nom,NUM=pl/singular,PER=3,GND=masc] -> 'Maenner'
+DP19[[case=dat, gender=feminine, number=singular] OR [case=gen, gender=feminine, number=plural] OR [case=gen, gender=feminine, number=singular] OR [case=gen, gender=masculine, number=plural] OR [case=gen, gender=neuter, number=plural]] -> seiner

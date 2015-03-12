@@ -1891,6 +1891,7 @@ class RangeFeature(Feature):
 
 SLASH = SlashFeature('slash', default=False, display='slash')
 TYPE = Feature('type', display='prefix')
+EXPRESSION = Feature('expression', display='prefix')
 
 ######################################################################
 # Specialized Feature Values
@@ -2362,8 +2363,8 @@ class CelexFeatStructReader(FeatStructReader):
 
     def read_array_value(self, s, position, reentrances, match):
         val, end = match.group(), match.end()
-        res = [self.read_value(subvalue, 0, reentrances)[0] for subvalue in val.split('/')]
-        return res, end
+        res = (self.read_value(subvalue, 0, reentrances)[0] for subvalue in val.split('/'))
+        return tuple(res), end
 
     def read_partial(self, s, position=0, reentrances=None, fstruct=None):
         """
@@ -2392,7 +2393,7 @@ class CelexFeatStructReader(FeatStructReader):
                 raise ValueError('open bracket or identifier', position)
         position = match.end() - 1
 
-        fstruct = dict()
+        fstruct = self._fdict_class()
 
         # If there was a prefix feature, record it.
         if match.group(2):
@@ -2414,29 +2415,36 @@ class CelexFeatStructReader(FeatStructReader):
         #     name -> (target)
         #     +name
         #     -name
-        fstruct, position = self.read_features(s, position, fstruct)
+        expression, position = self.read_features(s, position, fstruct)
+        fstruct[EXPRESSION] = expression
         return self._finalize(s, position, fstruct)
 
     def read_features(self, s, position = 0, fstruct = None):
-        end_position = pair_checker(s, position) + 1
-        clauses = self._FEATURE_CLOSE.findall(s, position, end_position)
-        if len(clauses) > 1:
-            result = []
-            for clause in clauses:
-                result.append(self.read_features(clause, dict())[0])
-            return result, end_position
+        group = pair_checker(s, position)
+        if group:
+            expression_part = list()
+            expression = list()
+            last_operator = None
+            while group:
+                start_group, end_group = group
+                if start_group > position:
+                    operator = s[position:start_group].strip()
+                    if last_operator and operator != last_operator:
+                        expression = tuple(last_operator, expression + expression_part)
+                        expression_part = list()
+                    else:
+                        last_operator = operator
+                expression_part.append(self.read_features(s[start_group + 1:end_group], fstruct=dict())[0])
+                position = end_group + 1
+                group = pair_checker(s, position)
+            if last_operator:
+                return (last_operator,tuple(expression + expression_part)), position
+            else:
+                return tuple(*expression_part), position
         else:
-            s = s[position:].lstrip('[')
-            position = 0
             while position < len(s):
                 # Use these variables to hold info about each feature:
                 value = None
-
-                # Check for the close bracket.
-                match = self._END_FSTRUCT_RE.match(s, position)
-                if match is not None:
-                    return self._finalize(s, match.end(), fstruct)
-
                 # Get the feature name's name
                 match = self._FEATURE_NAME_RE.match(s, position)
                 if match is None: raise ValueError('feature name', position)
@@ -2471,17 +2479,10 @@ class CelexFeatStructReader(FeatStructReader):
                 # Store the value.
                 fstruct[name] = value
 
-                # If there's a close bracket, handle it at the top of the loop.
-                if self._END_FSTRUCT_RE.match(s, position):
-                    continue
-
-                # Otherwise, there should be a comma
+                # check comma
                 match = self._COMMA_RE.match(s, position)
-                if match is None: raise ValueError('comma', position)
-                position = match.end()
-
-            # We never saw a close bracket.
-            raise ValueError('close bracket', position)
+                if match: position = match.end()
+            return fstruct, len(s)
 
     def _finalize(self, s, pos, fstruct):
         """
@@ -2501,17 +2502,20 @@ def pair_checker(s, start = 0):
     Return index of string, where count opened characters equal to count closed characters,
     starting from position 'start'
     """
-    pairs = {'(':')','[':']','{':'}', '<':'>'}
+    pairs = {'(':')','[':']','{':'}'} #, '<':'>'
     stack = []
+    start_group = start
     for i, char in enumerate(s[start:], start):
         if char in pairs:
+            if not stack:
+                start_group = i
             stack.append(char)
         elif char in pairs.values():
             if stack:
                 pop = stack.pop()
                 if pairs[pop] == char:
-                    if not stack:
-                        return i
+                    if not stack: #stack is empty, we got a whole group
+                        return start_group,i
                 else:
                     raise ValueError("Unpaired character in: {}. Expected '{}', but get '{}' at position {}".format(s, pairs[pop], char, i))
             # closed bracket without an open bracket before
@@ -2520,7 +2524,7 @@ def pair_checker(s, start = 0):
     # Check on missed closed bracket
     if stack:
         raise ValueError("Unpaired character in: {}. Not found closed character for '{}'".format(s, stack.pop()))
-    return -1
+    return None
 
 ######################################################################
 #{ Demo
