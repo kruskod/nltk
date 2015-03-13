@@ -2249,8 +2249,8 @@ class FeatStructReader(object):
         ('read_fstruct_value', _START_FSTRUCT_RE),
         ('read_var_value', re.compile(r'\?[a-zA-Z_][a-zA-Z0-9_]*')),
         ('read_str_value', re.compile("[uU]?[rR]?(['\"])")),
-        ('read_int_value', re.compile(r'-?\d+')),
-        ('read_sym_value', re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')),
+        ('read_int_value', re.compile(r'-?\d+(?=[,\]])')),
+        ('read_sym_value', re.compile(r'[a-zA-Z0-9_]*')),
         ('read_app_value', re.compile(r'<(app)\((\?[a-z][a-z]*)\s*,'
                                        r'\s*(\?[a-z][a-z]*)\)>')),
 #       ('read_logic_value', re.compile(r'<([^>]*)>')),
