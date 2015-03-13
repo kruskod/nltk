@@ -1,1 +1,1 @@
-DP19[[case=dat, gender=feminine, number=singular] OR [case=gen, gender=feminine, number=plural] OR [case=gen, gender=feminine, number=singular] OR [case=gen, gender=masculine, number=plural] OR [case=gen, gender=neuter, number=plural]] -> seiner
+S1[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=present] OR [mood=subjunctive, number=singular, person=3rd, status=Fin, tense=present] OR [mood=imperative, number=singular, status=Fin]] -> betrauere
