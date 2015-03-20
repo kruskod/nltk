@@ -1894,7 +1894,7 @@ class RangeFeature(Feature):
 SLASH = SlashFeature('slash', default=False, display='slash')
 TYPE = Feature('type', display='prefix')
 EXPRESSION = Feature('expression', display='prefix')
-LEXFRAMEKEY = Feature('lexframekey', display='prefix')
+LEXFRAMEKEY = Feature('lexframekey')
 
 
 ######################################################################
@@ -2430,9 +2430,12 @@ class CelexFeatStructReader(FeatStructReader):
         #     name -> (target)
         #     +name
         #     -name
-        expression, position = self.read_features(s, position, fstruct)
-        fstruct[EXPRESSION] = expression
-        return self._finalize(s, position, fstruct)
+        start_group, end_group = pair_checker(s, position)
+
+        expression, position = self.read_features(s[start_group+1: end_group], 0, fstruct)
+        if not isinstance(expression, dict):
+            fstruct[EXPRESSION] = expression
+        return self._finalize(s, end_group + 1, fstruct)
 
     def read_features(self, s, position = 0, fstruct = None):
         group = pair_checker(s, position)
