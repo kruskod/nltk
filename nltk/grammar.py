@@ -1164,7 +1164,7 @@ _PROBABILITY_RE = re.compile(r'( \[ [\d\.]+ \] ) \s*', re.VERBOSE)
 _TERMINAL_RE = re.compile(r'( "[^"]+" | \'[^\']+\' ) \s*', re.VERBOSE)
 _DISJUNCTION_RE = re.compile(r'\| \s*', re.VERBOSE)
 
-def _read_production(line, nonterm_parser, probabilistic=False):
+def  _read_production(line, nonterm_parser, probabilistic=False):
     """
     Parse a grammar rule, given as a string, and return
     a list of productions.
