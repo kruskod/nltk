@@ -2358,11 +2358,13 @@ class CelexFeatStructReader(FeatStructReader):
             self._error(s, 'end of string', position)
         return value
 
-    _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?((?P<type>\??[a-zA-Z-]+)\d*)?(?P<close_bracket>\[)')
+    _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?((?P<type>\??[a-zA-Z-]+)\d*)?\s*(?P<close_bracket>\[)')
 
 
     _FEATURE_CLOSE = re.compile("\[[^\[\]]*?\]")
     _READ_SYM_VALUE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+
+
 
     def __init__(self, *args, **kwargs):
         super(CelexFeatStructReader, self).__init__(*args, **kwargs)
@@ -2385,6 +2387,7 @@ class CelexFeatStructReader(FeatStructReader):
             parsing and the position where the parsed feature structure ends.
         :rtype: bool
         """
+
         try:
             return self._read_partial(s, position, fstruct)
         except ValueError as e:

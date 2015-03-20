@@ -603,6 +603,37 @@ def run_profile():
     p.strip_dirs().sort_stats('time', 'cum').print_stats(60)
     p.strip_dirs().sort_stats('cum', 'time').print_stats(60)
 
+def celex_preprocessing():
+    from nltk.featstruct import pair_checker
+    _CELEX_SEPARATOR = "-|"
+    _PRODUCTION_SEPARATOR = " -> "
+    with open('../../examples/grammars/book_grammars/test.fcfg', encoding='utf-8') as file:
+        for line in file:
+            if _CELEX_SEPARATOR in line:
+                tree, postProduction = line.split(_CELEX_SEPARATOR)
+                group = pair_checker(tree)
+                if (group):
+                    start_group, end_group = group
+                    s = tree[start_group+1:end_group]
+                    group = pair_checker(s)
+                    if (group):
+                        start_group, end_group = group
+                        production = []
+                        production.append( s[:start_group].strip() )
+                        while(group):
+                            start_group, end_group = group
+                            # Inside this group: mod (ADVP [branch=facultative])
+                            # we take first member as feature and collect a second member as nonterminal
+                            start_nonterminal, end_nonterminal = pair_checker(s, start_group + 1)
+                            grammatical_function = s[start_group +1:start_nonterminal].strip()
+                            nonterminal = s[start_nonterminal + 1: end_nonterminal].strip()
+                            index = len(nonterminal) - 1
+                            nonterminal = nonterminal[:index] + (",GramFunc=" + grammatical_function) + nonterminal[index:]
+                            if 'hd' == grammatical_function:
+                                yield nonterminal + _PRODUCTION_SEPARATOR + postProduction.strip()
+                            production.append(nonterminal)
+                            group = pair_checker(s, end_group + 1)
+                yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
 
 def pg_demo():
     """
@@ -611,33 +642,32 @@ def pg_demo():
 
     import time
     from nltk.data import _open, load
-    from nltk.featstruct import CelexFeatStructReader
+    from nltk.featstruct import CelexFeatStructReader, pair_checker
     from nltk.grammar import FeatureGrammar
 
     sent = 'dem Hans sieht'
-
     t = time.clock()
-    grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
+    #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #grammar = load('../../examples/grammars/book_grammars/test.fcfg')
     #grammar = load('../../fsa/lexframetree.fcfg')
 
     #opened_resource = _open('../../examples/grammars/book_grammars/test.fcfg')
     # opened_resource = _open('../../fsa/lexfootexport.fcfg')
-    # binary_data = opened_resource.read()
-    # string_data = binary_data.decode('utf-8')
-    # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    # resource_val = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    # print(resource_val)
+    #binary_data = opened_resource.read()
+    #string_data = binary_data.decode('utf-8')
+    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    resource_val = FeatureGrammar.fromstring(celex_preprocessing(), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    print(resource_val)
     # print("Execution time: ", (time.clock() - t))
 
 
-    tokens = sent.split()
-    # for comb in itertools.permutations(tokens):
-    cp = FeatureTopDownChartParser(grammar, trace=1)
-    trees = cp.parse(tokens)
-    for tree in trees:
-        print(tree)
-#print("Execution time: ", (time.clock() - t))
+    # tokens = sent.split()
+    # # for comb in itertools.permutations(tokens):
+    # cp = FeatureTopDownChartParser(grammar, trace=1)
+    # trees = cp.parse(tokens)
+    # for tree in trees:
+    #     print(tree)
+    #print("Execution time: ", (time.clock() - t))
 
 if __name__ == '__main__':
     pg_demo()
