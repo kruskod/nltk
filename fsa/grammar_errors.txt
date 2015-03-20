@@ -1,0 +1,48 @@
+  File "/Users/Faust/Documents/workspace/nltk/nltk/grammar.py", line 1271, in read_grammar
+    (linenum+1, line, e))
+ValueError: Unable to parse line 110201: NP0[[case=acc, number=singular] OR [case=dat, number=singular] OR [case=nom, number=singular]] -> Caf√©
+Error parsing feature structure
+    NP0[[case=acc, number=singular] OR [case=dat, number=singular] OR [case=nom, number=singular]] -> Caf√©
+                                                                                                         ^ Expected open bracket or identifier
+
+    (linenum+1, line, e))
+ValueError: Unable to parse line 209212: S1[[mood=indicative/subjunctive, number=plural, person=1st, status=Fin, tense=present] OR [mood=indicative,/subjunctive number=plural, person=3rd, status=Fin, tense=present] OR [status=PastP]] -> versehn
+Error parsing feature structure
+    S1[[mood=indicative/subjunctive, number=plural, person=1st, status=Fin, tense=present] OR [mood=indicative,/subjunctive number=plural, person=3rd, status=Fin, tense=present] OR [status=PastP]] -> versehn
+                                                                                                                           ^ Expected equals sign
+
+����������������������tive, number=singular, person=1st, status=Fin, tense=past] OR [mood=indicative/subjunctive, number=singular, person=3rd, status=Fin, tense=past]] -> adjustierte. There is no open character for ']' at position 2113758
+>>>
+
+
+
+    NP17[*expression*=('case',), *type*='NP'] -> dir[]
+    NP38[*expression*=('case',), *type*='NP'] -> mir[]
+    NP44[*expression*=('case',), *type*='NP'] -> ihr[]
+    NP20[*expression*=('case',), *type*='NP'] -> niemandem[]
+    NP23[*expression*=('case',), *type*='NP'] -> ihm[]
+    NP22[*expression*=('case',), *type*='NP'] -> ihm[]
+    NP20[*expression*=('case',), *type*='NP'] -> sonstwem[]
+    NP45[*expression*=('case',), *type*='NP'] -> Ihnen[]
+    NP20[*expression*=('case',), *type*='NP'] -> jemandem[]
+    DP8[*expression*=('case',), *type*='DP'] -> etwelchen[]
+    NP46[*expression*=('case',), *type*='NP'] -> ihnen[]
+    NP19[*expression*=('case',), *type*='NP'] -> dir[]
+    NP27[*expression*=('case',), *type*='NP'] -> mir[]
+    DP10[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> Ihrer[]
+    DP6[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> derjenigen[]
+    NP15[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='NP'] -> derjenigen[]
+    NP15[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='NP'] -> derselbigen[]
+    DP12[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> ihrer[]
+    DP11[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> ihrer[]
+    DP9[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> eurer[]
+    DP6[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> derselben[]
+    NP15[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='NP'] -> derselben[]
+    DP16[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> keiner[]
+    DP9[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> euerer[]
+    DP20[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> unserer[]
+    DP2[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> deiner[]
+    DP18[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> meiner[]
+    DP20[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> unsrer[]
+    DP19[*expression*=('OR', ({'gender': 'feminine', 'number': 'singular', 'case': 'dat'}, {'gender': 'feminine', 'number': 'plural', 'case': 'gen'}, {'gender': 'feminine', 'number': 'singular', 'case': 'gen'}, {'gender': 'masculine', 'number': 'plural', 'case': 'gen'}, {'gender': 'neuter', 'number': 'plural', 'case': 'gen'})), *type*='DP'] -> seiner[]
+Execution time:  544.178566

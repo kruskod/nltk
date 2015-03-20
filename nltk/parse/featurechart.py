@@ -608,52 +608,35 @@ def pg_demo():
     """
     Demo for Performance Grammar FeatureChart
     """
-    from nltk.data import load
-    from nltk.data import _open
-    from nltk.featstruct import CelexFeatStructReader, FeatStructReader, FeatStruct
-    from nltk.featstruct import SLASH, TYPE, EXPRESSION, pair_checker
-    import itertools, re
-    import time
-    import nltk
 
-    sent = 'ich sehe den Mann'
+    import time
+    from nltk.data import _open, load
+    from nltk.featstruct import CelexFeatStructReader
+    from nltk.grammar import FeatureGrammar
+
+    sent = 'dem Hans sieht'
 
     t = time.clock()
-    #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
+    grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #grammar = load('../../examples/grammars/book_grammars/test.fcfg')
     #grammar = load('../../fsa/lexframetree.fcfg')
 
-    # _FEATURE_NAME_RE = re.compile(r'\s*(([+-]?)([^\s\(\)<>"\'\-=\[\],]+)\s*OR\s*)\s*')
-    # position = 4
-    # s = 'NP1[[case=acc, number=plural] OR [case=gen, number=plural] OR [case=nom, number=plural]] -> Sonderstempels'
-    # match = _FEATURE_NAME_RE.match(s, position)
-    # if match is None: raise ValueError('wrong feature name', position)
-    # exit(1)
-    #a = FeatStruct(morefeatures = ['a','b'])
-
-    #print(pair_checker('""', 0))
-    # print(pair_checker("(())", 0))
-    # print(pair_checker("(())", 1))
-    # print(pair_checker("([])", 1))
-    # print(pair_checker("([[]]", 0))
-
-    opened_resource = _open('../../examples/grammars/book_grammars/test.fcfg')
-    #opened_resource = _open('../../fsa/lexfootexport.fcfg')
-    binary_data = opened_resource.read()
-    string_data = binary_data.decode('utf-8')
-
-    features = (SLASH, TYPE)
-    fstruct_reader = CelexFeatStructReader(features, FeatStructNonterminal, logic_parser=None)
-    resource_val = nltk.grammar.FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    print(resource_val)
+    #opened_resource = _open('../../examples/grammars/book_grammars/test.fcfg')
+    # opened_resource = _open('../../fsa/lexfootexport.fcfg')
+    # binary_data = opened_resource.read()
+    # string_data = binary_data.decode('utf-8')
+    # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    # resource_val = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    # print(resource_val)
+    # print("Execution time: ", (time.clock() - t))
 
 
-#tokens = sent.split()
-# for comb in itertools.permutations(tokens):
-#cp = FeatureTopDownChartParser(grammar, trace=1)
-#trees = cp.parse(tokens)
-#for tree in trees:
-#    print(tree)
+    tokens = sent.split()
+    # for comb in itertools.permutations(tokens):
+    cp = FeatureTopDownChartParser(grammar, trace=1)
+    trees = cp.parse(tokens)
+    for tree in trees:
+        print(tree)
 #print("Execution time: ", (time.clock() - t))
 
 if __name__ == '__main__':
