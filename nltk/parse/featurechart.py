@@ -634,6 +634,8 @@ def celex_preprocessing(file_name):
                             production.append(nonterminal)
                             group = pair_checker(s, end_group + 1)
                 yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
+            else:
+                yield line
 
 def pg_demo():
     """
