@@ -8,11 +8,8 @@
 #####################
 
 DP[GF=DETP, CASE=?c,NUM=?n,PER=?p,GND=?g] -> DET[CASE=?c,NUM=?n,PER=?p,GND=?g]
-NP[CASE=?c] -> DP[GF=DETP, CASE=?c, NUM=?n, PER=?p, GND=?g] N[GF=HD, CASE=?c, NUM=?n, PER=?p, GND=?g]
-
-
-S -> NP[GF=SUBJ,CASE=nom,NUM=?n,PER=?p] V[GF=HD,NUM=?n,PER=?p, VAL=?v]
-
+NP[CASE=?c] -> N[GF=HD, CASE=?c, NUM=?n, PER=?p, GND=?g] DP[GF=DETP, CASE=?c, NUM=?n, PER=?p, GND=?g, branch=facultative]
+S -> NP[GF=SUBJ,CASE=nom,NUM=?n,PER=?p] V[GF=HD,NUM=?n,PER=?p, VAL=macc] NP[GF=DOBJ,CASE=acc,NUM=?n,PER=?p, branch=facultative]
 
 #####################
 # Lexical Productions
@@ -22,13 +19,17 @@ N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Hans'
 N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Hansens'
 N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Hans'
 N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Hans'
+## N[CASE=acc/dat/nom ,NUM=sg,PER=3,GND=masc] -> 'Hans'
+## N[((CASE=acc) OR (CASE=dat) OR (CASE=nom)),NUM=sg,PER=3,GND=masc] -> 'Hans'
+N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Mann'
+N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Mannes'
+N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Mann'
+N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Mann'|'Baum'
 
-DP[DGFNUM=sg,PER=3,CASE=nom,GND=masc] -> 'der'
-DP[DGFNUM=sg,PER=3,CASE=dat,GND=masc] -> 'dem'
+DP[NUM=sg,PER=3,CASE=nom,GND=masc] -> 'der'
+DP[NUM=sg,PER=3,CASE=acc,GND=masc] -> 'den'
+DP[NUM=sg,PER=3,CASE=dat,GND=masc] -> 'dem'
 
 V[NUM=sg,PER=3, VAL=macc] -> 'sieht'
 V[NUM=pl,PER=3, VAL=macc] -> 'sehen'
 V[NUM=sg,PER=1, VAL=macc] -> 'sehe'
-
-
-

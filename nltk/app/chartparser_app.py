@@ -2276,7 +2276,7 @@ def pg_app():
     for rule in grammar.productions():
         print(('   ', repr(rule)+','))
     print(')')
-    sent = 'ich sehe den Mann'
+    sent = 'Hans sieht der Mann'
     tokens = list(sent.split())
     print(('tokens = %r' % tokens))
     print('Calling "ChartParserApp(grammar, tokens)"...')

@@ -699,7 +699,7 @@ class Chart(object):
 
         # Leaf edges.
         if isinstance(edge, LeafEdge):
-            leaf = self._tokens[edge.start()]
+            leaf = edge.lhs()
             memo[edge] = [leaf]
             return [leaf]
 

@@ -242,7 +242,7 @@ class FeatureFundamentalRule(FundamentalRule):
     def apply(self, chart, grammar, left_edge, right_edge):
         # Make sure the rule is applicable.
         if not (left_edge.end() == right_edge.start() and
-                    left_edge.is_incomplete() and
+                    #left_edge.is_incomplete() and
                     right_edge.is_complete() and
                     isinstance(left_edge, FeatureTreeEdge)):
             return
@@ -330,6 +330,32 @@ class FeatureTopDownPredictRule(AbstractChartRule):
             if chart.insert(new_edge, ()):
                 yield new_edge
 
+class PGFeatureTopDownPredictRule(AbstractChartRule):
+    """
+    A rule licensing edges corresponding to the grammar productions
+    for the nonterminal following an incomplete edge's dot.  In
+    particular, this rule specifies that
+    ``[A -> alpha \* B beta][i:j]`` licenses the edge
+    ``[B -> \* gamma][j:j]`` for each grammar production ``B -> gamma``.
+
+    :note: This rule corresponds to the Predictor Rule in Earley parsing.
+    """
+    NUM_EDGES = 1
+    FACULTATIVE_PARAM = "branch"
+    FACULTATIVE_VAL = "facultative"
+
+    def apply(self, chart, grammar, edge):
+        if edge.is_complete(): return
+        lhs=edge.nextsym()
+        for prod in grammar.productions(lhs):
+            new_edge = FeatureTreeEdge.from_production(prod, edge.end())
+            if chart.insert(new_edge, ()):
+                yield new_edge
+        #branch=facultative logic
+        if is_nonterminal(lhs) and lhs.get(self.FACULTATIVE_PARAM) == self.FACULTATIVE_VAL:
+            new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=edge.bindings())
+            if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+                yield new_edge
 
 class FeatureCachedTopDownPredictRule(CachedTopDownPredictRule):
     """
@@ -650,8 +676,7 @@ def pg_demo():
     from nltk.featstruct import CelexFeatStructReader, pair_checker
     from nltk.grammar import FeatureGrammar
 
-
-    sent = 'dem Hans sieht'
+    sentence = 'sehe ich'
     t = time.clock()
     #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #grammar = load('../../examples/grammars/book_grammars/test.fcfg')
@@ -662,27 +687,27 @@ def pg_demo():
     # #opened_resource = _open('../../examples/grammars/book_grammars/pg_german.fcfg')
     # binary_data = opened_resource.read()
     # string_data = binary_data.decode('utf-8')
-    # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    # # resource_val = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    # grammar_productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lexframetree.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    #grammar = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     # lexical_productions = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    # productions = FeatureGrammar(grammar_productions.start(), grammar_productions.productions() + lexical_productions.productions())
+    #productions = FeatureGrammar(grammar_productions.start(), grammar_productions.productions())
     #
     # with open('../../fsa/celex.pickle', 'wb') as f:
     #     pickle.dump(productions, f, pickle.HIGHEST_PROTOCOL)
     # #print(resource_val)
-    productions = []
-    with open('../../fsa/celex.pickle', 'rb') as f:
-        productions = pickle.load(f)
-    print("Execution time: ", (time.clock() - t))
+    #productions = []
 
-
+    # with open('../../fsa/celex.pickle', 'rb') as f:
+    #     productions = pickle.load(f)
+    # print("Execution time: ", (time.clock() - t))
     # tokens = sent.split()
     # # for comb in itertools.permutations(tokens):
-    # cp = FeatureTopDownChartParser(grammar, trace=1)
-    # trees = cp.parse(tokens)
-    # for tree in trees:
-    #     print(tree)
+    #print(productions)
+    cp = FeatureTopDownChartParser(productions, trace=1)
+    trees = cp.parse(sentence.split())
+    for tree in trees:
+        print(tree)
     #print("Execution time: ", (time.clock() - t))
 
 if __name__ == '__main__':
