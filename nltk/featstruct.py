@@ -2324,10 +2324,10 @@ class FeatStructReader(object):
     def read_var_value(self, s, position, reentrances, match):
         return Variable(match.group()), match.end()
 
-    _SYM_CONSTS = {'None':None, 'True':True, 'False':False}
+    _SYM_CONSTS = {'none':None, 'true':True, 'false':False}
     def read_sym_value(self, s, position, reentrances, match):
         val, end = match.group(), match.end()
-        return self._SYM_CONSTS.get(val, val), end
+        return self._SYM_CONSTS.get(val.lower(), val), end
 
     def read_app_value(self, s, position, reentrances, match):
         """Mainly included for backwards compat."""
@@ -2523,6 +2523,11 @@ class CelexFeatStructReader(FeatStructReader):
                     if name is None:
                         raise ValueError('known special feature', match.start(2))
 
+                # Check if it's negation feature without value
+                if name[0] == '!':
+                    name = name[1:]
+                    value = False
+
                 # Check if this feature has a value already.
                 if name in fstruct:
                     raise ValueError('new name', match.start(2))
@@ -2530,6 +2535,7 @@ class CelexFeatStructReader(FeatStructReader):
                 # Boolean value ("+name" or "-name")
                 if match.group(1) == '+': value = True
                 if match.group(1) == '-': value = False
+
 
                 # Assignment ("= value").
                 if value is None:
