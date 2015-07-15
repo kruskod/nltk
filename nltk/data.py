@@ -56,7 +56,9 @@ except ImportError:
 # this import should be more specific:
 import nltk
 
-from nltk.compat import py3_data, text_type, string_types, BytesIO, urlopen, url2pathname
+from nltk.compat import py3_data, add_py3_data
+from nltk.compat import text_type, string_types, BytesIO, urlopen, url2pathname
+
 
 ######################################################################
 # Search Path
@@ -71,7 +73,7 @@ path = []
 
 # User-specified locations:
 path += [d for d in os.environ.get('NLTK_DATA', str('')).split(os.pathsep) if d]
-if os.path.expanduser('~/') != '~/':
+if 'APPENGINE_RUNTIME' not in os.environ and os.path.expanduser('~/') != '~/':
     path.append(os.path.expanduser(str('~/nltk_data')))
 
 if sys.platform.startswith('win'):
@@ -204,6 +206,10 @@ def normalize_resource_name(resource_name, allow_relative=True, relative_path=No
     >>> windows or normalize_resource_name('/dir/file', False, '/') == '/dir/file'
     True
     >>> windows or normalize_resource_name('../dir/file', False, '/') == '/dir/file'
+    True
+    >>> not windows or normalize_resource_name('/dir/file', True, '/') == 'dir/file'
+    True
+    >>> windows or normalize_resource_name('/dir/file', True, '/') == '/dir/file'
     True
     """
     is_dir = bool(re.search(r'[\\/.]$', resource_name)) or resource_name.endswith(os.path.sep)
@@ -448,8 +454,8 @@ class ZipFilePathPointer(PathPointer):
         if isinstance(zipfile, string_types):
             zipfile = OpenOnDemandZipFile(os.path.abspath(zipfile))
 
-        # Normalize the entry string, it should be absolute:
-        entry = normalize_resource_name(entry, False, '/').lstrip('/')
+        # Normalize the entry string, it should be relative:
+        entry = normalize_resource_name(entry, True, '/').lstrip('/')
 
         # Check that the entry exists:
         if entry:
@@ -560,7 +566,7 @@ def find(resource_name, paths=None):
 
     # Resolve default paths at runtime in-case the user overrides nltk.data.path
     if paths is None:
-        paths=path
+        paths = path
 
     # Check if the resource name includes a zipfile name
     m = re.match(r'(.*\.zip)/?(.*)$|', resource_name)
@@ -740,7 +746,8 @@ def load(resource_url, format='auto', cache=True, verbose=False,
     :type encoding: str
     :param encoding: the encoding of the input; only used for text formats.
     """
-    resource_url=normalize_resource_url(resource_url)
+    resource_url = normalize_resource_url(resource_url)
+    resource_url = add_py3_data(resource_url)
 
     # Determine the format of the resource.
     if format == 'auto':
