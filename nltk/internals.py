@@ -158,7 +158,7 @@ def java(cmd, classpath=None, stdin=None, stdout=None, stderr=None,
     # Check the return code.
     if p.returncode != 0:
         print(_decode_stdoutdata(stderr))
-        raise OSError('Java command failed!')
+        raise OSError('Java command failed : ' + str(cmd))
 
     return (stdout, stderr)
 
@@ -491,7 +491,8 @@ def find_file_iter(filename, env_vars=(), searchpath=(),
     if os.name == 'posix':
         for alternative in file_names:
             try:
-                p = subprocess.Popen(['which', alternative], stdout=subprocess.PIPE)
+                p = subprocess.Popen(['which', alternative],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 stdout, stderr = p.communicate()
                 path = _decode_stdoutdata(stdout).strip()
                 if path.endswith(alternative) and os.path.exists(path):
@@ -499,7 +500,7 @@ def find_file_iter(filename, env_vars=(), searchpath=(),
                         print('[Found %s: %s]' % (filename, path))
                     yielded = True
                     yield path
-            except (KeyboardInterrupt, SystemExit):
+            except (KeyboardInterrupt, SystemExit, OSError):
                 raise
             except:
                 pass
@@ -512,7 +513,7 @@ def find_file_iter(filename, env_vars=(), searchpath=(),
         if searchpath:
             msg += '\n\n  Searched in:'
             msg += ''.join('\n    - %s' % d for d in searchpath)
-        if url: msg += ('\n\n  For more information, on %s, see:\n    <%s>' %
+        if url: msg += ('\n\n  For more information on %s, see:\n    <%s>' %
                         (filename, url))
         div = '='*75
         raise LookupError('\n\n%s\n%s\n%s' % (div, msg, div))
@@ -591,6 +592,23 @@ def find_jar_iter(name_pattern, path_to_jar=None, env_vars=(),
                                 print('[Found %s: %s]' % (name_pattern, cp))
                             yielded = True
                             yield cp
+                    # The case where user put directory containing the jar file in the classpath 
+                    if os.path.isdir(cp):
+                        if not is_regex:
+                            if os.path.isfile(os.path.join(cp,name_pattern)):
+                                if verbose:
+                                    print('[Found %s: %s]' % (name_pattern, cp))
+                                yielded = True
+                                yield os.path.join(cp,name_pattern)
+                        else:
+                            # Look for file using regular expression 
+                            for file_name in os.listdir(cp):
+                                if re.match(name_pattern,file_name):
+                                    if verbose:
+                                        print('[Found %s: %s]' % (name_pattern, os.path.join(cp,file_name)))
+                                    yielded = True
+                                    yield os.path.join(cp,file_name)
+                                
             else:
                 jar_env = os.environ[env_var]
                 jar_iter = ((os.path.join(jar_env, path_to_jar) for path_to_jar in os.listdir(jar_env))
