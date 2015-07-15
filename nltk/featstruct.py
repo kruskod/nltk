@@ -103,6 +103,7 @@ from nltk.compat import (string_types, integer_types, total_ordering,
 # Feature Structure
 ######################################################################
 
+
 @total_ordering
 class FeatStruct(SubstituteBindingsI):
     """
@@ -348,6 +349,8 @@ class FeatStruct(SubstituteBindingsI):
             hashval *= 37
             if isinstance(fval, FeatStruct):
                 hashval += fval._calculate_hashvalue(visited)
+            elif hasattr(fval, '__iter__'):
+                hashval += calculate_collection_hash(fval, visited)
             else:
                 hashval += hash(fval)
             # Convert to a 32 bit int.
@@ -1300,6 +1303,9 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     """
     # Decide which class(es) will be treated as feature structures,
     # for the purposes of unification.
+    from nltk.topology.topology import simplify_expression
+
+
     if fs_class == 'default':
         fs_class = _default_fs_class(fstruct1)
         if _default_fs_class(fstruct2) != fs_class:
@@ -1317,29 +1323,76 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     # reentrance links between fstruct1 and fstruct2.  Copy bindings
     # as well, in case there are any bound vars that contain parts
     # of fstruct1 or fstruct2.
-    (fstruct1copy, fstruct2copy, bindings_copy) = (
-        copy.deepcopy((fstruct1, fstruct2, bindings)))
-
-    # Copy the bindings back to the original bindings dict.
-    bindings.update(bindings_copy)
-
-    if rename_vars:
-        vars1 = find_variables(fstruct1copy, fs_class)
-        vars2 = find_variables(fstruct2copy, fs_class)
-        _rename_variables(fstruct2copy, vars1, vars2, {}, fs_class, set())
-
-    # Do the actual unification.  If it fails, return None.
+    result = None
     forward = {}
-    if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
-    try: result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
-                                       forward, trace, fail, fs_class, ())
-    except _UnificationFailureError: return None
+
+    if EXPRESSION in fstruct1 or EXPRESSION in fstruct2:
+        fstructs1 = []
+        fstructs2 = []
+        if EXPRESSION in fstruct1:
+            for ex in simplify_expression(fstruct1[EXPRESSION]):
+                fstructcopy = copy.deepcopy(fstruct1)
+                del fstructcopy[EXPRESSION]
+                fstructcopy.update(ex)
+                fstructs1.append(fstructcopy)
+        else:
+            fstructs1.append(copy.deepcopy(fstruct1))
+
+        if EXPRESSION in fstruct2:
+            for ex in simplify_expression(fstruct2[EXPRESSION]):
+                fstructcopy = copy.deepcopy(fstruct2)
+                del fstructcopy[EXPRESSION]
+                fstructcopy.update(ex)
+                fstructs2.append(fstructcopy)
+        else:
+            fstructs2.append(copy.deepcopy(fstruct2))
+
+        #go before first match
+        for fs1 in fstructs1:
+            for fs2 in fstructs2:
+                bindings_copy = copy.deepcopy(bindings)
+                if rename_vars:
+                    vars1 = find_variables(fs1, fs_class)
+                    vars2 = find_variables(fs2, fs_class)
+                    _rename_variables(fs2, vars1, vars2, {}, fs_class, set())
+
+                # Do the actual unification.  If it fails, return None.
+                forward = {}
+                if trace: _trace_unify_start((), fs1, fs2)
+                try:
+                    result = _destructively_unify(fs1, fs2, bindings_copy, forward, trace, fail, fs_class, ())
+                    if result is not UnificationFailure:
+                        bindings.update(bindings_copy)
+                        break
+                except _UnificationFailureError:
+
+                     pass
+    else:
+        (fstruct1copy, fstruct2copy, bindings_copy) = (
+            copy.deepcopy((fstruct1, fstruct2, bindings)))
+
+        # Copy the bindings back to the original bindings dict.
+        bindings.update(bindings_copy)
+
+        if rename_vars:
+            vars1 = find_variables(fstruct1copy, fs_class)
+            vars2 = find_variables(fstruct2copy, fs_class)
+            _rename_variables(fstruct2copy, vars1, vars2, {}, fs_class, set())
+
+        # Do the actual unification.  If it fails, return None.
+        if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
+        try: result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
+                                           forward, trace, fail, fs_class, ())
+        except _UnificationFailureError: return None
 
     # _destructively_unify might return UnificationFailure, e.g. if we
     # tried to unify a mapping with a sequence.
-    if result is UnificationFailure:
-        if fail is None: return None
-        else: return fail(fstruct1copy, fstruct2copy, ())
+        if result is UnificationFailure:
+            if fail is None: return None
+            else: return fail(fstruct1copy, fstruct2copy, ())
+
+    if not result:
+        return None
 
     # Replace any feature structure that has a forward pointer
     # with the target of its forward pointer.
@@ -1891,6 +1944,9 @@ class RangeFeature(Feature):
 
 SLASH = SlashFeature('slash', default=False, display='slash')
 TYPE = Feature('type', display='prefix')
+EXPRESSION = Feature('expression', display='prefix')
+LEXFRAMEKEY = Feature('lexframekey')
+
 
 ######################################################################
 # Specialized Feature Values
@@ -2244,8 +2300,8 @@ class FeatStructReader(object):
         ('read_fstruct_value', _START_FSTRUCT_RE),
         ('read_var_value', re.compile(r'\?[a-zA-Z_][a-zA-Z0-9_]*')),
         ('read_str_value', re.compile("[uU]?[rR]?(['\"])")),
-        ('read_int_value', re.compile(r'-?\d+')),
-        ('read_sym_value', re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')),
+        ('read_int_value', re.compile(r'-?\d+(?=[,\]])')),
+        ('read_sym_value', re.compile(r'[a-zA-Z0-9_]*')),
         ('read_app_value', re.compile(r'<(app)\((\?[a-z][a-z]*)\s*,'
                                        r'\s*(\?[a-z][a-z]*)\)>')),
 #       ('read_logic_value', re.compile(r'<([^>]*)>')),
@@ -2324,6 +2380,217 @@ class FeatStructReader(object):
             if not m: raise ValueError("',' or '+' or '%s'" % cp, position)
             if m.group(1) == '+': seen_plus = True
             position = m.end()
+
+######################################################################
+class CelexFeatStructReader(FeatStructReader):
+
+    def fromstring(self, s, fstruct=None):
+        """
+        Convert a string representation of a feature structure (as
+        displayed by repr) into a ``FeatStruct``.  This process
+        imposes the following restrictions on the string
+        representation:
+
+        - Feature names cannot contain any of the following:
+          whitespace, parentheses, quote marks, equals signs,
+          dashes, commas, and square brackets.  Feature names may
+          not begin with plus signs or minus signs.
+        - Only the following basic feature value are supported:
+          strings, integers, variables, None, and unquoted
+          alphanumeric strings.
+        - For reentrant values, the first mention must specify
+          a reentrance identifier and a value; and any subsequent
+          mentions must use arrows (``'->'``) to reference the
+          reentrance identifier.
+        """
+        s = s.strip()
+        value, position = self.read_partial(s, 0, {}, fstruct)
+        if position != len(s):
+            self._error(s, 'end of string', position)
+        return value
+
+    _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?(\??[a-zA-Z-_\.]+\d*)?\s*(?P<close_bracket>\[)')
+
+
+    _FEATURE_CLOSE = re.compile("\[[^\[\]]*?\]")
+    _READ_SYM_VALUE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+
+    # TODO: the left part of the expression should also have features
+
+
+    def __init__(self, *args, **kwargs):
+        super(CelexFeatStructReader, self).__init__(*args, **kwargs)
+        self.VALUE_HANDLERS.insert(1, ('read_array_value', re.compile(r'(%s/)+%s' % (self._READ_SYM_VALUE.pattern, self._READ_SYM_VALUE.pattern))))
+
+    def read_array_value(self, s, position, reentrances, match):
+        val, end = match.group(), match.end()
+        res = (self.read_value(subvalue, 0, reentrances)[0] for subvalue in val.split('/'))
+        return tuple(res), end
+
+    def read_partial(self, s, position=0, reentrances=None, fstruct=None):
+        """
+        Helper function that reads in a feature structure.
+
+        :param s: The string to read.
+        :param position: The position in the string to start parsing.
+        :param reentrances: A dictionary from reentrance ids to values.
+            Defaults to an empty dictionary.
+        :return: A tuple (val, pos) of the feature structure created by
+            parsing and the position where the parsed feature structure ends.
+        :rtype: bool
+        """
+
+        try:
+            return self._read_partial(s, position, fstruct)
+        except ValueError as e:
+            if len(e.args) != 2: raise
+            self._error(s, *e.args)
+
+    def _read_partial(self, s, position, fstruct = None):
+        # Read up to the open bracket.
+        match = self._START_FSTRUCT_RE.match(s, position)
+        if not match:
+            match = self._BARE_PREFIX_RE.match(s, position)
+            if not match:
+                raise ValueError('open bracket or identifier', position)
+        position = match.end() - 1
+
+        if fstruct is None:
+                fstruct = self._fdict_class()
+
+        # If there was a prefix feature, record it.
+        if match.group(2):
+            if self._prefix_feature is None:
+                raise ValueError('open bracket or identifier', match.start(2))
+            prefixval = match.group(2).strip()
+            if prefixval.startswith('?'):
+                prefixval = Variable(prefixval)
+            fstruct[self._prefix_feature] = prefixval
+
+        # If group 3 is empty, then we just have a bare prefix, so
+        # we're done.
+        if not match.group(3):
+            return self._finalize(s, match.end(), fstruct)
+
+        # Build a list of the features defined by the structure.
+        # Each feature has one of the three following forms:
+        #     name = value
+        #     name -> (target)
+        #     +name
+        #     -name
+        start_group, end_group = pair_checker(s, position)
+
+        expression, position = self.read_features(s[start_group+1: end_group], 0, fstruct)
+        if not isinstance(expression, dict):
+            fstruct[EXPRESSION] = expression
+        return self._finalize(s, end_group + 1, fstruct)
+
+    def read_features(self, s, position = 0, fstruct = None):
+        group = pair_checker(s, position)
+        if group:
+            expression_part = list()
+            expression = list()
+            last_operator = None
+            while group:
+                start_group, end_group = group
+                if start_group > position:
+                    operator = s[position:start_group].strip()
+                    if last_operator and operator != last_operator:
+                        expression = tuple(last_operator, expression + expression_part)
+                        expression_part = list()
+                    else:
+                        last_operator = operator
+                expression_part.append(self.read_features(s[start_group + 1:end_group], fstruct=dict())[0])
+                position = end_group + 1
+                group = pair_checker(s, position)
+            if last_operator:
+                return (last_operator,tuple(expression + expression_part)), position
+            else:
+                return tuple(*expression_part), position
+        else:
+            while position < len(s):
+                # Use these variables to hold info about each feature:
+                value = None
+                # Get the feature name's name
+                match = self._FEATURE_NAME_RE.match(s, position)
+                if match is None: raise ValueError('feature name', position)
+                name = match.group(2)
+                position = match.end()
+
+                # Check if it's a special feature.
+                if name[0] == '*' and name[-1] == '*':
+                    name = self._features.get(name[1:-1])
+                    if name is None:
+                        raise ValueError('known special feature', match.start(2))
+
+                # Check if this feature has a value already.
+                if name in fstruct:
+                    raise ValueError('new name', match.start(2))
+
+                # Boolean value ("+name" or "-name")
+                if match.group(1) == '+': value = True
+                if match.group(1) == '-': value = False
+
+                # Assignment ("= value").
+                if value is None:
+                    match = self._ASSIGN_RE.match(s, position)
+                    if match:
+                        position = match.end()
+                        value, position = (
+                            self._read_value(name, s, position, ()))
+                    # None of the above: error.
+                    else:
+                        raise ValueError('equals sign', position)
+
+                # Store the value.
+                fstruct[name] = value
+
+                # check comma
+                match = self._COMMA_RE.match(s, position)
+                if match: position = match.end()
+            return fstruct, len(s)
+
+    def _finalize(self, s, pos, fstruct):
+        """
+        Called when we see the close brace -- checks for a slash feature,
+        and adds in default values.
+        """
+        # Add the slash feature (if any)
+        match = self._SLASH_RE.match(s, pos)
+        if match:
+            name = self._slash_feature
+            v, pos = self._read_value(name, s, match.end(), ())
+            fstruct[name] = v
+        return fstruct, pos
+
+def pair_checker(s, start = 0):
+    """
+    Return index of string, where count opened characters equal to count closed characters,
+    starting from position 'start'
+    """
+    pairs = {'(':')','[':']','{':'}'} #, '<':'>'
+    stack = []
+    start_group = start
+    for i, char in enumerate(s[start:], start):
+        if char in pairs:
+            if not stack:
+                start_group = i
+            stack.append(char)
+        elif char in pairs.values():
+            if stack:
+                pop = stack.pop()
+                if pairs[pop] == char:
+                    if not stack: #stack is empty, we got a whole group
+                        return start_group,i
+                else:
+                    raise ValueError("Unpaired character in: {}. Expected '{}', but get '{}' at position {}".format(s, pairs[pop], char, i))
+            # closed bracket without an open bracket before
+            else:
+                raise ValueError("Unpaired character in: {}. There is no open character for '{}' at position {}".format(s, char, i))
+    # Check on missed closed bracket
+    if stack:
+        raise ValueError("Unpaired character in: {}. Not found closed character for '{}'".format(s, stack.pop()))
+    return None
 
 ######################################################################
 #{ Demo
@@ -2459,6 +2726,19 @@ def interactive_demo(trace=False):
         print('\nType "Enter" to continue unifying; or "q" to quit.')
         input = sys.stdin.readline().strip()
         if input in ('q', 'Q', 'x', 'X'): return
+
+def calculate_collection_hash(fval, visited = list()):
+    hash_val = 7
+    if isinstance(fval, FeatStruct):
+        hash_val += fval._calculate_hashvalue(visited)
+    elif isinstance(fval, tuple):
+        for item in fval:
+            hash_val += calculate_collection_hash(item)
+    elif isinstance(fval, dict):
+        hash_val+= hash(frozenset(fval.items()))
+    else:
+        hash_val += hash(fval)
+    return hash_val
 
 def demo(trace=False):
     """

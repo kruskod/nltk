@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2001-2015 NLTK Project
 # Author: Rob Speer <rspeer@mit.edu>
-#         Peter Ljunglöf <peter.ljunglof@heatherleaf.se>
+# Peter Ljunglöf <peter.ljunglof@heatherleaf.se>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
 
@@ -16,6 +16,7 @@ from __future__ import print_function, unicode_literals
 from nltk.compat import xrange, python_2_unicode_compatible
 from nltk.featstruct import FeatStruct, unify, TYPE, find_variables
 from nltk.sem import logic
+from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, PRODUCTION_ID_FEATURE
 from nltk.tree import Tree
 from nltk.grammar import (Nonterminal, Production, CFG,
                           FeatStructNonterminal, is_nonterminal,
@@ -25,8 +26,8 @@ from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               EmptyPredictRule, BottomUpPredictRule,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
-                              CachedTopDownPredictRule,
-                              TopDownInitRule)
+                              TopDownPredictRule,
+                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule, PGLeafInitRule)
 
 #////////////////////////////////////////////////////////////
 # Tree Edge
@@ -45,6 +46,7 @@ class FeatureTreeEdge(TreeEdge):
     every nonterminal in the edge whose symbol implements the
     interface ``SubstituteBindingsI``.
     """
+
     def __init__(self, span, lhs, rhs, dot=0, bindings=None):
         """
         Construct a new edge.  If the edge is incomplete (i.e., if
@@ -96,7 +98,7 @@ class FeatureTreeEdge(TreeEdge):
         """
         return FeatureTreeEdge(span=(self._span[0], new_end),
                                lhs=self._lhs, rhs=self._rhs,
-                               dot=self._dot+1, bindings=bindings)
+                               dot=self._dot + 1, bindings=bindings)
 
     def _bind(self, nt, bindings):
         if not isinstance(nt, FeatStructNonterminal): return nt
@@ -126,7 +128,7 @@ class FeatureTreeEdge(TreeEdge):
             return TreeEdge.__unicode__(self)
         else:
             bindings = '{%s}' % ', '.join('%s: %r' % item for item in
-                                           sorted(self._bindings.items()))
+                                          sorted(self._bindings.items()))
             return '%s %s' % (TreeEdge.__unicode__(self), bindings)
 
 
@@ -149,7 +151,7 @@ class FeatureChart(Chart):
         ``restrictions`` on the edges.
         """
         # If there are no restrictions, then return all edges.
-        if restrictions=={}: return iter(self._edges)
+        if restrictions == {}: return iter(self._edges)
 
         # Find the index corresponding to the given restrictions.
         restr_keys = sorted(restrictions.keys())
@@ -205,9 +207,9 @@ class FeatureChart(Chart):
     def parses(self, start, tree_class=Tree):
         for edge in self.select(start=0, end=self._num_leaves):
             if ((isinstance(edge, FeatureTreeEdge)) and
-                (edge.lhs()[TYPE] == start[TYPE]) and
-                (unify(edge.lhs(), start, rename_vars=True)) 
-                ):
+                    (edge.lhs()[TYPE] == start[TYPE]) and
+                    (unify(edge.lhs(), start, rename_vars=True))
+            ):
                 for tree in self.trees(edge, complete=True, tree_class=tree_class):
                     yield tree
 
@@ -237,12 +239,13 @@ class FeatureFundamentalRule(FundamentalRule):
 
     assuming that B1 and B2 can be unified to generate B3.
     """
+
     def apply(self, chart, grammar, left_edge, right_edge):
         # Make sure the rule is applicable.
         if not (left_edge.end() == right_edge.start() and
-                left_edge.is_incomplete() and
-                right_edge.is_complete() and
-                isinstance(left_edge, FeatureTreeEdge)):
+                    #left_edge.is_incomplete() and
+                    right_edge.is_complete() and
+                    isinstance(left_edge, FeatureTreeEdge)):
             return
         found = right_edge.lhs()
         nextsym = left_edge.nextsym()
@@ -269,6 +272,7 @@ class FeatureFundamentalRule(FundamentalRule):
         # Add it to the chart, with appropriate child pointers.
         if chart.insert_with_backpointer(new_edge, left_edge, right_edge):
             yield new_edge
+
 
 class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
     """
@@ -307,7 +311,54 @@ class FeatureTopDownInitRule(TopDownInitRule):
             if chart.insert(new_edge, ()):
                 yield new_edge
 
-class FeatureTopDownPredictRule(CachedTopDownPredictRule):
+
+class FeatureTopDownPredictRule(AbstractChartRule):
+    """
+    A rule licensing edges corresponding to the grammar productions
+    for the nonterminal following an incomplete edge's dot.  In
+    particular, this rule specifies that
+    ``[A -> alpha \* B beta][i:j]`` licenses the edge
+    ``[B -> \* gamma][j:j]`` for each grammar production ``B -> gamma``.
+
+    :note: This rule corresponds to the Predictor Rule in Earley parsing.
+    """
+    NUM_EDGES = 1
+
+    def apply(self, chart, grammar, edge):
+        if edge.is_complete(): return
+        for prod in grammar.productions(lhs=edge.nextsym()):
+            new_edge = FeatureTreeEdge.from_production(prod, edge.end())
+            if chart.insert(new_edge, ()):
+                yield new_edge
+
+class PGFeatureTopDownPredictRule(AbstractChartRule):
+    """
+    A rule licensing edges corresponding to the grammar productions
+    for the nonterminal following an incomplete edge's dot.  In
+    particular, this rule specifies that
+    ``[A -> alpha \* B beta][i:j]`` licenses the edge
+    ``[B -> \* gamma][j:j]`` for each grammar production ``B -> gamma``.
+
+    :note: This rule corresponds to the Predictor Rule in Earley parsing.
+    """
+    NUM_EDGES = 1
+    FACULTATIVE_PARAM = "branch"
+    FACULTATIVE_VAL = "facultative"
+
+    def apply(self, chart, grammar, edge):
+        if edge.is_complete(): return
+        lhs=edge.nextsym()
+        for prod in grammar.productions(lhs):
+            new_edge = FeatureTreeEdge.from_production(prod, edge.end())
+            if chart.insert(new_edge, ()):
+                yield new_edge
+        #branch=facultative logic
+        if is_nonterminal(lhs) and lhs.get(self.FACULTATIVE_PARAM) == self.FACULTATIVE_VAL:
+            new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=edge.bindings())
+            if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+                yield new_edge
+
+class FeatureCachedTopDownPredictRule(CachedTopDownPredictRule):
     """
     A specialized version of the (cached) top down predict rule that operates
     on nonterminals whose symbols are ``FeatStructNonterminal``s.  Rather
@@ -325,6 +376,7 @@ class FeatureTopDownPredictRule(CachedTopDownPredictRule):
     for each grammar production ``B2 -> gamma``, assuming that B1
     and B2 can be unified.
     """
+
     def apply(self, chart, grammar, edge):
         if edge.is_complete(): return
         nextsym, index = edge.nextsym(), edge.end()
@@ -374,6 +426,7 @@ class FeatureBottomUpPredictRule(BottomUpPredictRule):
             if chart.insert(new_edge, ()):
                 yield new_edge
 
+
 class FeatureBottomUpPredictCombineRule(BottomUpPredictCombineRule):
     def apply(self, chart, grammar, edge):
         if edge.is_incomplete(): return
@@ -398,6 +451,7 @@ class FeatureBottomUpPredictCombineRule(BottomUpPredictCombineRule):
             if chart.insert(new_edge, (edge,)):
                 yield new_edge
 
+
 class FeatureEmptyPredictRule(EmptyPredictRule):
     def apply(self, chart, grammar):
         for prod in grammar.productions(empty=True):
@@ -411,9 +465,9 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 # Feature Chart Parser
 #////////////////////////////////////////////////////////////
 
-TD_FEATURE_STRATEGY = [LeafInitRule(),
+TD_FEATURE_STRATEGY = [PGLeafInitRule(),
                        FeatureTopDownInitRule(),
-                       FeatureTopDownPredictRule(),
+                       PGFeatureTopDownPredictRule(),
                        FeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
@@ -424,9 +478,10 @@ BU_LC_FEATURE_STRATEGY = [LeafInitRule(),
                           FeatureBottomUpPredictCombineRule(),
                           FeatureSingleEdgeFundamentalRule()]
 
+
 class FeatureChartParser(ChartParser):
     def __init__(self, grammar,
-                 strategy=BU_LC_FEATURE_STRATEGY,
+                 strategy=TD_FEATURE_STRATEGY,
                  trace_chart_width=20,
                  chart_class=FeatureChart,
                  **parser_args):
@@ -436,13 +491,16 @@ class FeatureChartParser(ChartParser):
                              chart_class=chart_class,
                              **parser_args)
 
+
 class FeatureTopDownChartParser(FeatureChartParser):
     def __init__(self, grammar, **parser_args):
         FeatureChartParser.__init__(self, grammar, TD_FEATURE_STRATEGY, **parser_args)
 
+
 class FeatureBottomUpChartParser(FeatureChartParser):
     def __init__(self, grammar, **parser_args):
         FeatureChartParser.__init__(self, grammar, BU_FEATURE_STRATEGY, **parser_args)
+
 
 class FeatureBottomUpLeftCornerChartParser(FeatureChartParser):
     def __init__(self, grammar, **parser_args):
@@ -461,6 +519,7 @@ class InstantiateVarsChart(FeatureChart):
     variables in the edge's ``lhs`` whose names start with '@' will be
     replaced by unique new ``Variable``s.
     """
+
     def __init__(self, tokens):
         FeatureChart.__init__(self, tokens)
 
@@ -510,6 +569,7 @@ class InstantiateVarsChart(FeatureChart):
 
 def demo_grammar():
     from nltk.grammar import FeatureGrammar
+
     return FeatureGrammar.fromstring("""
 S  -> NP VP
 PP -> Prep NP
@@ -531,12 +591,14 @@ Prep -> "with"
 Prep -> "under"
 """)
 
+
 def demo(print_times=True, print_grammar=True,
          print_trees=True, print_sentence=True,
          trace=1,
          parser=FeatureChartParser,
          sent='I saw John with a dog with my cookie'):
     import sys, time
+
     print()
     grammar = demo_grammar()
     if print_grammar:
@@ -557,22 +619,141 @@ def demo(print_times=True, print_grammar=True,
     else:
         print("Nr trees:", len(trees))
 
+
 def run_profile():
     import profile
+
     profile.run('for i in range(1): demo()', '/tmp/profile.out')
     import pstats
+
     p = pstats.Stats('/tmp/profile.out')
     p.strip_dirs().sort_stats('time', 'cum').print_stats(60)
     p.strip_dirs().sort_stats('cum', 'time').print_stats(60)
 
-if __name__ == '__main__':
-    from nltk.data import load
-    demo()
-    print()
-    grammar = load('grammars/book_grammars/feat0.fcfg')
-    cp = FeatureChartParser(grammar, trace=2)
-    sent = 'Kim likes children'
-    tokens = sent.split()
+def celex_preprocessing(file_name):
+    from nltk.featstruct import pair_checker
+    _CELEX_SEPARATOR = "|-"
+    _PRODUCTION_SEPARATOR = " -> "
+    with open(file_name, encoding='utf-8') as file:
+        line_num = 0
+        for line in file:
+            line = line.rstrip()
+            if line and not line.startswith('#'):
+                if _CELEX_SEPARATOR in line:
+                    tree, postProduction = line.split(_CELEX_SEPARATOR)
+                    postProduction = postProduction.strip()
+                    group = pair_checker(tree)
+                    if (group):
+                        start_group, end_group = group
+                        s = tree[start_group+1:end_group]
+                        group = pair_checker(s)
+                        if (group):
+                            start_group, end_group = group
+                            production = []
+                            production.append( s[:start_group].strip() )
+                            while(group):
+                                start_group, end_group = group
+                                # Inside this group: mod (ADVP [branch=facultative])
+                                # we take first member as feature and collect a second member as nonterminal
+                                start_nonterminal, end_nonterminal = pair_checker(s, start_group + 1)
+                                grammatical_function = s[start_group +1:start_nonterminal].strip()
+                                nonterminal = s[start_nonterminal + 1: end_nonterminal].strip()
+                                index = len(nonterminal)
+                                insert = GRAM_FUNC_FEATURE + '=' + grammatical_function
+                                # check if there are any features
+                                try:
+                                    feat_block = pair_checker(s, start_nonterminal + 1)
+                                except ValueError:
+                                    insert = '[' + insert + ']'
+                                else:
+                                    if feat_block:
+                                        index -= 1
+                                        if s[feat_block[0] + 1:feat_block[1]].strip(): # if feature block is not empty
+                                            insert = ',' + insert
+                                    else:
+                                        insert = '[' + insert + ']'
+                                finally:
+                                    nonterminal = nonterminal[:index] + insert + nonterminal[index:]
+
+                                if 'hd' == grammatical_function:
+                                    nonterminal = nonterminal[:-1] + ',' + PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction + nonterminal[-1:]
+                                    yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
+                                production.append(nonterminal)
+                                group = pair_checker(s, end_group + 1)
+                    yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
+                else:
+                    yield line
+            line_num += 1
+
+def pg_demo():
+    """
+    Demo for Performance Grammar FeatureChart
+    """
+
+    import time
+    import pickle
+    from nltk.data import _open, load
+    from nltk.featstruct import CelexFeatStructReader, pair_checker
+    from nltk.grammar import FeatureGrammar
+    from nltk.parse.earleychart import wordPresenceVerifier
+
+    #sentence = 'Hans sieht'
+    sentence = 'sehe ich'
+    t = time.clock()
+    #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
+    #grammar = load('../../examples/grammars/book_grammars/test.fcfg')
+    #grammar = load('../../fsa/lexframetree.fcfg')
+
+    # #opened_resource = _open('../../examples/grammars/book_grammars/test.fcfg')
+    # opened_resource = _open('../../fsa/lexfootexport.fcfg')
+    # #opened_resource = _open('../../examples/grammars/book_grammars/pg_german.fcfg')
+    # binary_data = opened_resource.read()
+    # string_data = binary_data.decode('utf-8')
+    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    #grammar = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/pg_german.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+
+    # lexical_productions = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar(grammar_productions.start(), grammar_productions.productions())
+    #
+    # with open('../../fsa/celex.pickle', 'wb') as f:
+    #     pickle.dump(productions, f, pickle.HIGHEST_PROTOCOL)
+    # #print(resource_val)
+    #productions = []
+
+    # with open('../../fsa/celex.pickle', 'rb') as f:
+    #     productions = pickle.load(f)
+    # print("Execution time: ", (time.clock() - t))
+    # tokens = sent.split()
+    # # for comb in itertools.permutations(tokens):
+    #print(productions)
+    cp = FeatureTopDownChartParser(productions, trace=1)
+    tokens = sentence.split()
     trees = cp.parse(tokens)
+
+    verifier = wordPresenceVerifier(tokens)
+    dominance_structures = []
+    count_trees = 0
     for tree in trees:
-        print(tree)
+        count_trees += 1
+        ver_result = verifier(tree)
+        if ver_result:
+            dominance_structures.append(tree)
+        else:
+            print(tree)
+            print("Word presence verification result: {}\n".format(ver_result))
+
+    if dominance_structures:
+        print("####################################################")
+        print("Dominance structures:")
+        for tree in dominance_structures:
+            print(tree)
+
+    print("Nr trees:", count_trees)
+    print("Nr Dominance structures:", len(dominance_structures))
+    print("Time:", t)
+    #print("Execution time: ", (time.clock() - t))
+
+if __name__ == '__main__':
+    pg_demo()

@@ -26,9 +26,11 @@ The main parser class is ``EarleyChartParser``, which is a top-down
 algorithm, originally formulated by Jay Earley (1970).
 """
 from __future__ import print_function, division
+from collections import Counter
 
 from nltk.compat import xrange
-from nltk.parse.chart import (Chart, ChartParser, EdgeI, LeafEdge, LeafInitRule,
+from nltk.grammar import is_nonterminal
+from nltk.parse.chart import (Chart, ChartParser, EdgeI, LeafEdge, LeafInitRule, PGLeafInitRule,
                               BottomUpPredictRule, BottomUpPredictCombineRule,
                               TopDownInitRule, SingleEdgeFundamentalRule,
                               EmptyPredictRule,
@@ -41,7 +43,7 @@ from nltk.parse.featurechart import (FeatureChart, FeatureChartParser,
                                      FeatureEmptyPredictRule,
                                      FeatureBottomUpPredictRule,
                                      FeatureBottomUpPredictCombineRule,
-                                     FeatureSingleEdgeFundamentalRule)
+                                     FeatureSingleEdgeFundamentalRule, PGFeatureTopDownPredictRule)
 
 #////////////////////////////////////////////////////////////
 # Incremental Chart
@@ -202,12 +204,18 @@ class FilteredCompleteFundamentalRule(FilteredSingleEdgeFundamentalRule):
 class FeatureCompleteFundamentalRule(FeatureSingleEdgeFundamentalRule):
     def _apply_incomplete(self, chart, grammar, left_edge):
         fr = self._fundamental_rule
+        lhs=left_edge.nextsym()
+        # if is_nonterminal(lhs) and lhs.has_key("branch") and lhs.get("branch") == "facultative":
+        #     #is_complete = False
+        #     left_edge = left_edge.move_dot_forward(new_end=left_edge.end())
+        #     lhs=left_edge.nextsym()
+            #self._apply_incomplete(chart,grammar,  left_edge.move_dot_forward(new_end=left_edge.end()))
+            #new_lhs = lhs.move_dot_forward(new_end=edge.end())
         end = left_edge.end()
-        # When the chart is incremental, we only have to look for
-        # empty complete edges here.
+
         for right_edge in chart.select(start=end, end=end,
                                        is_complete=True,
-                                       lhs=left_edge.nextsym()):
+                                       lhs=lhs):
             for new_edge in fr.apply(chart, grammar, left_edge, right_edge):
                 yield new_edge
 
@@ -324,6 +332,8 @@ class IncrementalChartParser(ChartParser):
                 for rule in inference_rules:
                     new_edges = list(rule.apply(chart, grammar, edge))
                     trace_new_edges(chart, rule, new_edges, trace, trace_edge_width)
+                    if isinstance(rule, FeatureScannerRule):
+                        print(new_edges)
                     for new_edge in new_edges:
                         if new_edge.end()==end:
                             agenda.append(new_edge)
@@ -363,9 +373,9 @@ EARLEY_FEATURE_STRATEGY = [LeafInitRule(),
                            FeatureCompleterRule(),
                            FeatureScannerRule(),
                            FeaturePredictorRule()]
-TD_INCREMENTAL_FEATURE_STRATEGY = [LeafInitRule(),
+TD_INCREMENTAL_FEATURE_STRATEGY = [PGLeafInitRule(),
                                    FeatureTopDownInitRule(),
-                                   FeatureTopDownPredictRule(),
+                                   PGFeatureTopDownPredictRule(),
                                    FeatureCompleteFundamentalRule()]
 BU_INCREMENTAL_FEATURE_STRATEGY = [LeafInitRule(),
                                    FeatureEmptyPredictRule(),
@@ -405,21 +415,29 @@ class FeatureIncrementalBottomUpLeftCornerChartParser(FeatureIncrementalChartPar
         FeatureIncrementalChartParser.__init__(self, grammar, BU_LC_INCREMENTAL_FEATURE_STRATEGY, **parser_args)
 
 
+def wordOrderVerifier(tokens):
+    return lambda x: tokens == x.leaves()
+
+def wordPresenceVerifier(tokens):
+    sort_inp = sorted(tokens)
+    return lambda x: sort_inp == sorted(x.leaves())
+
+
 #////////////////////////////////////////////////////////////
 # Demonstration
 #////////////////////////////////////////////////////////////
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='I saw John with a dog with my cookie', numparses=5):
+         sent='Hans sieht schnell', numparses=0):
     """
     A demonstration of the Earley parsers.
     """
-    import sys, time
-    from nltk.parse.chart import demo_grammar
-
+    import time
     # The grammar for ChartParser and SteppingChartParser:
-    grammar = demo_grammar()
+    from nltk.data import load
+
+    grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     if print_grammar:
         print("* Grammar")
         print(grammar)
@@ -432,7 +450,7 @@ def demo(print_times=True, print_grammar=False,
     print()
 
     # Do the parsing.
-    earley = EarleyChartParser(grammar, trace=trace)
+    earley = FeatureIncrementalTopDownChartParser(grammar, trace=trace)
     t = time.clock()
     chart = earley.chart_parse(tokens)
     parses = list(chart.parses(grammar.start()))
@@ -441,9 +459,27 @@ def demo(print_times=True, print_grammar=False,
     # Print results.
     if numparses:
         assert len(parses)==numparses, 'Not all parses found'
+
+    verifier = wordPresenceVerifier(tokens)
+    dominance_structures = []
+    #verifier = wordPresenceVerifier
+
+    for tree in parses:
+
+        ver_result = verifier(tree)
+        if ver_result:
+            dominance_structures.append(tree)
+        else:
+            print(tree)
+            print("Word presence verification result: {}\n".format(ver_result))
+
+    if dominance_structures:
+        print("####################################################")
+        print("Dominance structures:")
+        for tree in dominance_structures:
+            print(tree)
+
     if print_trees:
-        for tree in parses: print(tree)
-    else:
         print("Nr trees:", len(parses))
     if print_times:
         print("Time:", t)
