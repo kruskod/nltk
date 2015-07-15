@@ -23,3 +23,4 @@ S1[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=
 S6[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=present] OR [mood=subjunctive, number=singular, person=3rd, status=Fin, tense=present]] -> "sehe"
 S41[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=present] OR [mood=subjunctive, number=singular, person=3rd, status=Fin, tense=present]] -> "sehe"
 S41[mood=indicative, number=singular, person=3rd, status=Fin, tense=present] -> "sieht"
+
