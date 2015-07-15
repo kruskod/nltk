@@ -353,7 +353,6 @@ class Production(object):
         """
         return self._hash
 
-
 @python_2_unicode_compatible
 class DependencyProduction(Production):
     """
@@ -1165,7 +1164,7 @@ _PROBABILITY_RE = re.compile(r'( \[ [\d\.]+ \] ) \s*', re.VERBOSE)
 _TERMINAL_RE = re.compile(r'( "[^"]+" | \'[^\']+\' ) \s*', re.VERBOSE)
 _DISJUNCTION_RE = re.compile(r'\| \s*', re.VERBOSE)
 
-def _read_production(line, nonterm_parser, probabilistic=False):
+def  _read_production(line, nonterm_parser, probabilistic=False):
     """
     Parse a grammar rule, given as a string, and return
     a list of productions.
@@ -1218,7 +1217,6 @@ def _read_production(line, nonterm_parser, probabilistic=False):
                 for (rhs, probability) in zip(rhsides, probabilities)]
     else:
         return [Production(lhs, rhs) for rhs in rhsides]
-
 
 #################################################################
 # Reading Phrase Structure Grammars
@@ -1513,4 +1511,3 @@ __all__ = ['Nonterminal', 'nonterminals',
 	   'DependencyGrammar', 'DependencyProduction',
            'ProbabilisticDependencyGrammar',
 	   'induce_pcfg', 'read_grammar']
-

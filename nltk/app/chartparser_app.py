@@ -50,8 +50,11 @@ from nltk.parse.chart import (BottomUpPredictCombineRule, BottomUpPredictRule,
                               Chart, LeafEdge, LeafInitRule, SingleEdgeFundamentalRule,
                               SteppingChartParser, TopDownInitRule, TopDownPredictRule,
                               TreeEdge)
+from nltk.parse.featurechart import FeatureTopDownInitRule, FeatureSingleEdgeFundamentalRule, FeatureChartParser, \
+    FeatureChart
+from nltk.parse.featurechart import FeatureTopDownPredictRule
 from nltk.tree import Tree
-from nltk.grammar import Nonterminal, CFG
+from nltk.grammar import Nonterminal, CFG, FeatureGrammar
 from nltk.util import in_idle
 from nltk.draw.util import (CanvasFrame, ColorizedList,
                             EntryDialog, MutableOptionMenu,
@@ -1609,6 +1612,8 @@ class EdgeRule(object):
         super = self.__class__.__bases__[1]
         return super.__str__(self)
 
+class FeatureTopDownPredictEdgeRule(EdgeRule, FeatureTopDownPredictRule):
+    pass
 class TopDownPredictEdgeRule(EdgeRule, TopDownPredictRule):
     pass
 class BottomUpEdgeRule(EdgeRule, BottomUpPredictRule):
@@ -1617,6 +1622,7 @@ class BottomUpLeftCornerEdgeRule(EdgeRule, BottomUpPredictCombineRule):
     pass
 class FundamentalEdgeRule(EdgeRule, SingleEdgeFundamentalRule):
     pass
+
 
 #######################################################################
 # Chart Parser Application
@@ -1685,7 +1691,7 @@ class ChartParserApp(object):
         self._reset_parser()
 
     def _reset_parser(self):
-        self._cp = SteppingChartParser(self._grammar)
+        self._cp = SteppingChartParser(self._grammar, chart_class=FeatureChart, trace=1)
         self._cp.initialize(self._tokens)
         self._chart = self._cp.chart()
 
@@ -1716,7 +1722,7 @@ class ChartParserApp(object):
     def _init_animation(self):
         # Are we stepping? (default=yes)
         self._step = tkinter.IntVar(self._root)
-        self._step.set(1)
+        self._step.set(0) #Change to 1 to enable stepping by default
 
         # What's our animation speed (default=fast)
         self._animate = tkinter.IntVar(self._root)
@@ -2208,6 +2214,9 @@ class ChartParserApp(object):
 
     # Complete strategies:
     _TD_STRATEGY =  _TD_INIT + _TD_PREDICT + _FUNDAMENTAL
+    _TD_FEATURE_STRATEGY = [FeatureTopDownInitRule(),
+                       FeatureTopDownPredictRule(),
+                       FeatureSingleEdgeFundamentalRule()]
     _BU_STRATEGY = _BU_RULE + _FUNDAMENTAL
     _BU_LC_STRATEGY = _BU_LC_RULE + _FUNDAMENTAL
 
@@ -2227,25 +2236,28 @@ class ChartParserApp(object):
     def bottom_up_leftcorner_strategy(self, *e):
         self.apply_strategy(self._BU_LC_STRATEGY, BottomUpLeftCornerEdgeRule)
     def top_down_strategy(self, *e):
-        self.apply_strategy(self._TD_STRATEGY, TopDownPredictEdgeRule)
+        self.apply_strategy(self._TD_FEATURE_STRATEGY, FeatureTopDownPredictEdgeRule)
 
 def app():
     grammar = CFG.fromstring("""
     # Grammatical productions.
-        S -> NP VP
-        VP -> VP PP | V NP | V
+        S -> NP V NP |  NP V  |NP V CMP | NP V NP CMP | S CONJ S
+        CMP -> S
         NP -> Det N | NP PP
         PP -> P NP
     # Lexical productions.
-        NP -> 'John' | 'I'
-        Det -> 'the' | 'my' | 'a'
-        N -> 'dog' | 'cookie' | 'table' | 'cake' | 'fork'
-        V -> 'ate' | 'saw'
+        NP -> 'Märkte' | 'Monopole' | 'Kartelle'
+        Det -> 'der' | 'die' | 'das'
+        N -> 'Markt'
+        CONJ -> 'und'
+        V -> 'müssen' | 'muss' |'getrennt' | 'zerschlagen' | 'werden' | 'kann' |'akzeptieren'
         P -> 'on' | 'under' | 'with'
     """)
 
-    sent = 'John ate the cake on the table with a fork'
-    sent = 'John ate the cake on the table'
+    # NP -> epsilon regel. Chartparser can't draw it
+
+    # sent = 'John ate the cake on the table with a fork'
+    sent = 'der Markt muss Monopole zerschlagen und kann Kartelle akzeptieren'
     tokens = list(sent.split())
 
     print('grammar= (')
@@ -2256,21 +2268,21 @@ def app():
     print('Calling "ChartParserApp(grammar, tokens)"...')
     ChartParserApp(grammar, tokens).mainloop()
 
+def pg_app():
+
+    from nltk.data import load
+    grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
+    print('grammar= (')
+    for rule in grammar.productions():
+        print(('   ', repr(rule)+','))
+    print(')')
+    sent = 'Hans sieht der Mann'
+    tokens = list(sent.split())
+    print(('tokens = %r' % tokens))
+    print('Calling "ChartParserApp(grammar, tokens)"...')
+    ChartParserApp(grammar, tokens).mainloop()
+
 if __name__ == '__main__':
-    app()
-
-    # Chart comparer:
-    #charts = ['/tmp/earley.pickle',
-    #          '/tmp/topdown.pickle',
-    #          '/tmp/bottomup.pickle']
-    #ChartComparer(*charts).mainloop()
-
-    #import profile
-    #profile.run('demo2()', '/tmp/profile.out')
-    #import pstats
-    #p = pstats.Stats('/tmp/profile.out')
-    #p.strip_dirs().sort_stats('time', 'cum').print_stats(60)
-    #p.strip_dirs().sort_stats('cum', 'time').print_stats(60)
+    pg_app()
 
 __all__ = ['app']
-
