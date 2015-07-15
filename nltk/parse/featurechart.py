@@ -18,15 +18,13 @@ from nltk.featstruct import FeatStruct, unify, TYPE, find_variables
 from nltk.sem import logic
 from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, PRODUCTION_ID_FEATURE
 from nltk.tree import Tree
-from nltk.grammar import (Nonterminal, Production, CFG,
-                          FeatStructNonterminal, is_nonterminal,
+from nltk.grammar import (FeatStructNonterminal, is_nonterminal,
                           is_terminal)
 from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               FundamentalRule, LeafInitRule,
                               EmptyPredictRule, BottomUpPredictRule,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
-                              TopDownPredictRule,
                               TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule, PGLeafInitRule)
 
 #////////////////////////////////////////////////////////////
@@ -597,7 +595,7 @@ def demo(print_times=True, print_grammar=True,
          trace=1,
          parser=FeatureChartParser,
          sent='I saw John with a dog with my cookie'):
-    import sys, time
+    import time
 
     print()
     grammar = demo_grammar()
@@ -691,9 +689,7 @@ def pg_demo():
     """
 
     import time
-    import pickle
-    from nltk.data import _open, load
-    from nltk.featstruct import CelexFeatStructReader, pair_checker
+    from nltk.featstruct import CelexFeatStructReader
     from nltk.grammar import FeatureGrammar
     from nltk.parse.earleychart import wordPresenceVerifier
 
