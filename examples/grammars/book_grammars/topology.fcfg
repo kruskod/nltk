@@ -1,0 +1,15 @@
+TOPOLOGY NP
+ TAG np;
+ NP1 : det: <DP OR NP OR QP>;
+ NP2 : mod: ADJP;
+ NP3!: hd: n, hd: rel.pro, hd: dem.pro, hd: pers.pro;
+ NP4 : mod: PP, mod: S IF mod: S[topo=subrel] IN NP4
+END
+
+=>
+
+NP[] -> NP1 (det (DP OR NP OR QP)) NP2(mod (ADJP)) NP3!( hd (n or rel.pro or dem.pro or pers.pro) NP4 (mod (PP or S IF mod (S[topo = subrel] IN NP4))))
+
+=>
+
+#S -> (NP[CASE='nom'] (N[CASE='nom', GND='masc', NUM='sg', PER=3] Hans)) (V[NUM='sg', PER=3, VAL='macc'] sieht) (ADVP[GF='ADVP'] (ADV[] schnell))

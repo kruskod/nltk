@@ -103,6 +103,7 @@ from nltk.compat import (string_types, integer_types, total_ordering,
 # Feature Structure
 ######################################################################
 
+
 @total_ordering
 class FeatStruct(SubstituteBindingsI):
     """
@@ -1302,6 +1303,9 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     """
     # Decide which class(es) will be treated as feature structures,
     # for the purposes of unification.
+    from nltk.topology.topology import simplify_expression
+
+
     if fs_class == 'default':
         fs_class = _default_fs_class(fstruct1)
         if _default_fs_class(fstruct2) != fs_class:
@@ -1319,29 +1323,76 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     # reentrance links between fstruct1 and fstruct2.  Copy bindings
     # as well, in case there are any bound vars that contain parts
     # of fstruct1 or fstruct2.
-    (fstruct1copy, fstruct2copy, bindings_copy) = (
-        copy.deepcopy((fstruct1, fstruct2, bindings)))
-
-    # Copy the bindings back to the original bindings dict.
-    bindings.update(bindings_copy)
-
-    if rename_vars:
-        vars1 = find_variables(fstruct1copy, fs_class)
-        vars2 = find_variables(fstruct2copy, fs_class)
-        _rename_variables(fstruct2copy, vars1, vars2, {}, fs_class, set())
-
-    # Do the actual unification.  If it fails, return None.
+    result = None
     forward = {}
-    if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
-    try: result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
-                                       forward, trace, fail, fs_class, ())
-    except _UnificationFailureError: return None
+
+    if EXPRESSION in fstruct1 or EXPRESSION in fstruct2:
+        fstructs1 = []
+        fstructs2 = []
+        if EXPRESSION in fstruct1:
+            for ex in simplify_expression(fstruct1[EXPRESSION]):
+                fstructcopy = copy.deepcopy(fstruct1)
+                del fstructcopy[EXPRESSION]
+                fstructcopy.update(ex)
+                fstructs1.append(fstructcopy)
+        else:
+            fstructs1.append(copy.deepcopy(fstruct1))
+
+        if EXPRESSION in fstruct2:
+            for ex in simplify_expression(fstruct2[EXPRESSION]):
+                fstructcopy = copy.deepcopy(fstruct2)
+                del fstructcopy[EXPRESSION]
+                fstructcopy.update(ex)
+                fstructs2.append(fstructcopy)
+        else:
+            fstructs2.append(copy.deepcopy(fstruct2))
+
+        #go before first match
+        for fs1 in fstructs1:
+            for fs2 in fstructs2:
+                bindings_copy = copy.deepcopy(bindings)
+                if rename_vars:
+                    vars1 = find_variables(fs1, fs_class)
+                    vars2 = find_variables(fs2, fs_class)
+                    _rename_variables(fs2, vars1, vars2, {}, fs_class, set())
+
+                # Do the actual unification.  If it fails, return None.
+                forward = {}
+                if trace: _trace_unify_start((), fs1, fs2)
+                try:
+                    result = _destructively_unify(fs1, fs2, bindings_copy, forward, trace, fail, fs_class, ())
+                    if result is not UnificationFailure:
+                        bindings.update(bindings_copy)
+                        break
+                except _UnificationFailureError:
+
+                     pass
+    else:
+        (fstruct1copy, fstruct2copy, bindings_copy) = (
+            copy.deepcopy((fstruct1, fstruct2, bindings)))
+
+        # Copy the bindings back to the original bindings dict.
+        bindings.update(bindings_copy)
+
+        if rename_vars:
+            vars1 = find_variables(fstruct1copy, fs_class)
+            vars2 = find_variables(fstruct2copy, fs_class)
+            _rename_variables(fstruct2copy, vars1, vars2, {}, fs_class, set())
+
+        # Do the actual unification.  If it fails, return None.
+        if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
+        try: result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
+                                           forward, trace, fail, fs_class, ())
+        except _UnificationFailureError: return None
 
     # _destructively_unify might return UnificationFailure, e.g. if we
     # tried to unify a mapping with a sequence.
-    if result is UnificationFailure:
-        if fail is None: return None
-        else: return fail(fstruct1copy, fstruct2copy, ())
+        if result is UnificationFailure:
+            if fail is None: return None
+            else: return fail(fstruct1copy, fstruct2copy, ())
+
+    if not result:
+        return None
 
     # Replace any feature structure that has a forward pointer
     # with the target of its forward pointer.
@@ -2358,12 +2409,13 @@ class CelexFeatStructReader(FeatStructReader):
             self._error(s, 'end of string', position)
         return value
 
-    _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?(\??[a-zA-Z-\.]+\d*)?\s*(?P<close_bracket>\[)')
+    _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?(\??[a-zA-Z-_\.]+\d*)?\s*(?P<close_bracket>\[)')
 
 
     _FEATURE_CLOSE = re.compile("\[[^\[\]]*?\]")
     _READ_SYM_VALUE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
 
+    # TODO: the left part of the expression should also have features
 
 
     def __init__(self, *args, **kwargs):

@@ -422,13 +422,14 @@ def wordPresenceVerifier(tokens):
     sort_inp = sorted(tokens)
     return lambda x: sort_inp == sorted(x.leaves())
 
+
 #////////////////////////////////////////////////////////////
 # Demonstration
 #////////////////////////////////////////////////////////////
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='Hans sieht den Mann', numparses=0):
+         sent='Hans sieht schnell', numparses=0):
     """
     A demonstration of the Earley parsers.
     """
@@ -455,21 +456,32 @@ def demo(print_times=True, print_grammar=False,
     parses = list(chart.parses(grammar.start()))
     t = time.clock()-t
 
-
     # Print results.
     if numparses:
         assert len(parses)==numparses, 'Not all parses found'
-    if print_trees:
-        verifier = wordPresenceVerifier(tokens)
-        #verifier = wordPresenceVerifier
-        for tree in parses:
-            print(tree)
-            print("Word presence verification result: {}\n".format(verifier(tree)))
 
-    else:
+    verifier = wordPresenceVerifier(tokens)
+    dominance_structures = []
+    #verifier = wordPresenceVerifier
+
+    for tree in parses:
+
+        ver_result = verifier(tree)
+        if ver_result:
+            dominance_structures.append(tree)
+        else:
+            print(tree)
+            print("Word presence verification result: {}\n".format(ver_result))
+
+    if dominance_structures:
+        print("####################################################")
+        print("Dominance structures:")
+        for tree in dominance_structures:
+            print(tree)
+
+    if print_trees:
         print("Nr trees:", len(parses))
     if print_times:
         print("Time:", t)
 
 if __name__ == '__main__': demo()
-

@@ -16,6 +16,7 @@ from __future__ import print_function, unicode_literals
 from nltk.compat import xrange, python_2_unicode_compatible
 from nltk.featstruct import FeatStruct, unify, TYPE, find_variables
 from nltk.sem import logic
+from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, PRODUCTION_ID_FEATURE
 from nltk.tree import Tree
 from nltk.grammar import (Nonterminal, Production, CFG,
                           FeatStructNonterminal, is_nonterminal,
@@ -26,7 +27,7 @@ from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
                               TopDownPredictRule,
-                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule)
+                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule, PGLeafInitRule)
 
 #////////////////////////////////////////////////////////////
 # Tree Edge
@@ -464,9 +465,9 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 # Feature Chart Parser
 #////////////////////////////////////////////////////////////
 
-TD_FEATURE_STRATEGY = [LeafInitRule(),
+TD_FEATURE_STRATEGY = [PGLeafInitRule(),
                        FeatureTopDownInitRule(),
-                       FeatureTopDownPredictRule(),
+                       PGFeatureTopDownPredictRule(),
                        FeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
@@ -634,11 +635,13 @@ def celex_preprocessing(file_name):
     _CELEX_SEPARATOR = "|-"
     _PRODUCTION_SEPARATOR = " -> "
     with open(file_name, encoding='utf-8') as file:
+        line_num = 0
         for line in file:
             line = line.rstrip()
-            if line:
+            if line and not line.startswith('#'):
                 if _CELEX_SEPARATOR in line:
                     tree, postProduction = line.split(_CELEX_SEPARATOR)
+                    postProduction = postProduction.strip()
                     group = pair_checker(tree)
                     if (group):
                         start_group, end_group = group
@@ -655,15 +658,32 @@ def celex_preprocessing(file_name):
                                 start_nonterminal, end_nonterminal = pair_checker(s, start_group + 1)
                                 grammatical_function = s[start_group +1:start_nonterminal].strip()
                                 nonterminal = s[start_nonterminal + 1: end_nonterminal].strip()
-                                index = len(nonterminal) - 1
-                                nonterminal = nonterminal[:index] + (",GramFunc=" + grammatical_function) + nonterminal[index:]
+                                index = len(nonterminal)
+                                insert = GRAM_FUNC_FEATURE + '=' + grammatical_function
+                                # check if there are any features
+                                try:
+                                    feat_block = pair_checker(s, start_nonterminal + 1)
+                                except ValueError:
+                                    insert = '[' + insert + ']'
+                                else:
+                                    if feat_block:
+                                        index -= 1
+                                        if s[feat_block[0] + 1:feat_block[1]].strip(): # if feature block is not empty
+                                            insert = ',' + insert
+                                    else:
+                                        insert = '[' + insert + ']'
+                                finally:
+                                    nonterminal = nonterminal[:index] + insert + nonterminal[index:]
+
                                 if 'hd' == grammatical_function:
-                                    yield nonterminal + _PRODUCTION_SEPARATOR + postProduction.strip()
+                                    nonterminal = nonterminal[:-1] + ',' + PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction + nonterminal[-1:]
+                                    yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
                                 production.append(nonterminal)
                                 group = pair_checker(s, end_group + 1)
                     yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
                 else:
                     yield line
+            line_num += 1
 
 def pg_demo():
     """
@@ -675,7 +695,9 @@ def pg_demo():
     from nltk.data import _open, load
     from nltk.featstruct import CelexFeatStructReader, pair_checker
     from nltk.grammar import FeatureGrammar
+    from nltk.parse.earleychart import wordPresenceVerifier
 
+    #sentence = 'Hans sieht'
     sentence = 'sehe ich'
     t = time.clock()
     #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
@@ -690,6 +712,8 @@ def pg_demo():
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     #grammar = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/pg_german.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+
     # lexical_productions = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     #productions = FeatureGrammar(grammar_productions.start(), grammar_productions.productions())
     #
@@ -705,9 +729,30 @@ def pg_demo():
     # # for comb in itertools.permutations(tokens):
     #print(productions)
     cp = FeatureTopDownChartParser(productions, trace=1)
-    trees = cp.parse(sentence.split())
+    tokens = sentence.split()
+    trees = cp.parse(tokens)
+
+    verifier = wordPresenceVerifier(tokens)
+    dominance_structures = []
+    count_trees = 0
     for tree in trees:
-        print(tree)
+        count_trees += 1
+        ver_result = verifier(tree)
+        if ver_result:
+            dominance_structures.append(tree)
+        else:
+            print(tree)
+            print("Word presence verification result: {}\n".format(ver_result))
+
+    if dominance_structures:
+        print("####################################################")
+        print("Dominance structures:")
+        for tree in dominance_structures:
+            print(tree)
+
+    print("Nr trees:", count_trees)
+    print("Nr Dominance structures:", len(dominance_structures))
+    print("Time:", t)
     #print("Execution time: ", (time.clock() - t))
 
 if __name__ == '__main__':

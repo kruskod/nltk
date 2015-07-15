@@ -1,0 +1,125 @@
+// Terminals without a topology do not get affected. Processing does not descend either, so a relative clause in an NP is left untouched when there is no topology for NPs. Currently there are no topologies for PINF, CP, DP, AP and ADVP.
+// Tags should be ignored for wh-constituents, and a different one might be useful for relative pronouns
+
+ON S: F1: cmp: S  REQUIRED SHARE F1, E2 TAG S_F1_Cmp_S; // This rule blocks objects in the complement's F1 and moves deeper complements to the back
+ON S: M5: cmp: S[status=Infin|status=PastP]  REQUIRED SHARE F1, M2b, M2c, M4a, M4b, M4c, E1, E2 TAG S_M5_Cmp_Sinfin;
+ON S: M5: cmp: S[status=PInfin]  REQUIRED SHARE F1 TAG S_M5_Cmp_Spinfin;
+ON S: E1: cmp: S[status=Infin|status=PastP] REQUIRED SHARE F1, M2b, M2c, M4a, M4b, M4c, E1, E2 TAG S_E1_Cmp_Sinfin;
+ON S: E2: cmp: S REQUIRED SHARE F1 TAG S_E2_Cmp_S;
+
+ERROR TAG modf0 "Modifier before F1";
+ERROR TOPOLOGY subv2 "Subordinate clause with verb in second position";
+
+TOPOLOGY S[(status=Fin|status=Infin/Fin/PInfin),mood!=imperative] // Main order: SVO, OVS, VSO
+ TAG main;
+ F0  : mod: PP OR ADVP IF subj: /.*/ IN F1 OR dobj: /.*/ IN F1 OR iobj: /.*/ IN F1 OR cmp: /.*/ IN F1 TAG modf0;
+ F1  : subj: NP AND NOT (NP (hd rel.pro)), dobj: NP AND NOT (NP (hd rel.pro)) TAG focusdobj, iobj: NP AND NOT (NP (hd rel.pro)) TAG focusiobj, cmp: S TAG focuscmp, mod: ADVP, mod: PP, prt: PP OR ADVP;
+ M1 !: hd: v;
+ M2a : subj: NP[wh=false|!wh];
+ M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
+ M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
+ M4c*: iobj: PP, mod: ADVP[!wh|wh=false], mod: PP[!wh|wh=false];
+ M5  : cmp: S[status=Infin|status=PastP];
+ M6a : prt: PP OR ADVP;
+ E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+END
+
+TOPOLOGY S[(status=Fin|status=Infin/Fin/PInfin),mood=imperative] // Main order: VO
+ TAG imperative;
+ M1 !: hd: v;
+ M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
+ M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
+ M4c*: iobj: PP, mod: ADVP[wh=false], mod: PP[wh=false];
+ M5  : cmp: S[status=Infin|status=PastP];
+ M6a : prt: PP OR ADVP;
+ E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+END
+
+TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
+ TAG sub;
+ F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true];
+ M1 !: cmpr: CP;
+ M2a : subj: NP[wh=false|!wh];
+ M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M3  : subj: NP[wh=false|!wh] IF dobj: NP IN M2b OR iobj: NP IN M2c;
+ M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
+ M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
+ M4c*: iobj: PP, mod: ADVP, mod: PP;
+ M5  : cmp: S[status=Infin|status=PastP];
+ M6a : prt: PP OR ADVP;
+ M6b!: hd: v;
+ E1  : cmp: (S[status=Infin|status=PastP] * (cmp S) *);
+ E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+END
+
+TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
+ TAG subv2;
+ F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true];
+ M1 !: cmpr: CP;
+ M1a!: subj: NP, dobj: NP, iobj: NP, cmp: S, mod: ADVP, mod: PP;
+ M1b!: hd: v;
+ M2a : subj: NP[wh=false|!wh];
+ M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
+ M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
+ M4c*: iobj: PP, mod: ADVP[!wh|wh=false], mod: PP[!wh|wh=false];
+ M5  : cmp: S[status=Infin|status=PastP];
+ M6a : prt: PP OR ADVP;
+ E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+END
+
+TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
+ TAG subrel;
+ F1  !: subj: (NP (hd rel.pro)), dobj: (NP (hd rel.pro)) TAG dobjrel, iobj: (NP (hd rel.pro)) TAG iobjrel;
+ M2a : subj: NP[wh=false|!wh];
+ M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M3  : subj: NP[wh=false|!wh] IF dobj: NP IN M2b OR iobj: NP IN M2c;
+ M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
+ M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
+ M4c*: iobj: PP, mod: ADVP, mod: PP;
+ M5  : cmp: S[status=Infin|status=PastP];
+ M6a : prt: PP OR ADVP;
+ M6b!: hd: v;
+ E1  : cmp: (S[status=Infin|status=PastP] * (cmp S) *);
+ E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+END
+
+TOPOLOGY S[status=PInfin|status=PastP|status=Infin]
+ TAG inf;
+ F1  : dobj:NP[wh=true], dobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusdobj, dobj: (NP (hd rel.pro)) TAG dobjrel, iobj:NP[wh=true], iobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusiobj, iobj: (NP (hd rel.pro)) TAG iobjrel, cmp: S TAG focuscmp;
+ M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
+ M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
+ M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
+ M4c*: iobj: PP, mod: ADVP, mod: PP;
+ M5  : cmp: S[status=Infin|status=PastP];
+ M6b!: hd: v;
+ E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+END
+
+TOPOLOGY NP
+ TAG np;
+ NP1 : det: <DP OR NP OR QP>;
+ NP2 : mod: ADJP;
+ NP3!: hd: n, hd: rel.pro, hd: dem.pro, hd: pers.pro;
+ NP4 : mod: PP, mod: S IF mod: S[topo=subrel] IN NP4
+END
+
+TOPOLOGY PP
+ TAG pp;
+ PP1 : hd: prep[location=pre];
+ PP2 : obj: NP OR ADVP;
+ PP3 : hd: prep[location=post]
+END
+
+TOPOLOGY ADJP
+ ADJP1 : mod: ADVP;
+ ADJP2!: hd: adj
+END
