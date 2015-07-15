@@ -50,7 +50,11 @@ class Topology(OrderedDict):
 
     def add_field(self, field):
         self[field.ft] = field
+        field.topology = self
+        for gram_func in field.grammatical_funcs:
+            gram_func.field = field
         return self
+
 
 class Field:
     # M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
@@ -77,6 +81,15 @@ class Field:
     def add_edge(self, edge):
         self.edges.append(edge)
 
+    def fit(self, edge):
+        if isinstance(edge, FeatTree):
+            if self.gf == edge.gf:
+                if self.expression:
+                    return self.expression(edge)
+                else:
+                    return self.ph == edge.ph
+        return False
+
 
 class GramFunc:
     def __init__(self, gf=None, ph=None, expression=None, field=None):
@@ -87,11 +100,9 @@ class GramFunc:
 
     def fit(self, edge):
         if isinstance(edge, FeatTree):
-            if self.gf == edge.gf:
-                if self.expression:
-                    return self.expression(edge)
-                else:
-                    return self.ph == edge.ph
+            if self.expression:
+                    return self.expression(edge, self.field)
+            return self.gf == edge.gf and self.ph == edge.ph
         return False
 
     def __str__(self):
@@ -147,22 +158,22 @@ def build_topologies():
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.tag == TAG.iobjrel and edge.has_child(GF.hd, PH.REL_PRO)),
                     )))
             .add_field(Field(FT.M2a, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and (edge.has_feature({'wh': False}) or edge.has_feature({'!wh'}))), )))
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})), )))
 
             .add_field(Field(FT.M2b, grammatical_funcs=(
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and (edge.has_feature({'wh': False}) or edge.has_feature({'!wh'})) and (edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro)))),)))
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro)))),)))
 
             .add_field(Field(FT.M2c, grammatical_funcs=(
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and (edge.has_feature({'wh': False}) or edge.has_feature({'!wh'})) and (edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro)))),)))
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro)))),)))
 
             .add_field(Field(FT.M3, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and (edge.has_feature({'wh': False}) or edge.has_feature({'!wh'}))), )))  # and ((field.topology[FT.M2b].gf == GF.dobj and field.topology[FT.M2b].ph == PH.NP) or (field.topology[FT.M2c].gf == GF.iobj and field.topology[FT.M2c].ph == PH.NP )) ),), dependencies = (FT.M2b, FT.M2c))
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (any(edge for edge in field.topology[FT.M2b].edges if edge.fit(GF.dobj, PH.NP)) or any(edge for edge in field.topology[FT.M2c].edges if edge.fit(GF.iobj, PH.NP)))),), dependencies = (FT.M2b, FT.M2c), ))
 
             .add_field(Field(FT.M4a, grammatical_funcs=(
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and (edge.has_feature({'wh': False}) or edge.has_feature({'!wh'})) and not (edge.has_child(GF.hd, (PH.REL_PRO, PH.DEM_PRO, PH.pers_pro)))),)))
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.REL_PRO, PH.DEM_PRO, PH.pers_pro))),)))
 
             .add_field(Field(FT.M4b, grammatical_funcs=(
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and (edge.has_feature({'wh': False}) or edge.has_feature({'!wh'})) and not (edge.has_child(GF.hd, (PH.REL_PRO, PH.DEM_PRO, PH.pers_pro)))),
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.REL_PRO, PH.DEM_PRO, PH.pers_pro))),
                 GramFunc(GF.Pred, ph=PH.NP),
                 GramFunc(GF.Pred, ph=PH.AP),
                 )))
@@ -280,7 +291,7 @@ def process_dominance(tree, topology_rules):
                     if isinstance(child, Tree):
                         for field in topology.values():
                             for func in field.grammatical_funcs:
-                                if (func.expression and func.expression(child, field)) or func.fit(child):
+                                if func.fit(child):
                                     # add edge to topology
                                     field.add_edge(child)
                                     if not child.topologies and not child.ishead():
@@ -292,7 +303,7 @@ def process_dominance(tree, topology_rules):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='Ich sehe', numparses=0):
+         sent='sehe ich', numparses=0):
     """
     A demonstration of the Earley parsers.
     """
@@ -320,18 +331,19 @@ def demo(print_times=True, print_grammar=False,
             print(tree)
             print("Word presence verification result: {}\n".format(ver_result))
 
+    topologies = build_topologies()
     if dominance_structures:
         print("####################################################")
         print("Dominance structures:")
         for tree in dominance_structures:
             print(tree)
 
-    topologies = build_topologies()
-    if dominance_structures:
-        feat_tree = FeatTree(dominance_structures[0])
-        # featTree.draw()
-        feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
-        print(feat_tree)
+        for tree in dominance_structures:
+            feat_tree = FeatTree(tree)
+            # featTree.draw()
+            feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
+            print("####################################################")
+            print(feat_tree)
     print("Time: {:.3f}s.\n".format (time.clock()-t))
 
 

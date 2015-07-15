@@ -178,6 +178,19 @@ class FeatTree(Tree):
                         return False
             return True
 
+    def fit(self, gf=None, ph=None):
+        assert isinstance(gf, GF)
+        assert isinstance(ph, PH) or (isinstance(ph, Iterable) and not [phi for phi in ph if not isinstance(phi, PH)])
+
+        if self.gf == gf:
+            if isinstance(ph, Iterable):
+                for phi in ph:
+                    if self.ph == phi:
+                        return True
+            elif self.ph == ph:
+                return True
+        return False
+
     def has_child(self, gf=None, ph=None):
         assert isinstance(gf, GF)
         assert isinstance(ph, PH) or (isinstance(ph, Iterable) and not [phi for phi in ph if not isinstance(phi, PH)])
