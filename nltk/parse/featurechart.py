@@ -203,13 +203,19 @@ class FeatureChart(Chart):
             return item
 
     def parses(self, start, tree_class=Tree):
+        edge_counter = 0
+        select_counter = 0
         for edge in self.select(start=0, end=self._num_leaves):
+            select_counter += 1
             if ((isinstance(edge, FeatureTreeEdge)) and
                     (edge.lhs()[TYPE] == start[TYPE]) and
                     (unify(edge.lhs(), start, rename_vars=True))
             ):
+                edge_counter += 1
                 for tree in self.trees(edge, complete=True, tree_class=tree_class):
                     yield tree
+        print("Edge counter:", edge_counter)
+        print("Select counter:", select_counter)
 
 
 #////////////////////////////////////////////////////////////
@@ -272,6 +278,9 @@ class FeatureFundamentalRule(FundamentalRule):
             yield new_edge
 
 
+
+
+
 class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
     """
     A specialized version of the completer / single edge fundamental rule
@@ -296,6 +305,88 @@ class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
                                        lhs=left_edge.nextsym()):
             for new_edge in fr.apply(chart, grammar, left_edge, right_edge):
                 yield new_edge
+
+class PGFeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
+    """
+    A specialized version of the fundamental rule that operates on
+    nonterminals whose symbols are ``FeatStructNonterminal``s.  Rather
+    tha simply comparing the nonterminals for equality, they are
+    unified.  Variable bindings from these unifications are collected
+    and stored in the chart using a ``FeatureTreeEdge``.  When a
+    complete edge is generated, these bindings are applied to all
+    nonterminals in the edge.
+
+    The fundamental rule states that:
+
+    - ``[A -> alpha \* B1 beta][i:j]``
+    - ``[B2 -> gamma \*][j:k]``
+
+    licenses the edge:
+
+    - ``[A -> alpha B3 \* beta][i:j]``
+
+    assuming that B1 and B2 can be unified to generate B3.
+    """
+
+    def _apply_complete(self, chart, grammar, right_edge):
+        for left_edge in chart.select(end=right_edge.start(),
+                                      is_complete=False,
+                                      nextsym=right_edge.lhs()):
+            for new_edge in self.apply_rule(chart, grammar, left_edge, right_edge):
+                yield new_edge
+
+    def _apply_incomplete(self, chart, grammar, left_edge):
+        for right_edge in chart.select(start=left_edge.end(),
+                                       is_complete=True,
+                                       lhs=left_edge.nextsym()):
+            for new_edge in self.apply_rule(chart, grammar, left_edge, right_edge):
+                yield new_edge
+
+    def apply_rule(self, chart, grammar, left_edge, right_edge):
+        # Make sure the rule is applicable.
+        if not (left_edge.end() == right_edge.start() and
+                    #left_edge.is_incomplete() and
+                    right_edge.is_complete() and
+                    isinstance(left_edge, FeatureTreeEdge)):
+            return
+        found = right_edge.lhs()
+        nextsym = left_edge.nextsym()
+        if isinstance(right_edge, FeatureTreeEdge):
+            if not is_nonterminal(nextsym): return
+            if left_edge.nextsym()[TYPE] != right_edge.lhs()[TYPE]: return
+            # Create a copy of the bindings.
+            bindings = left_edge.bindings()
+            # We rename vars here, because we don't want variables
+            # from the two different productions to match.
+            found = found.rename_variables(used_vars=left_edge.variables())
+            # Unify B1 (left_edge.nextsym) with B2 (right_edge.lhs) to
+            # generate B3 (result).
+            result = unify(nextsym, found, bindings, rename_vars=False)
+            # if result:
+            #     if right_edge._lhs != result:
+            #         # print('-'*80)
+            #         # print(right_edge._lhs)
+            #         # print('+'*80)
+            #         # print(result)
+            #         # print('-'*80)
+            #         right_edge._lhs = result
+            #     #right_edge = FeatureTreeEdge(right_edge.span(), result, right_edge.rhs(), right_edge.dot(), right_edge.bindings())
+            # else:
+            #     return
+            if not result:
+                return
+        else:
+            if nextsym != found: return
+            # Create a copy of the bindings.
+            bindings = left_edge.bindings()
+
+        # Construct the new edge.
+        new_edge = left_edge.move_dot_forward(right_edge.end(), bindings)
+
+        # Add it to the chart, with appropriate child pointers.
+                                        #new_edge, previous_edge, child_edge
+        if chart.insert_with_backpointer(new_edge, left_edge, right_edge):
+            yield new_edge
 
 
 #////////////////////////////////////////////////////////////
@@ -466,7 +557,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 TD_FEATURE_STRATEGY = [PGLeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       FeatureSingleEdgeFundamentalRule()]
+                       PGFeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),
@@ -693,8 +784,8 @@ def pg_demo():
     from nltk.grammar import FeatureGrammar
     from nltk.parse.earleychart import wordPresenceVerifier
 
-    #sentence = 'Hans sieht'
-    sentence = 'sehe ich'
+    sentence = 'Hans sieht'
+    #sentence = 'sehe ich'
     t = time.clock()
     #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #grammar = load('../../examples/grammars/book_grammars/test.fcfg')
@@ -707,8 +798,8 @@ def pg_demo():
     # string_data = binary_data.decode('utf-8')
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     #grammar = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/pg_german.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/pg_german.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
     # lexical_productions = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     #productions = FeatureGrammar(grammar_productions.start(), grammar_productions.productions())
@@ -726,7 +817,7 @@ def pg_demo():
     #print(productions)
     cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sentence.split()
-    trees = cp.parse(tokens)
+    trees = list(cp.parse(tokens))
 
     verifier = wordPresenceVerifier(tokens)
     dominance_structures = []

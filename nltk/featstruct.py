@@ -89,6 +89,8 @@ or if you plan to use them as dictionary keys, it is strongly
 recommended that you use full-fledged ``FeatStruct`` objects.
 """
 from __future__ import print_function, unicode_literals, division
+from _collections_abc import Iterable
+from collections import OrderedDict
 
 import re
 import copy
@@ -1303,8 +1305,8 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     """
     # Decide which class(es) will be treated as feature structures,
     # for the purposes of unification.
-    from nltk.topology.topology import simplify_expression
-
+    from nltk.topology.topology import simplify_expression, combine_expression
+    from nltk.grammar import FeatStructNonterminal
 
     if fs_class == 'default':
         fs_class = _default_fs_class(fstruct1)
@@ -1347,7 +1349,8 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
         else:
             fstructs2.append(copy.deepcopy(fstruct2))
 
-        #go before first match
+        #get all matches, then combine them in results
+        #results = []
         for fs1 in fstructs1:
             for fs2 in fstructs2:
                 bindings_copy = copy.deepcopy(bindings)
@@ -1364,9 +1367,19 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                     if result is not UnificationFailure:
                         bindings.update(bindings_copy)
                         break
+                        #results.append(result)
                 except _UnificationFailureError:
-
                      pass
+        # if len(results) > 1:
+        #     result_copy = FeatStructNonterminal()
+        #     result_copy[TYPE] = result[TYPE]
+        #     expressions = []
+        #     for item in results:
+        #         exp = dict(item)
+        #         del exp[TYPE]
+        #         expressions.append(exp)
+        #     result_copy[EXPRESSION] = combine_expression(expressions)
+        #     result = result_copy
     else:
         (fstruct1copy, fstruct2copy, bindings_copy) = (
             copy.deepcopy((fstruct1, fstruct2, bindings)))
@@ -1381,7 +1394,8 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
 
         # Do the actual unification.  If it fails, return None.
         if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
-        try: result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
+        try:
+            result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
                                            forward, trace, fail, fs_class, ())
         except _UnificationFailureError: return None
 
@@ -1571,10 +1585,32 @@ def _unify_feature_values(fname, fval1, fval2, bindings, forward,
                     (fval1, fval2, result, fval2.unify(fval1)))
         elif isinstance(fval2, CustomFeatureValue):
             result = fval2.unify(fval1)
-        # Case 5c: Simple values -- check if they're equal.
+
         else:
+            # Case 5c: Simple values -- check if they're equal.
             if fval1 == fval2:
                 result = fval1
+            # Case 5d: One of the values is a collection
+            elif not (isinstance(fval1, str) and  isinstance(fval2, str)) and (isinstance(fval1, Iterable) or isinstance(fval2, Iterable)):
+                fval1s = set()
+                fval2s = set()
+                if not isinstance(fval1, str) and isinstance(fval1, Iterable):
+                    fval1s.update(fval1)
+                else:
+                    fval1s.add(fval1)
+                if not isinstance(fval2, str) and isinstance(fval2, Iterable):
+                    fval2s.update(fval2)
+                else:
+                    fval2s.add(fval2)
+                inter = fval1s.intersection(fval2s)
+
+                if inter:
+                    if len(inter) > 1:
+                        result = inter
+                    else:
+                        result = inter.pop()
+                else:
+                    result = UnificationFailure
             else:
                 result = UnificationFailure
 
@@ -2486,6 +2522,7 @@ class CelexFeatStructReader(FeatStructReader):
         return self._finalize(s, end_group + 1, fstruct)
 
     def read_features(self, s, position = 0, fstruct = None):
+        from nltk.topology.FeatTree import OP
         group = pair_checker(s, position)
         if group:
             expression_part = list()
@@ -2494,7 +2531,7 @@ class CelexFeatStructReader(FeatStructReader):
             while group:
                 start_group, end_group = group
                 if start_group > position:
-                    operator = s[position:start_group].strip()
+                    operator = OP[s[position:start_group].strip()]
                     if last_operator and operator != last_operator:
                         expression = tuple(last_operator, expression + expression_part)
                         expression_part = list()
