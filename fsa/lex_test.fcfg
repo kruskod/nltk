@@ -1,6 +1,5 @@
 % start S
-#(S (dobj (NP [!a])) (hd (v [])))|- S0
-######################
+#####################
 (DP (hd (poss.pro [decl_type=mixed,refnumber=plural,refperson=2nd,refpolite=false,POS=possessive_pronoun,ref=def,branch=obligatory])))|- DP9
 (NP (q (QP [inheritedFeature=number,branch=facultative])) (mod (PP [particle=false,branch=facultative])) (hd (n [gender=neuter,properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])) (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative])) (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative])) (det (NP [case=gen,decl_type=strong,branch=facultative])) (mod (S [branch=facultative])))|- NP0
 (NP (q (QP [inheritedFeature=number,branch=facultative])) (mod (PP [particle=false,branch=facultative])) (hd (n [gender=masculine,properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])) (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative])) (mod (S [branch=facultative])) (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative])) (det (NP [case=gen,decl_type=strong,branch=facultative])))|- NP1

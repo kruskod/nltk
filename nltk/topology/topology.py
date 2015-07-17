@@ -6,7 +6,7 @@ from nltk import featstruct
 from nltk.featstruct import CelexFeatStructReader, EXPRESSION
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar
 from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser
-from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF
+from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF, OP
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -217,17 +217,20 @@ def build_topologies():
     # END
     # )
 
+def combine_expression(feat_list):
+    return (OP.OR, feat_list)
+
 
 def simplify_expression(feat):
     # check arguments
-    if isinstance(feat, tuple):
-        if isinstance(feat[0], str) and len(feat) == 2:  # type of operator in expression
+    if isinstance(feat, (tuple,list)):
+        if isinstance(feat[0], OP) and len(feat) == 2:  # type of operator in expression
             operator = feat[0]
             expressions = simplify_expression(feat[1])
 
-            if operator == 'OR':
+            if operator == OP.OR:
                 return expressions
-            elif operator == 'AND':  # combine all features from all expressions
+            elif operator == OP.AND:  # combine all features from all expressions
                 result = expressions[0]
                 for ex in expressions[1:]:
                     for key, val in ex.items():
@@ -337,13 +340,13 @@ def demo(print_times=True, print_grammar=False,
         print("Dominance structures:")
         for tree in dominance_structures:
             print(tree)
-
-        for tree in dominance_structures:
             feat_tree = FeatTree(tree)
             # featTree.draw()
             feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
-            print("####################################################")
             print(feat_tree)
+            print("------------------------------------------------")
+    print("Nr trees:", count_trees)
+    print("Nr Dominance structures:", len(dominance_structures))
     print("Time: {:.3f}s.\n".format (time.clock()-t))
 
 
