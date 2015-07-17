@@ -203,19 +203,13 @@ class FeatureChart(Chart):
             return item
 
     def parses(self, start, tree_class=Tree):
-        edge_counter = 0
-        select_counter = 0
         for edge in self.select(start=0, end=self._num_leaves):
-            select_counter += 1
             if ((isinstance(edge, FeatureTreeEdge)) and
                     (edge.lhs()[TYPE] == start[TYPE]) and
                     (unify(edge.lhs(), start, rename_vars=True))
             ):
-                edge_counter += 1
                 for tree in self.trees(edge, complete=True, tree_class=tree_class):
                     yield tree
-        print("Edge counter:", edge_counter)
-        print("Select counter:", select_counter)
 
 
 #////////////////////////////////////////////////////////////
@@ -278,9 +272,6 @@ class FeatureFundamentalRule(FundamentalRule):
             yield new_edge
 
 
-
-
-
 class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
     """
     A specialized version of the completer / single edge fundamental rule
@@ -306,7 +297,7 @@ class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
             for new_edge in fr.apply(chart, grammar, left_edge, right_edge):
                 yield new_edge
 
-class PGFeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
+class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
     """
     A specialized version of the fundamental rule that operates on
     nonterminals whose symbols are ``FeatStructNonterminal``s.  Rather
@@ -332,7 +323,7 @@ class PGFeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
         for left_edge in chart.select(end=right_edge.start(),
                                       is_complete=False,
                                       nextsym=right_edge.lhs()):
-            for new_edge in self.apply_rule(chart, grammar, left_edge, right_edge):
+            for new_edge in self._fundamental_rule.apply(chart, grammar, left_edge, right_edge):
                 yield new_edge
 
     def _apply_incomplete(self, chart, grammar, left_edge):
@@ -362,18 +353,19 @@ class PGFeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
             # Unify B1 (left_edge.nextsym) with B2 (right_edge.lhs) to
             # generate B3 (result).
             result = unify(nextsym, found, bindings, rename_vars=False)
-            # if result:
-            #     if right_edge._lhs != result:
-            #         # print('-'*80)
-            #         # print(right_edge._lhs)
-            #         # print('+'*80)
-            #         # print(result)
-            #         # print('-'*80)
-            #         right_edge._lhs = result
-            #     #right_edge = FeatureTreeEdge(right_edge.span(), result, right_edge.rhs(), right_edge.dot(), right_edge.bindings())
-            # else:
-            #     return
-            if not result:
+            if result:
+                if right_edge._lhs != result:
+                    # print('-'*80)
+                    # print(right_edge._lhs)
+                    # print('+'*80)
+                    # print(result)
+                    # print('-'*80)
+                    #child_pointer_lists = chart.child_pointer_lists(right_edge)
+                    right_edge = FeatureTreeEdge(right_edge.span(), result, right_edge.rhs(), right_edge.dot(), right_edge.bindings())
+                    #right_edge._lhs = result
+                    #chart._register_with_indexes(right_edge)
+                    chart.insert(right_edge, ())
+            else:
                 return
         else:
             if nextsym != found: return
@@ -557,7 +549,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 TD_FEATURE_STRATEGY = [PGLeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       PGFeatureSingleEdgeFundamentalRule()]
+                       FeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),
