@@ -81,6 +81,7 @@ class FT(AutoNumber):
 class PH(AutoNumber):
     S = ()
     AP = ()
+    CP = ()
     NP = ()
     DP = ()
     QP = ()
@@ -105,6 +106,7 @@ class GF(AutoNumber):
     iobj = ()
     Pred = ()
     cmp = ()
+    cmpr = ()
     prt = ()
 
 
