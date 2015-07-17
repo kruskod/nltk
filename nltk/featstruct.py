@@ -1350,7 +1350,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
             fstructs2.append(copy.deepcopy(fstruct2))
 
         #get all matches, then combine them in results
-        #results = []
+        results = []
         for fs1 in fstructs1:
             for fs2 in fstructs2:
                 bindings_copy = copy.deepcopy(bindings)
@@ -1366,20 +1366,19 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                     result = _destructively_unify(fs1, fs2, bindings_copy, forward, trace, fail, fs_class, ())
                     if result is not UnificationFailure:
                         bindings.update(bindings_copy)
-                        break
-                        #results.append(result)
+                        results.append(result)
                 except _UnificationFailureError:
                      pass
-        # if len(results) > 1:
-        #     result_copy = FeatStructNonterminal()
-        #     result_copy[TYPE] = result[TYPE]
-        #     expressions = []
-        #     for item in results:
-        #         exp = dict(item)
-        #         del exp[TYPE]
-        #         expressions.append(exp)
-        #     result_copy[EXPRESSION] = combine_expression(expressions)
-        #     result = result_copy
+        if len(results) > 1:
+            result_copy = FeatStructNonterminal()
+            result_copy[TYPE] = result[TYPE]
+            expressions = []
+            for item in results:
+                exp = dict(item)
+                del exp[TYPE]
+                expressions.append(exp)
+            result_copy[EXPRESSION] = combine_expression(expressions)
+            result = result_copy
     else:
         (fstruct1copy, fstruct2copy, bindings_copy) = (
             copy.deepcopy((fstruct1, fstruct2, bindings)))

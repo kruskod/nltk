@@ -343,7 +343,7 @@ def demo(print_times=True, print_grammar=False,
             feat_tree = FeatTree(tree)
             # featTree.draw()
             feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
-            print(feat_tree)
+            #print(feat_tree)
             print("------------------------------------------------")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
