@@ -86,7 +86,7 @@ class PH(AutoNumber):
     DP = ()
     QP = ()
     n = ()
-    REL_PRO = ()
+    rel_pro = ()
     DEM_PRO = ()
     pers_pro = ()
     PP = ()
@@ -213,11 +213,12 @@ class FeatTree(Tree):
     def __str__(self):
         out = '(' + str(self.gorn) + ')'+ repr(self.hclabel())
         if self.topologies:
-            fields = [[]]
-            max_length = 0
+
 
             # initialize the field matrix
             for top in self.topologies:
+                fields = [[]]
+                max_length = 0
                 for type, field in top.items():
                     line = str(type) + (str(field.mod) if field.mod else '')
                     fields[0].append(line)
@@ -242,21 +243,21 @@ class FeatTree(Tree):
                         break
                     counter += 1
 
-            # generate a pretty string from the matrix
-            #------------------------------------------plus cell border---plus 1 for the | at the line beginning
-            border = '\r\n' + '-' * ((len(fields[0]) * (max_length +1)) + 1) + '\r\n'
-            format_expr = '{:^' + str(max_length) + '}|'
-            table = border
-            for row in fields:
-                row_line = '|'
-                for col in row:
-                    row_line += format_expr.format(col)
-                table += row_line + border
-            # do recursive for children
-            app = '\r\n'
-            for ast in self:
-                app += str(ast)
-            out += table + app
+                # generate a pretty string from the matrix
+                #------------------------------------------plus cell border---plus 1 for the | at the line beginning
+                border = '\r\n' + '-' * ((len(fields[0]) * (max_length +1)) + 1) + '\r\n'
+                format_expr = '{:^' + str(max_length) + '}|'
+                table = border
+                for row in fields:
+                    row_line = '|'
+                    for col in row:
+                        row_line += format_expr.format(col)
+                    table += row_line + border
+                # do recursive for children
+                app = '\r\n'
+                for ast in self:
+                    app += str(ast)
+                out += table + app
         else:
             out += '\n'
         return out

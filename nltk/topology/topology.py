@@ -144,9 +144,9 @@ def build_topologies():
             .add_field(Field(FT.F0, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.ADVP and any(edge for edge in field.topology[FT.F1].edges if edge.gf in (GF.subj, GF.obj, GF.iobj, GF.cmp)))), )))
             .add_field(Field(FT.F1, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.REL_PRO)),
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.REL_PRO)),
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.REL_PRO)),
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S and edge.tag == TAG.focuscmp),
                 GramFunc(GF.mod, ph=(PH.PP, PH.ADVP)), )))
             .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, ph=PH.v), )))
@@ -157,9 +157,9 @@ def build_topologies():
             .add_field(Field(FT.M2c, grammatical_funcs=(
                 GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro))),)))
             .add_field(Field(FT.M4a, grammatical_funcs=(
-                GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.REL_PRO, PH.pers_pro))),)))
+                GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.rel_pro, PH.pers_pro))),)))
             .add_field(Field(FT.M4b, grammatical_funcs=(
-                GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.REL_PRO, PH.pers_pro))),
+                GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.rel_pro, PH.pers_pro))),
                 GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
@@ -198,9 +198,9 @@ def build_topologies():
             .add_field(Field(FT.M2c, grammatical_funcs=(
                 GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro))),)))
             .add_field(Field(FT.M4a, grammatical_funcs=(
-                GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.REL_PRO, PH.pers_pro))),)))
+                GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.rel_pro, PH.pers_pro))),)))
             .add_field(Field(FT.M4b, grammatical_funcs=(
-                GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.REL_PRO, PH.pers_pro))),
+                GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.rel_pro, PH.pers_pro))),
                 GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
@@ -251,7 +251,7 @@ def build_topologies():
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (any(edge for edge in field.topology[FT.M2b].edges if edge.gf == GF.dobj and edge.ph == PH.NP))
                     or (any(edge for edge in field.topology[FT.M2c].edges if edge.gf == GF.iobj and edge.ph == PH.NP))), )))
             .add_field(Field(FT.M4a, grammatical_funcs=(
-                GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.REL_PRO, PH.pers_pro))),
+                GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.rel_pro, PH.pers_pro))),
                   GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
@@ -304,9 +304,9 @@ def build_topologies():
 
         (Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}))
             .add_field(Field(FT.F1, mod='!', grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.REL_PRO)),
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.tag == TAG.dobjrel and edge.has_child(GF.hd, PH.REL_PRO)),
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.tag == TAG.iobjrel and edge.has_child(GF.hd, PH.REL_PRO)),
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro)),
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.tag == TAG.dobjrel and edge.has_child(GF.hd, PH.rel_pro)),
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.tag == TAG.iobjrel and edge.has_child(GF.hd, PH.rel_pro)),
                     )))
             .add_field(Field(FT.M2a, grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})), )))
@@ -321,10 +321,10 @@ def build_topologies():
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (any(edge for edge in field.topology[FT.M2b].edges if edge.fit(GF.dobj, PH.NP)) or any(edge for edge in field.topology[FT.M2c].edges if edge.fit(GF.iobj, PH.NP)))),), dependencies = (FT.M2b, FT.M2c), ))
 
             .add_field(Field(FT.M4a, grammatical_funcs=(
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.REL_PRO, PH.DEM_PRO, PH.pers_pro))),)))
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.DEM_PRO, PH.pers_pro))),)))
 
             .add_field(Field(FT.M4b, grammatical_funcs=(
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.REL_PRO, PH.DEM_PRO, PH.pers_pro))),
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.DEM_PRO, PH.pers_pro))),
                 GramFunc(GF.Pred, ph=PH.NP),
                 GramFunc(GF.Pred, ph=PH.AP),
                 )))
@@ -370,7 +370,7 @@ def build_topologies():
                 GramFunc(GF.mod, ph=PH.ADJP),)))
 
             .add_field(Field(FT.NP3, mod='!', grammatical_funcs=(
-                GramFunc(GF.hd, expression=lambda edge, field: edge.ph in (PH.n, PH.REL_PRO, PH.DEM_PRO, PH.pers_pro)),)))
+                GramFunc(GF.hd, expression=lambda edge, field: edge.ph in (PH.n, PH.rel_pro, PH.DEM_PRO, PH.pers_pro)),)))
 
             .add_field(Field(FT.NP4, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.S and edge.has_feature({'topo': 'subrel'}))),))) ,
@@ -480,7 +480,7 @@ def process_dominance(tree, topology_rules):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='sehe ich', numparses=0):
+         sent='sehe ich den Mann', numparses=0):
     """
     A demonstration of the Earley parsers.
     """
