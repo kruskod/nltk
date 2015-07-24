@@ -16,7 +16,7 @@ NP[CASE=?c] -> DP[GF=DETP, CASE=?c, NUM=?n, PER=?p, GND=?g, branch=facultative] 
 # Lexical Productions
 #####################
 
-N[CASE=nom/acc/dat,NUM=sg,PER=3,GND=masc] -> 'Hans'
+N[CASE=nom,NUM=sg,PER=3,GND=masc] -> 'Hans'
 #N[CASE=gen,NUM=sg,PER=3,GND=masc] -> 'Hansens'
 #N[CASE=dat,NUM=sg,PER=3,GND=masc] -> 'Hans'
 #N[CASE=acc,NUM=sg,PER=3,GND=masc] -> 'Hans'
