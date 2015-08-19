@@ -7,6 +7,7 @@ from nltk.featstruct import CelexFeatStructReader, EXPRESSION
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar
 from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser
 from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF, OP
+from nltk.draw.tree import TreeView, TreeTabView
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -54,6 +55,77 @@ class Topology(OrderedDict):
         for gram_func in field.grammatical_funcs:
             gram_func.field = field
         return self
+
+    def read_out(self, tokens, count_in_root = 0):
+        leaves = []
+        if tokens:
+            for field in self.values():
+                for id, edge in enumerate(field.edges):
+                    if edge.topologies:
+                        for top in edge.topologies:
+                            if leaves and not isinstance(leaves[0], str):
+                                for l in leaves:
+                                    count = len(set(l))
+                                    if count > 0:
+                                        sub_fields = top.read_out(tokens[count - 1:], count)
+                                    else:
+                                        sub_fields = top.read_out(tokens, count)
+                                    leaves.extend(sub_fields)
+                                    if sub_fields:
+                                        if isinstance(str, sub_fields[0]):
+                                            l.extend(sub_fields)
+                                        else:
+                                            new_leaves = []
+                                            for sub_field in sub_fields:
+                                                new_leaves.append(leaves + sub_field)
+                                            l = new_leaves
+                            else:
+                                count = len(set(leaves))
+                                if count > 0:
+                                    sub_fields = top.read_out(tokens[count - 1:], count)
+                                else:
+                                    sub_fields = top.read_out(tokens, count)
+                                leaves.extend(sub_fields)
+                    else:
+                        edge_content = None
+                        for ast in edge:
+                                edge_content = ast.leaves()
+                                for leaf in edge_content:
+                                    if leaves and not isinstance(leaves[0], str):
+                                        for l in leaves:
+                                            count = len(set(leaves))
+                                            if (len(tokens) > count and tokens[count] == leaf):
+                                                l.append(leaf)
+                                            elif (count_in_root > 0 and len(tokens) > count + 1 and tokens[count + 1] == leaf):
+                                                l.append(leaf)
+                                            else:
+                                                #remove everything
+                                                pass
+                                    else:
+                                        count = len(set(leaves))
+                                        if (len(tokens) > count and tokens[count] == leaf):
+                                            leaves.append(leaf)
+                                        elif (count_in_root > 0 and len(tokens) > count + 1 and tokens[count + 1] == leaf):
+                                            leaves.append(leaf)
+                                        else:
+                                            #remove everything
+                                            pass
+        return leaves
+
+
+    # def read_out(self):
+    #     #check obligatory fields
+    #     fields_map = {}
+    #     obligatory_field_indexes = []
+    #     for i, field in enumerate(self):
+    #         if field.mod == '!':
+    #             if not field.edges:
+    #                 return None
+    #             obligatory_field_indexes.append(i)
+    #         if field.edges:
+    #             fields_map[i] = field.edges
+    #     #check heads order
+    #     #check tree order
 
 
 class Field:
@@ -515,14 +587,15 @@ def demo(print_times=True, print_grammar=False,
         for tree in dominance_structures:
             print(tree)
             feat_tree = FeatTree(tree)
-            # featTree.draw()
             feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
             print(feat_tree)
-            print("------------------------------------------------")
+            for top in feat_tree.topologies:
+                print(top.read_out(tokens))
+        TreeTabView(*dominance_structures)
+    print("------------------------------------------------")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
     print("Time: {:.3f}s.\n".format (time.clock()-t))
-
 
 def demo_simplifier():
     # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)

@@ -1,6 +1,6 @@
 % start S
 #####################
-(DP (hd (poss.pro [decl_type=mixed,refnumber=plural,refperson=2nd,refpolite=false,POS=possessive_pronoun,ref=def,branch=obligatory])))|- DP9
+(DP (hd (poss_pro [decl_typedecl_type=mixed,refnumber=plural,refperson=2nd,refpolite=false,POS=possessive_pronoun,ref=def,branch=obligatory])))|- DP9
 (NP (q (QP [inheritedFeature=number,branch=facultative])) (mod (PP [particle=false,branch=facultative])) (hd (n [gender=neuter,properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])) (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative])) (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative])) (det (NP [case=gen,decl_type=strong,branch=facultative])) (mod (S [branch=facultative])))|- NP0
 (NP (q (QP [inheritedFeature=number,branch=facultative])) (mod (PP [particle=false,branch=facultative])) (hd (n [gender=masculine,properNoun=false,POS=noun,person=3rd,case=nom/gen/dat/acc,decl_type=strong/weak/mixed,ref=def/indef/generic,defdet=false,wh=false,branch=obligatory])) (mod (ADJP [inflected=true,inheritedFeature=case/gender/number/decl_type,branch=facultative])) (mod (S [branch=facultative])) (det (DP [inheritedFeature=case/gender/number/decl_type/ref/wh,branch=facultative])) (det (NP [case=gen,decl_type=strong,branch=facultative])))|- NP1
 dem.pro [person=3rd,POS=demonstrative_pronoun,ref=def,branch=obligatory])))|- NP15
@@ -16,8 +16,8 @@ NP27[case=nom] -> "ich"
 NP0[[case=acc, number=singular] OR [case=dat, number=singular] OR [case=nom, number=singular]] -> "Ich"
 NP1[[case=acc, number=singular] OR [case=dat, number=singular] OR [case=nom, number=singular]] -> "Mann"
 NP1[case=gen, number=singular] -> "Mannes"
-NP15[case=acc, gender=masculine, number=singular] -> "den"
-NP16[case=acc, gender=masculine, number=singular] -> "den"
+DP9[case=acc, gender=masculine, number=singular] -> "den"
+#NP16[case=acc, gender=masculine, number=singular] -> "den"
 S0[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=present] OR [mood=subjunctive, number=singular, person=3rd, status=Fin, tense=present]] -> "sehe"
 S1[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=present] OR [mood=subjunctive, number=singular, person=3rd, status=Fin, tense=present]] -> "sehe"
 S6[[mood=indicative/subjunctive, number=singular, person=1st, status=Fin, tense=present] OR [mood=subjunctive, number=singular, person=3rd, status=Fin, tense=present]] -> "sehe"
