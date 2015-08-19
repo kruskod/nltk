@@ -12,12 +12,13 @@ Graphically display a Tree.
 import nltk.compat
 import sys
 
-from tkinter import IntVar, Menu, Tk
+from tkinter import IntVar, Menu, Tk, BOTH, YES, Frame, Canvas
+from tkinter import ttk
 
 from nltk.util import in_idle
 from nltk.tree import Tree
 from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
-                            TextWidget, ParenWidget, OvalWidget)
+                            TextWidget, ParenWidget, OvalWidget, ScrollWatcherWidget)
 
 ##//////////////////////////////////////////////////////
 ##  Tree Segment
@@ -486,12 +487,13 @@ class TreeWidget(CanvasWidget):
         segments.
       - ``draggable``: whether the widget can be dragged by the user.
     """
-    def __init__(self, canvas, t, make_node=TextWidget,
+    def  __init__(self, canvas, t, make_node=TextWidget,
                  make_leaf=TextWidget, **attribs):
         # Node & leaf canvas widget constructors
         self._make_node = make_node
         self._make_leaf = make_leaf
         self._tree = t
+        self._canvas = canvas
 
         # Attributes.
         self._nodeattribs = {}
@@ -750,6 +752,26 @@ class TreeWidget(CanvasWidget):
 ##  draw_trees
 ##//////////////////////////////////////////////////////
 
+#
+# class ResizingCanvas(Canvas):
+#     def __init__(self,parent,**kwargs):
+#         Canvas.__init__(self,parent,**kwargs)
+#         self.bind("<Configure>", self.on_resize)
+#         self.height = self.winfo_reqheight()
+#         self.width = self.winfo_reqwidth()
+#
+#     def on_resize(self,event):
+#         # determine the ratio of old width/height to new width/height
+#         wscale = float(event.width)/self.width
+#         hscale = float(event.height)/self.height
+#         self.width = event.width
+#         self.height = event.height
+#         # resize the canvas
+#         self.config(width=self.width, height=self.height)
+#         # rescale all the objects tagged with the "all" tag
+#         self.scale("all",0,0,wscale,hscale)
+
+
 class TreeView(object):
     def __init__(self, *trees):
         from math import sqrt, ceil
@@ -757,11 +779,13 @@ class TreeView(object):
         self._trees = trees
 
         self._top = Tk()
+        #self._top.resizable(width=True, height=True)
         self._top.title('NLTK')
         self._top.bind('<Control-x>', self.destroy)
         self._top.bind('<Control-q>', self.destroy)
 
         cf = self._cframe = CanvasFrame(self._top)
+        cf.pack(expand=YES, fill=BOTH)
         self._top.bind('<Control-p>', self._cframe.print_to_file)
 
         # Size is variable.
@@ -779,16 +803,17 @@ class TreeView(object):
                                 roof_color='#004040', roof_fill='white',
                                 line_color='#004040', draggable=1,
                                 leaf_font=helv)
+
             widget.bind_click_trees(widget.toggle_collapsed)
             self._widgets.append(widget)
             cf.add_widget(widget, 0, 0)
-
+        #cf.canvas().pack(expand=YES, fill=BOTH)
         self._layout()
-        self._cframe.pack(expand=1, fill='both')
         self._init_menubar()
+        #self._top.focus_set()
 
     def _layout(self):
-        i = x = y = ymax = 0
+        i = x = y = ymax = xmax = 0
         width = self._width
         for i in range(len(self._widgets)):
             widget = self._widgets[i]
@@ -798,7 +823,10 @@ class TreeView(object):
                 x = 0
             widget.move(x-oldx, y-oldy)
             x = widget.bbox()[2] + 10
+            if x > xmax:
+                xmax = x
             ymax = max(ymax, widget.bbox()[3] + 10)
+        self._cframe.config(width=xmax, height=ymax)
 
     def _init_menubar(self):
         menubar = Menu(self._top)
@@ -865,6 +893,99 @@ def draw_trees(*trees):
     """
     TreeView(*trees).mainloop()
     return
+
+class TreeTabView(TreeView):
+
+     def __init__(self, *trees, label='Dominance structures'):
+        from math import sqrt, ceil
+        self._trees = trees
+        self._top = Tk()
+        #self._top.resizable(width=True, height=True)
+        self._top.title(label)
+        self._top.bind('<Control-x>', self.destroy)
+        self._top.bind('<Control-q>', self.destroy)
+        #self._top.bind('<Control-p>', self._cframe.print_to_file)
+
+        self._cframe = nb = ttk.Notebook(self._top)
+
+        # adding Frames as pages for the ttk.Notebook
+        # first page, which would get widgets gridded into it
+        # page1 = ttk.Frame(nb)
+        #
+        # # second page
+        # page2 = ttk.Frame(nb)
+        # text = ScrolledText(page2)
+        # text.pack(expand=1, fill="both")
+        #
+        # nb.add(page1, text='One')
+        # nb.add(page2, text='Two')
+
+        # Size is variable.
+        self._size = IntVar(self._top)
+        self._size.set(12)
+        bold = ('helvetica', -self._size.get(), 'bold')
+        helv = ('helvetica', -self._size.get())
+
+        self._widgets = []
+        for i in range(len(trees)):
+            #page = Frame(nb)
+            # canvas = Canvas(page)
+            # canvas.pack(expand=1, fill="both")
+            cv = CanvasFrame(nb)
+            cv.pack(expand=1, fill="both")
+            canvas = cv.canvas()
+            widget = TreeWidget(canvas, trees[i], node_font=bold,
+                                leaf_color='#008040', node_color='#004080',
+                                roof_color='#004040', roof_fill='white',
+                                line_color='#004040', draggable=0,
+                                leaf_font=helv)
+            widget.bind_click_trees(widget.toggle_collapsed)
+            self._widgets.append(widget)
+            nb.add(cv._frame, text=(' '.join(trees[i].leaves())))
+        self._layout()
+        self._init_menubar()
+        nb.pack(expand=1, fill="both")
+        self._top.focus_set()
+        self._top.mainloop()
+
+     def _layout(self):
+        ymax = xmax = 0
+        for widget in self._widgets:
+            (xtop, ytop, xbottom, ybottom) = widget.bbox()
+            widget.move(0 - xtop, 5 - ytop)
+            scrollregion = '0 0 %s %s' % (xbottom - xtop, ybottom - ytop + 10)
+            widget._canvas['scrollregion'] = scrollregion
+            #cv._scrollwatcher = ScrollWatcherWidget(canvas)
+            if xbottom - xtop > xmax:
+                xmax = xbottom - xtop
+            if ybottom - ytop > ymax:
+                ymax = ybottom - ytop + 10
+        self._cframe.config(width=xmax, height=ymax)
+
+
+     def _init_menubar(self):
+        menubar = Menu(self._top)
+
+        filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label='Exit', underline=1,
+                             command=self.destroy, accelerator='Ctrl-x')
+        menubar.add_cascade(label='File', underline=0, menu=filemenu)
+
+        zoommenu = Menu(menubar, tearoff=0)
+        zoommenu.add_radiobutton(label='Tiny', variable=self._size,
+                                 underline=0, value=10, command=self.resize)
+        zoommenu.add_radiobutton(label='Small', variable=self._size,
+                                 underline=0, value=12, command=self.resize)
+        zoommenu.add_radiobutton(label='Medium', variable=self._size,
+                                 underline=0, value=14, command=self.resize)
+        zoommenu.add_radiobutton(label='Large', variable=self._size,
+                                 underline=0, value=28, command=self.resize)
+        zoommenu.add_radiobutton(label='Huge', variable=self._size,
+                                 underline=0, value=50, command=self.resize)
+        menubar.add_cascade(label='Zoom', underline=0, menu=zoommenu)
+
+        self._top.config(menu=menubar)
+
 
 ##//////////////////////////////////////////////////////
 ##  Demo Code
