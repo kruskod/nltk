@@ -142,6 +142,7 @@ class FeatTree(Tree):
     def ishead(self):
         return self.gf == GF.hd
 
+
     def hclabel(self):
         if hasattr(self, '_hcLabel') and self._hcLabel:
             return self._hcLabel
@@ -266,49 +267,6 @@ class FeatTree(Tree):
         else:
             out += '\n'
         return out
-
-    # def read_out(self, tokens, count = 0):
-    #
-    #     #print leaves
-    #     # leaves = [[]]
-    #     # for child in self:
-    #     #     if isinstance(child, FeatTree):
-    #     #         leaves.extend(child.read_out())
-    #     #     else:
-    #     #         leaves.append(child)
-    #
-    #     fields = []
-    #         # initialize the field matrix
-    #     if tokens:
-    #         for top in self.topologies:
-    #             counter = count
-    #             f = []
-    #             for field in top.values():
-    #                 for id, edge in enumerate(field.edges):
-    #                     edge_content = edge.read_out(tokens, counter)
-    #
-    #                     while len(edge_content) == 1 and not isinstance(edge_content, str):
-    #                         edge_content = edge_content[0]
-    #                     if len(tokens) > counter and tokens[counter] == edge_content:
-    #                         counter += 1
-    #                         f.append(edge_content)
-    #                     elif counter > 0 and tokens[counter - 1] == edge_content:
-    #                         f.append(edge_content)
-    #                     else: # remove edge from field
-    #                         #print(edge)
-    #                         # top.
-    #                         # del field.edges[id]
-    #                         #self.topologies = []
-    #                         # print('hello')
-    #                         field.edges.remove(edge)
-    #                         pass
-    #                         #edge.topologies = []
-    #             if f:
-    #                 fields.append(f)
-    #         for ast in self:
-    #             if not isinstance(ast, FeatTree) and isinstance(ast, Tree):
-    #                 fields.extend(self.leaves())
-    #     return fields
 
 
     def __hash__(self):
