@@ -581,9 +581,12 @@ def demo(print_times=True, print_grammar=False,
             print("Word presence verification result: {}\n".format(ver_result))
 
     topologies = build_topologies()
+    end_time = 0
     if dominance_structures:
         print("####################################################")
         print("Dominance structures:")
+        dominance_structures = sorted(dominance_structures, key=lambda tree: ' '.join(tree.leaves()).lower())
+
         for tree in dominance_structures:
             print(tree)
             feat_tree = FeatTree(tree)
@@ -591,11 +594,12 @@ def demo(print_times=True, print_grammar=False,
             print(feat_tree)
             for top in feat_tree.topologies:
                 print(top.read_out(tokens))
+        end_time = time.clock()
         TreeTabView(*dominance_structures)
     print("------------------------------------------------")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
-    print("Time: {:.3f}s.\n".format (time.clock()-t))
+    print("Time: {:.3f}s.\n".format (end_time-t))
 
 def demo_simplifier():
     # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
