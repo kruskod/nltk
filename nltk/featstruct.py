@@ -2524,6 +2524,10 @@ class CelexFeatStructReader(FeatStructReader):
         from nltk.topology.FeatTree import OP
         group = pair_checker(s, position)
         if group:
+            remaining_part = None
+            start_group = group[0]
+            if start_group > position:
+                remaining_part = self.read_features(s[position:start_group], fstruct=dict())[0]
             expression_part = list()
             expression = list()
             last_operator = None
@@ -2539,10 +2543,20 @@ class CelexFeatStructReader(FeatStructReader):
                 expression_part.append(self.read_features(s[start_group + 1:end_group], fstruct=dict())[0])
                 position = end_group + 1
                 group = pair_checker(s, position)
+            #check if there are some properties remaining
+            position += 1
+
+            if len(s) > position:
+                remaining_part, end_position = self.read_features(s[position:], fstruct=dict())
+                position += end_position
+            result = None
             if last_operator:
-                return (last_operator,tuple(expression + expression_part)), position
+                result = (last_operator,tuple(expression + expression_part))
             else:
-                return tuple(*expression_part), position
+                result = tuple(*expression_part)
+            if remaining_part:
+                result = (OP.AND, (remaining_part, result))
+            return result, position
         else:
             while position < len(s):
                 # Use these variables to hold info about each feature:

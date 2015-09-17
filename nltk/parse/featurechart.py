@@ -546,7 +546,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 # Feature Chart Parser
 #////////////////////////////////////////////////////////////
 
-TD_FEATURE_STRATEGY = [PGLeafInitRule(),
+TD_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
                        FeatureSingleEdgeFundamentalRule()]

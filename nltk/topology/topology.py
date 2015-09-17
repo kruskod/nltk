@@ -11,7 +11,6 @@ from nltk.draw.tree import TreeView, TreeTabView
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
-
 class Topology(OrderedDict):
 
     def __init__(self, ph=None, tag=None, features=None, fields=None, edge=None):
@@ -448,55 +447,140 @@ def build_topologies():
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.S and edge.has_feature({'topo': 'subrel'}))),))) ,
 
 
+        # TOPOLOGY PP
+        #  TAG pp
+        #  PP1 : hd: prep[location=pre]
+        #  PP2 : obj: NP OR ADVP
+        #  PP3 : hd: prep[location=post]
+        # END
+
+        Topology(PH.PP, tag='pp')
+            .add_field(Field(FT.PP1, grammatical_funcs=(
+                GramFunc(GF.hd, expression=lambda edge, field: edge.ph == PH.prep and edge.has_feature({'location': 'pre'})),)))
+
+            .add_field(Field(FT.PP2, grammatical_funcs=(
+                GramFunc(GF.obj, expression=lambda edge, field: edge.ph == PH.NP or edge.ph == PH.ADVP),)))
+
+            .add_field(Field(FT.PP3, grammatical_funcs=(
+                GramFunc(GF.hd, expression=lambda edge, field: edge.ph == PH.prep and edge.has_feature({'location': 'post'})),))) ,
+
+        # TOPOLOGY ADJP
+        #  ADJP1 : mod: ADVP
+        #  ADJP2!: hd: adj
+        # END
+        # )
+
+        Topology(PH.ADJP, tag='pp')
+            .add_field(Field(FT.ADJP1, grammatical_funcs=(
+                GramFunc(GF.mod, ph=PH.ADJP),)))
+
+            .add_field(Field(FT.ADJP2, mod='!', grammatical_funcs=(
+                GramFunc(GF.mod, ph=PH.adj),))) ,
     )
 
-    # TOPOLOGY PP
-    #  TAG pp
-    #  PP1 : hd: prep[location=pre]
-    #  PP2 : obj: NP OR ADVP
-    #  PP3 : hd: prep[location=post]
-    # END
-    #
-    # TOPOLOGY ADJP
-    #  ADJP1 : mod: ADVP
-    #  ADJP2!: hd: adj
-    # END
-    # )
 
 def combine_expression(feat_list):
     return (OP.OR, feat_list)
 
 
+# def simplify_expression(feat, last_operator = None):
+#     # check arguments
+#     if isinstance(feat, (tuple,list)):
+#         if isinstance(feat[0], OP) and len(feat) == 2:  # type of operator in expression
+#             operator = feat[0]
+#             expressions = simplify_expression(feat[1], operator)
+#
+#             if operator == OP.OR:
+#                 return expressions
+#             elif operator == OP.AND:  # combine all features from all expressions
+#                 result = expressions[0]
+#                 for ex in expressions[1:]:
+#                     for key, val in ex.items():
+#                         if key in result:
+#                             if val != result[key]:
+#                                 raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
+#                         else:
+#                             result[key] = val
+#                 return result
+#             else:
+#                 raise ValueError("unknown operator:{} in {}".format(operator, feat))
+#         else:
+#             result = []
+#             for feat_d in feat:
+#                 part_res = simplify_expression(feat_d, None)
+#                 if isinstance(part_res, dict):
+#                     result.append(part_res)
+#                 else:
+#                     if last_operator == OP.AND:
+#                         new_result = []
+#                         for r in result:
+#                             for part in part_res:
+#                                 part.update(r)
+#                                 new_result.append(part)
+#                         result = new_result
+#             return result
+#     elif isinstance(feat, dict):
+#         result = []
+#         for key, val in feat.items():  # looking for cases like {'a':(1,2)}
+#             if isinstance(val, tuple):
+#                 for sub_val in val:
+#                     feat_copy = feat.copy()
+#                     feat_copy[key] = sub_val
+#                     result.append(feat_copy)
+#         if result:
+#             return simplify_expression(tuple(result), None)
+#         else:
+#             return feat
+#     else:
+#         raise ValueError("wrong type of argument:", feat)
+
 def simplify_expression(feat):
     # check arguments
     if isinstance(feat, (tuple,list)):
-        if isinstance(feat[0], OP) and len(feat) == 2:  # type of operator in expression
+        if isinstance(feat[0], OP):
             operator = feat[0]
-            expressions = simplify_expression(feat[1])
-
-            if operator == OP.OR:
-                return expressions
-            elif operator == OP.AND:  # combine all features from all expressions
-                result = expressions[0]
-                for ex in expressions[1:]:
-                    for key, val in ex.items():
-                        if key in result:
-                            if val != result[key]:
-                                raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
-                        else:
-                            result[key] = val
+            expressions = []
+            for f in feat[1]:
+                expressions.append(simplify_expression(f))
+            if operator == OP.AND:  # combine all features from all expressions
+                # 1 step: combine all maps to one AND map
+                result = {}
+                for ex in expressions:
+                    if isinstance(ex, dict):
+                        for key, val in ex.items():
+                            if key in result:
+                                if val != result[key]:
+                                    raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
+                            else:
+                                result[key] = val
+                # 2 step: if threre are OR list/tuples, combine them using distribution
+                dist = []
+                for ex in expressions:
+                    if isinstance(ex, (tuple,list)):
+                        for e in ex:
+                            for key, val in e.items():
+                                res_copy = result.copy()
+                                if key in res_copy:
+                                    if val != res_copy[key]:
+                                        raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
+                                else:
+                                    res_copy[key] = val
+                            dist.append(res_copy)
+                if dist:
+                    return dist
+                else:
+                    return result
+            elif operator == OP.OR:
+                result = []
+                for ex in expressions:
+                    if isinstance(ex, dict):
+                        result.append(ex)
+                    else:
+                        result.extend(ex)
                 return result
             else:
                 raise ValueError("unknown operator:{} in {}".format(operator, feat))
-        else:
-            result = []
-            for feat_d in feat:
-                part_res = simplify_expression(feat_d)
-                if isinstance(part_res, dict):
-                    result.append(part_res)
-                else:
-                    result.extend(part_res)
-            return result
+
     elif isinstance(feat, dict):
         result = []
         for key, val in feat.items():  # looking for cases like {'a':(1,2)}
@@ -506,7 +590,7 @@ def simplify_expression(feat):
                     feat_copy[key] = sub_val
                     result.append(feat_copy)
         if result:
-            return simplify_expression(tuple(result))
+            return result
         else:
             return feat
     else:
@@ -550,10 +634,18 @@ def process_dominance(tree, topology_rules):
     return result
 
 
+
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='sehe ich den Mann', numparses=0):
+         sent='Monopole sollen geknackt werden', numparses=0):
     """
+    sent examples:
+        Monopole sollen geknackt werden und Märkte sollen getrennt werden.
+        Monopole sollen geknackt und Märkte getrennt werden.
+        Monopole sollen geknackt werden und Märkte getrennt.
+
+        sehe ich den Mann
+
     A demonstration of the Earley parsers.
     """
     import time
@@ -562,7 +654,7 @@ def demo(print_times=True, print_grammar=False,
 
     t = time.clock()
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
     cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sent.split()
@@ -601,14 +693,17 @@ def demo(print_times=True, print_grammar=False,
     print("Nr Dominance structures:", len(dominance_structures))
     print("Time: {:.3f}s.\n".format (end_time-t))
 
+
 def demo_simplifier():
     # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     # np0 = productions.productions()
     # np0lhs = np0.lhs();
-    test = ('OR', (('OR', ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a': 2, 'c': 3})), ('AND', ({'b': 3, 'a': 5, 'c': 4}, {'c': 4}))))
+    #test = (OP.OR, ((OP.OR, ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a': 2, 'c': 3})), (OP.AND, ({'b': 3, 'a': 5, 'c': 4}, {'c': 4}))))
+    test = (OP.AND, ({'a': 0}, (OP.OR, ({'b':1},{'b':2}))))
     for i in simplify_expression(test):
         print(i)
 
 if __name__ == "__main__":
+    #demo_simplifier()
     demo()
