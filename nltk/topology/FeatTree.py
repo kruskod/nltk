@@ -11,7 +11,6 @@ __author__ = 'Denis Krusko: kruskod@gmail.com'
 GRAM_FUNC_FEATURE = 'GramFunc'
 PRODUCTION_ID_FEATURE = 'ProdId'
 
-
 class AutoNumber(Enum):
     def __new__(cls):
         value = len(cls.__members__) + 1
@@ -93,7 +92,9 @@ class PH(AutoNumber):
     PP = ()
     ADJP = ()
     ADVP = ()
+    prep = ()
     v = ()
+    adj = ()
     # leaves
     # S0 = ()
 
@@ -103,6 +104,7 @@ class GF(AutoNumber):
     mod = ()
     hd = ()
     subj = ()
+    obj = ()
     dobj = ()
     iobj = ()
     Pred = ()
@@ -110,7 +112,34 @@ class GF(AutoNumber):
     cmpr = ()
     prt = ()
 
+# class STATUS(AutoNumber):
+#     Infin = ()  # Infinitive
+#     Fin = ()  # Finite verb
+#     PInfin = ()  # Pre-INFINitive
+#     PastP = ()  # Past participle
+#
+#
+# class MOOD(AutoNumber):
+#     indicative = ()
+#     subjunctive = ()
+#     imperative = ()
+#
+#
+# class VCAT(AutoNumber):
+#     VE = ()  # VP Extraposition
+#     VR = ()  # Verb Raising
+#     VT = ()  # Third Construction
+#     VF = ()  # Finite Complementation
+#     VS = ()  # Simple VerbsVS
+#     VRSehen = ()
+#     PastPAuxSein = ()
 
+class Share:
+    german = {
+        'status': ('Fin', 'Infin', 'PInfin')
+    }
+
+#Declarative sentense wh = false
 class FeatTree(Tree):
     def __init__(self, node, children=None):
         self._hclabel = None
@@ -121,6 +150,8 @@ class FeatTree(Tree):
             self.gf = None
             self.tag = None
             self.topologies = []
+            if self.has_feature({GRAM_FUNC_FEATURE: 'hd'}):
+                print ('Head')
             if GRAM_FUNC_FEATURE in self._label:
                 self.gf = GF[self._label[GRAM_FUNC_FEATURE]]
             # make all leaves also FeatTree
@@ -141,7 +172,6 @@ class FeatTree(Tree):
 
     def ishead(self):
         return self.gf == GF.hd
-
 
     def hclabel(self):
         if hasattr(self, '_hcLabel') and self._hcLabel:
@@ -213,13 +243,14 @@ class FeatTree(Tree):
         return False
 
     def __str__(self):
-        out = '(' + str(self.gorn) + ')'+ repr(self.hclabel())
-        #print leaves
+        out = '(' + str(self.gorn) + ')' + repr(self.hclabel())
+        # print leaves
         if self:
-            leaves_str = ''.join(leaf.pformat(parens='  ', quotes = True) for leaf in self if not isinstance(leaf, FeatTree))
+            leaves_str = ''.join(
+                leaf.pformat(parens='  ', quotes=True) for leaf in self if not isinstance(leaf, FeatTree))
             if leaves_str:
                 out += ' -> ' + leaves_str
-        #print all topologies
+        # print all topologies
         if self.topologies:
             # initialize the field matrix
             for top in self.topologies:
@@ -250,8 +281,8 @@ class FeatTree(Tree):
                     counter += 1
 
                 # generate a pretty string from the matrix
-                #------------------------------------------plus cell border---plus 1 for the | at the line beginning
-                border = '\r\n' + '-' * ((len(fields[0]) * (max_length +1)) + 1) + '\r\n'
+                # ------------------------------------------plus cell border---plus 1 for the | at the line beginning
+                border = '\r\n' + '-' * ((len(fields[0]) * (max_length + 1)) + 1) + '\r\n'
                 format_expr = '{:^' + str(max_length) + '}|'
                 table = border
                 for row in fields:
@@ -267,7 +298,6 @@ class FeatTree(Tree):
         else:
             out += '\n'
         return out
-
 
     def __hash__(self):
         return hash(self)
