@@ -150,10 +150,11 @@ class FeatTree(Tree):
             self.gf = None
             self.tag = None
             self.topologies = []
-            if self.has_feature({GRAM_FUNC_FEATURE: 'hd'}):
-                print ('Head')
+
             if GRAM_FUNC_FEATURE in self._label:
                 self.gf = GF[self._label[GRAM_FUNC_FEATURE]]
+            elif self.has_feature({GRAM_FUNC_FEATURE: 'hd'}):
+                self.gf = GF.hd
             # make all leaves also FeatTree
             if not self.ishead():
                 for index, child in enumerate(self):
