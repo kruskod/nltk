@@ -142,19 +142,18 @@ class Share:
 #Declarative sentense wh = false
 class FeatTree(Tree):
     def __init__(self, node, children=None):
-        self._hclabel = None
+        self._hcLabel = None
         if isinstance(node, Tree):
             self._label = node._label
             list.__init__(self, node)
             self.ph = PH[self._label[TYPE]]
-            self.gf = None
+            feat = get_feature(self._label, GRAM_FUNC_FEATURE)
+            if feat:
+                self.gf = GF[feat.pop()]
+            else:
+                self.gf = None
             self.tag = None
             self.topologies = []
-
-            if GRAM_FUNC_FEATURE in self._label:
-                self.gf = GF[self._label[GRAM_FUNC_FEATURE]]
-            elif self.has_feature({GRAM_FUNC_FEATURE: 'hd'}):
-                self.gf = GF.hd
             # make all leaves also FeatTree
             if not self.ishead():
                 for index, child in enumerate(self):
@@ -175,7 +174,7 @@ class FeatTree(Tree):
         return self.gf == GF.hd
 
     def hclabel(self):
-        if hasattr(self, '_hcLabel') and self._hcLabel:
+        if self._hcLabel:
             return self._hcLabel
         else:
             if self.ishead():
@@ -185,12 +184,12 @@ class FeatTree(Tree):
                 head = find_head(self)
             if head:
                 # get all features of the hd child
-                self._hclabel = copy.deepcopy(self.label())
+                self._hcLabel = copy.deepcopy(self.label())
                 # merge hd features with the node features
                 head_label = copy.deepcopy(head[0].label())
                 del head_label[TYPE]
-                self._hclabel.update(head_label)
-                return self._hclabel
+                self._hcLabel.update(head_label)
+                return self._hcLabel
         return None
 
     def numerate(self, gorn=0):
@@ -202,19 +201,22 @@ class FeatTree(Tree):
                 child.numerate(gorn + counter)
             counter += 1
 
+
+
+
+
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
 
-        if EXPRESSION in features_map:
+        if EXPRESSION in features_map or EXPRESSION in self._label:
             top_fstruct = FeatStructNonterminal()
             top_fstruct.update(features_map)
-            return unify(self.label, top_fstruct)
+            return unify(self._label, top_fstruct)
         else:
             for key, val in features_map.items():
-                if key in self._label:
-                    if val != self._label[key]:
-                        return False
-            return True
+                if key in self._label and val == self._label[key]:
+                    return True
+            return False
 
     def fit(self, gf=None, ph=None):
         assert isinstance(gf, GF)
@@ -306,8 +308,135 @@ class FeatTree(Tree):
 
 def find_head(root):
     for child in root:
-        if isinstance(child, Tree):
+        if isinstance(child, FeatTree):
+            if child.gf == GF.hd:
+                return child
+        elif isinstance(child, Tree):
             label = child.label()
             if GRAM_FUNC_FEATURE in label and label[GRAM_FUNC_FEATURE] == 'hd':
                 return child
     return None
+
+# def simplify_expression(feat):
+#     # check arguments
+#     if isinstance(feat, (tuple,list)):
+#         if isinstance(feat[0], OP) and len(feat) == 2:  # type of operator in expression
+#             operator = feat[0]
+#             expressions = simplify_expression(feat[1])
+#
+#             if operator == OP.OR:
+#                 return expressions
+#             elif operator == OP.AND:  # combine all features from all expressions
+#                 result = expressions[0]
+#                 for ex in expressions[1:]:
+#                     for key, val in ex.items():
+#                         if key in result:
+#                             if val != result[key]:
+#                                 raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
+#                         else:
+#                             result[key] = val
+#                 return result
+#             else:
+#                 raise ValueError("unknown operator:{} in {}".format(operator, feat))
+#         else:
+#             result = []
+#             for feat_d in feat:
+#                 part_res = simplify_expression(feat_d)
+#                 if isinstance(part_res, dict):
+#                     result.append(part_res)
+#                 else:
+#                     result.extend(part_res)
+#             return result
+#     elif isinstance(feat, dict):
+#         result = []
+#         for key, val in feat.items():  # looking for cases like {'a':(1,2)}
+#             if isinstance(val, tuple):
+#                 for sub_val in val:
+#                     feat_copy = feat.copy()
+#                     feat_copy[key] = sub_val
+#                     result.append(feat_copy)
+#         if result:
+#             return simplify_expression(tuple(result))
+#         else:
+#             return feat
+#     else:
+#         raise ValueError("wrong type of argument:", feat)
+
+
+def simplify_expression(feat):
+    # check arguments
+    if isinstance(feat, (tuple,list)):
+        if isinstance(feat[0], OP):
+            operator = feat[0]
+            expressions = []
+            for f in feat[1]:
+                expressions.append(simplify_expression(f))
+            if operator == OP.AND:  # combine all features from all expressions
+                # 1 step: combine all maps to one AND map
+                result = {}
+                for ex in expressions:
+                    if isinstance(ex, dict):
+                        for key, val in ex.items():
+                            if key in result:
+                                if val != result[key]:
+                                    raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
+                            else:
+                                result[key] = val
+                # 2 step: if threre are OR list/tuples, combine them using distribution
+                dist = []
+                for ex in expressions:
+                    if isinstance(ex, (tuple,list)):
+                        for e in ex:
+                            res_copy = result.copy()
+                            for key, val in e.items():
+                                if key in res_copy:
+                                    if val != res_copy[key]:
+                                        raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
+                                else:
+                                    res_copy[key] = val
+                            dist.append(res_copy)
+                if dist:
+                    return dist
+                else:
+                    return result
+            elif operator == OP.OR:
+                result = []
+                for ex in expressions:
+                    if isinstance(ex, dict):
+                        result.append(ex)
+                    else:
+                        result.extend(ex)
+                return result
+            else:
+                raise ValueError("unknown operator:{} in {}".format(operator, feat))
+
+    elif isinstance(feat, dict):
+        result = []
+        for key, val in feat.items():  # looking for cases like {'a':(1,2)}
+            if isinstance(val, tuple):
+                for sub_val in val:
+                    feat_copy = feat.copy()
+                    feat_copy[key] = sub_val
+                    result.append(feat_copy)
+        if result:
+            return result
+        else:
+            return feat
+    else:
+        raise ValueError("wrong type of argument:", feat)
+
+def combine_expression(feat_list):
+    return (OP.OR, feat_list)
+
+def get_feature(featStructNonTerm, feature):
+    result = set()
+    if EXPRESSION in featStructNonTerm:
+        simp_expressions = simplify_expression(featStructNonTerm[EXPRESSION])
+        for exp in simp_expressions:
+            if feature in exp:
+                result.add(exp[feature])
+        return result
+    else:
+        if feature in featStructNonTerm:
+            result.add(featStructNonTerm[feature])
+    return result
