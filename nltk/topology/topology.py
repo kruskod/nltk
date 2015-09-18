@@ -483,12 +483,12 @@ def combine_expression(feat_list):
     return (OP.OR, feat_list)
 
 
-# def simplify_expression(feat, last_operator = None):
+# def simplify_expression(feat):
 #     # check arguments
 #     if isinstance(feat, (tuple,list)):
 #         if isinstance(feat[0], OP) and len(feat) == 2:  # type of operator in expression
 #             operator = feat[0]
-#             expressions = simplify_expression(feat[1], operator)
+#             expressions = simplify_expression(feat[1])
 #
 #             if operator == OP.OR:
 #                 return expressions
@@ -507,17 +507,11 @@ def combine_expression(feat_list):
 #         else:
 #             result = []
 #             for feat_d in feat:
-#                 part_res = simplify_expression(feat_d, None)
+#                 part_res = simplify_expression(feat_d)
 #                 if isinstance(part_res, dict):
 #                     result.append(part_res)
 #                 else:
-#                     if last_operator == OP.AND:
-#                         new_result = []
-#                         for r in result:
-#                             for part in part_res:
-#                                 part.update(r)
-#                                 new_result.append(part)
-#                         result = new_result
+#                     result.extend(part_res)
 #             return result
 #     elif isinstance(feat, dict):
 #         result = []
@@ -528,11 +522,13 @@ def combine_expression(feat_list):
 #                     feat_copy[key] = sub_val
 #                     result.append(feat_copy)
 #         if result:
-#             return simplify_expression(tuple(result), None)
+#             return simplify_expression(tuple(result))
 #         else:
 #             return feat
 #     else:
 #         raise ValueError("wrong type of argument:", feat)
+
+
 
 def simplify_expression(feat):
     # check arguments
@@ -558,8 +554,8 @@ def simplify_expression(feat):
                 for ex in expressions:
                     if isinstance(ex, (tuple,list)):
                         for e in ex:
+                            res_copy = result.copy()
                             for key, val in e.items():
-                                res_copy = result.copy()
                                 if key in res_copy:
                                     if val != res_copy[key]:
                                         raise ValueError("Contradiction in the expresion:{} in {}".format(expressions, feat))
@@ -655,6 +651,7 @@ def demo(print_times=True, print_grammar=False,
     t = time.clock()
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
     cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sent.split()

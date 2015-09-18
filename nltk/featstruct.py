@@ -1332,7 +1332,10 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
         fstructs1 = []
         fstructs2 = []
         if EXPRESSION in fstruct1:
-            for ex in simplify_expression(fstruct1[EXPRESSION]):
+            simp_expressions = simplify_expression(fstruct1[EXPRESSION])
+            if isinstance(simp_expressions, dict):
+                simp_expressions = list(simp_expressions)
+            for ex in simp_expressions:
                 fstructcopy = copy.deepcopy(fstruct1)
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
@@ -1341,7 +1344,10 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
             fstructs1.append(copy.deepcopy(fstruct1))
 
         if EXPRESSION in fstruct2:
-            for ex in simplify_expression(fstruct2[EXPRESSION]):
+            simp_expressions = simplify_expression(fstruct2[EXPRESSION])
+            if isinstance(simp_expressions, dict):
+                simp_expressions = list(simp_expressions)
+            for ex in simp_expressions:
                 fstructcopy = copy.deepcopy(fstruct2)
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
