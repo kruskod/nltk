@@ -1305,7 +1305,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     """
     # Decide which class(es) will be treated as feature structures,
     # for the purposes of unification.
-    from nltk.topology.topology import simplify_expression, combine_expression
+    from nltk.topology.FeatTree import simplify_expression, combine_expression
     from nltk.grammar import FeatStructNonterminal
 
     if fs_class == 'default':
