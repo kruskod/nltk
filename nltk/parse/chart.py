@@ -731,7 +731,7 @@ class Chart(object):
             for tree in trees:
                 tree.extend(unexpanded)
 
-        # Update the memoization dictionary.
+        # Update the memorization dictionary.
         memo[edge] = trees
 
         # Return the list of trees.

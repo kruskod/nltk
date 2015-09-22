@@ -1,0 +1,8 @@
+% start S
+#####################
+(NP (hd (n [person=3rd,case=nom])))|- NP0
+(S (hd (v [person=3rd])) (subj (NP [case=nom])))|- S1
+#####################
+NP27[case=nom] -> "ich"
+NP0[case=acc, number=singular] -> "Ich"
+S1[number=singular, person=3rd, status=Fin] -> "sehe"

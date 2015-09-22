@@ -360,11 +360,11 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
                     # print('+'*80)
                     # print(result)
                     # print('-'*80)
-                    #child_pointer_lists = chart.child_pointer_lists(right_edge)
+                    child_pointer_lists = chart.child_pointer_lists(right_edge)
                     right_edge = FeatureTreeEdge(right_edge.span(), result, right_edge.rhs(), right_edge.dot(), right_edge.bindings())
                     #right_edge._lhs = result
                     #chart._register_with_indexes(right_edge)
-                    chart.insert(right_edge, ())
+                    #chart.insert(right_edge, ())
             else:
                 return
         else:
@@ -549,7 +549,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 TD_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       FeatureSingleEdgeFundamentalRule()]
+                       PGFeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),
@@ -718,6 +718,7 @@ def celex_preprocessing(file_name):
     with open(file_name, encoding='utf-8') as file:
         line_num = 0
         for line in file:
+            line_num += 1
             line = line.rstrip()
             if line and not line.startswith('#'):
                 if _CELEX_SEPARATOR in line:
@@ -764,7 +765,6 @@ def celex_preprocessing(file_name):
                     yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
                 else:
                     yield line
-            line_num += 1
 
 def pg_demo():
     """

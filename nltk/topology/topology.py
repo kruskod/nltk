@@ -6,8 +6,9 @@ from nltk import featstruct
 from nltk.featstruct import CelexFeatStructReader, EXPRESSION
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar
 from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser
-from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF, OP
+from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF, OP, simplify_expression
 from nltk.draw.tree import TreeView, TreeTabView
+from timeit import default_timer as timer
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -520,7 +521,7 @@ def process_dominance(tree, topology_rules):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='Monopole sollen geknackt werden', numparses=0):
+         sent='sehe Ich', numparses=0):
     """
     sent examples:
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
@@ -535,10 +536,10 @@ def demo(print_times=True, print_grammar=False,
     # The grammar for ChartParser and SteppingChartParser:
     from nltk.parse.earleychart import wordPresenceVerifier
 
-    t = time.clock()
+    t = timer()
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/minlex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
     cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sent.split()
@@ -557,7 +558,7 @@ def demo(print_times=True, print_grammar=False,
             print("Word presence verification result: {}\n".format(ver_result))
 
     topologies = build_topologies()
-    end_time = 0
+    end_time = timer()
     if dominance_structures:
         print("####################################################")
         print("Dominance structures:")
@@ -570,12 +571,12 @@ def demo(print_times=True, print_grammar=False,
             print(feat_tree)
             for top in feat_tree.topologies:
                 print(top.read_out(tokens))
-        end_time = time.clock()
+        end_time = timer()
         TreeTabView(*dominance_structures)
     print("------------------------------------------------")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
-    print("Time: {:.3f}s.\n".format (end_time-t))
+    print("Time: {:.3f}s.\n".format (end_time - t))
 
 
 def demo_simplifier():
@@ -583,9 +584,10 @@ def demo_simplifier():
     # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     # np0 = productions.productions()
     # np0lhs = np0.lhs();
-    #test = (OP.OR, ((OP.OR, ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a': 2, 'c': 3})), (OP.AND, ({'b': 3, 'a': 5, 'c': 4}, {'c': 4}))))
-    test = (OP.AND, ({'a': 0}, (OP.OR, ({'b':1},{'b':2}))))
-    for i in simplify_expression(test):
+    test = (OP.OR, ((OP.OR, ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a': 2, 'c': 3})), (OP.AND, ({'b': 3, 'a': 5, 'c': 4}, {'c': 4}))))
+    #test = (OP.AND, ({'a': 0}, (OP.OR, ({'b':1},{'b':2}))))
+    simplified_expression = simplify_expression(test)
+    for i in simplified_expression:
         print(i)
 
 if __name__ == "__main__":

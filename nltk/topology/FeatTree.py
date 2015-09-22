@@ -95,6 +95,7 @@ class PH(AutoNumber):
     prep = ()
     v = ()
     adj = ()
+    co_conj = ()
     # leaves
     # S0 = ()
 
