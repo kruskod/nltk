@@ -1369,7 +1369,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                 forward = {}
                 if trace: _trace_unify_start((), fs1, fs2)
                 try:
-                    result = _destructively_unify(fs1, fs2, bindings_copy, forward, trace, fail, fs_class, ())
+                    result = _destructively_unify(fs1.copy(), fs2.copy(), bindings_copy, forward, trace, fail, fs_class, ())
                     if result is not UnificationFailure:
                         bindings.update(bindings_copy)
                         results.append(result)
@@ -2793,7 +2793,7 @@ def calculate_collection_hash(fval, visited = list()):
     hash_val = 7
     if isinstance(fval, FeatStruct):
         hash_val += fval._calculate_hashvalue(visited)
-    elif isinstance(fval, tuple):
+    elif isinstance(fval, (tuple, list)):
         for item in fval:
             hash_val += calculate_collection_hash(item)
     elif isinstance(fval, dict):
