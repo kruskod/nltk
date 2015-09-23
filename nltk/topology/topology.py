@@ -539,9 +539,9 @@ def demo(print_times=True, print_grammar=False,
     t = timer()
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/minlex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
-    cp = FeatureTopDownChartParser(productions, trace=1)
+    cp = FeatureTopDownChartParser(productions, trace=1, use_agenda=False)
     tokens = sent.split()
     parses = cp.parse(tokens)
 
@@ -566,11 +566,11 @@ def demo(print_times=True, print_grammar=False,
 
         for tree in dominance_structures:
             print(tree)
-            feat_tree = FeatTree(tree)
-            feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
-            print(feat_tree)
-            for top in feat_tree.topologies:
-                print(top.read_out(tokens))
+            # feat_tree = FeatTree(tree)
+            # feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
+            # print(feat_tree)
+            # for top in feat_tree.topologies:
+            #     print(top.read_out(tokens))
         end_time = timer()
         TreeTabView(*dominance_structures)
     print("------------------------------------------------")
