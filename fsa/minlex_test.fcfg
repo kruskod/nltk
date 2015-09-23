@@ -1,5 +1,6 @@
 % start S
 #####################
+(S (mod (PP [particle=false,branch=facultative])) (cmp (S [status=Infin] OR [slot=E1,status=Infin,vcat=VR/VRGehen/VRSehen/PastPAuxHaben/VRHaben/PastPAuxSein/VRFutAux,branch=obligatory])) (subj (S [status=Fin,number=singular,person=3rd,inheritedFeature=wh,branch=facultative])) (subj (NP [status=Fin,case=nom,inheritedFeature=number/person/wh,branch=facultative])) (mod (NP [case=gen/dat/acc,branch=facultative])) (cmpr (CP [branch=facultative])) (mod (ADVP [branch=facultative])) (hd (v [[mood=subjunctive,perf_aux=sein,personal=true,sepPrefix=none,status=Fin,vcat=VRFutAux] OR [perf_aux=sein,personal=true,sepPrefix=none,status=Fin,tense=present,vcat=VRFutAux],POS=verb,branch=obligatory]))) |- S48
 (NP (hd (n [person=3rd,case=nom])))|- NP0
 (S (hd (v [person=3rd])) (subj (NP [case=nom])))|- S1
 #####################

@@ -78,7 +78,7 @@ from nltk.compat import (string_types, total_ordering, text_type,
 from nltk.internals import raise_unorderable_types
 
 from nltk.probability import ImmutableProbabilisticMixIn
-from nltk.featstruct import FeatStruct, FeatDict, FeatStructReader, SLASH, TYPE, EXPRESSION
+from nltk.featstruct import FeatStruct, FeatDict, FeatStructReader, SLASH, TYPE, EXPRESSION, unify
 
 #################################################################
 # Nonterminal
@@ -238,6 +238,49 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                 feat += line
         center_format = '{:^' + str(maxLenght) + '}'
         return center_format.format(head) + '\n' + '\n'.join(center_format.format(line) for line in exp) + feat
+
+    def has_feature(self, features_map):
+        """make new FeatStructNonTerminal and try to unify"""
+
+        if EXPRESSION in features_map or EXPRESSION in self:
+            top_fstruct = FeatStructNonterminal()
+            top_fstruct.update(features_map)
+            return unify(self, top_fstruct)
+        else:
+            for key, val in features_map.items():
+                if key not in self or val != self[key]:
+                    return False
+            return True
+
+    def filter_system_features(self, filter_prod_id = False, filter_gram_func = False):
+        from nltk.topology.FeatTree import simplify_expression
+        from nltk.topology.FeatTree import combine_expression
+
+        GRAM_FUNC_FEATURE = 'GramFunc'
+        BRANCH_FEATURE = 'branch'
+        PRODUCTION_ID_FEATURE = 'ProdId'  # filter features
+        filter_node = self.copy(deep=True)
+        if EXPRESSION in filter_node:
+
+            simpl_expres = simplify_expression(filter_node[EXPRESSION])
+            if isinstance(simpl_expres, dict):
+                filter_node.pop(EXPRESSION, None)
+                filter_node.update(simpl_expres)
+            else:
+                for ex in simpl_expres:
+                    ex.pop(BRANCH_FEATURE, None)
+                    if filter_gram_func:
+                        ex.pop(GRAM_FUNC_FEATURE, None)
+                    if filter_prod_id:
+                        ex.pop(PRODUCTION_ID_FEATURE, None)
+                filter_node[EXPRESSION] = combine_expression(simpl_expres)
+        else:
+            filter_node.pop(BRANCH_FEATURE, None)
+            if filter_gram_func:
+                filter_node.pop(GRAM_FUNC_FEATURE, None)
+            if filter_prod_id:
+                filter_node.pop(PRODUCTION_ID_FEATURE, None)
+        return filter_node
 
 
 def is_nonterminal(item):

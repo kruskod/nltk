@@ -90,8 +90,6 @@ recommended that you use full-fledged ``FeatStruct`` objects.
 """
 from __future__ import print_function, unicode_literals, division
 from _collections_abc import Iterable
-from collections import OrderedDict
-
 import re
 import copy
 
