@@ -521,7 +521,7 @@ def process_dominance(tree, topology_rules):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='sehe Ich', numparses=0):
+         sent='Monopole sollen geknackt werden', numparses=0):
     """
     sent examples:
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
@@ -538,10 +538,10 @@ def demo(print_times=True, print_grammar=False,
 
     t = timer()
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/minlex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/minlex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
-    cp = FeatureTopDownChartParser(productions, trace=1, use_agenda=False)
+    cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sent.split()
     parses = cp.parse(tokens)
 

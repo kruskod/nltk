@@ -440,8 +440,20 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
         lhs=edge.nextsym()
         for prod in grammar.productions(lhs):
             new_edge = FeatureTreeEdge.from_production(prod, edge.end())
-            if chart.insert(new_edge, ()):
-                yield new_edge
+            #unify new_edge and edge and insert unified edge in chart
+            rhs = new_edge.lhs()
+            result = unify(lhs, rhs, rename_vars=False)
+            if result:
+                if new_edge._lhs != result:
+                    #child_pointer_lists = chart.child_pointer_lists(new_edge)
+                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
+                    if chart.insert(new_right_edge, ()):
+                        yield new_right_edge
+                else:
+                    if chart.insert(new_edge, ()):
+                        yield new_edge
+            # if chart.insert(new_edge, ()):
+            #     yield new_edge
         #branch=facultative logic
         if is_nonterminal(lhs) and lhs.get(self.FACULTATIVE_PARAM) == self.FACULTATIVE_VAL:
             new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=edge.bindings())
@@ -558,7 +570,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 TD_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       PGFeatureSingleEdgeFundamentalRule()]
+                       FeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),
@@ -770,8 +782,9 @@ def celex_preprocessing(file_name):
                                     nonterminal = nonterminal[:index] + insert + nonterminal[index:]
 
                                 if 'hd' == grammatical_function:
-                                    phrasal_head_map[postProduction] = phrasal_head
-                                    nonterminal = nonterminal[:-1] + ',' + PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction + nonterminal[-1:]
+                                    prodId = PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction
+                                    nonterminal = nonterminal[:-1] + ',' + prodId + nonterminal[-1:]
+                                    phrasal_head_map[postProduction] = (phrasal_head, prodId)
                                     # yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
                                 production.append(nonterminal)
                                 group = pair_checker(s, end_group + 1)
@@ -782,11 +795,15 @@ def celex_preprocessing(file_name):
                     if (group):
                         phrasal_head = lhs[:group[0]].strip()
                         if phrasal_head in phrasal_head_map:
-                            lhs = phrasal_head_map[phrasal_head] + lhs[group[0]:]
+                            phrasal_head, prodId = phrasal_head_map[phrasal_head]
+                            if lhs[group[0] + 1:group[1]].strip(): # if feature block is not empty
+                                prodId = ',' + prodId
+                            lhs = phrasal_head + lhs[group[0]: -1] + prodId + lhs[group[1]:]
                     else:
                         phrasal_head = lhs.strip()
                         if phrasal_head in phrasal_head_map:
-                            lhs = phrasal_head_map[phrasal_head]
+                            phrasal_head, prodId = phrasal_head_map[phrasal_head]
+                            lhs = phrasal_head + '[' + prodId + ']'
                     yield lhs + _PRODUCTION_SEPARATOR + rhs
                 else:
                     yield line

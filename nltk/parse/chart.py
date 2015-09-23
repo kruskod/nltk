@@ -630,18 +630,17 @@ class Chart(object):
             the trees (or partial trees) that are associated with ``edge``.
         :rtype: bool
         """
-        chart_was_modified = False
+
         # Is it a new edge?
         if edge not in self._edge_to_cpls:
             # Add it to the list of edges.
             self._append_edge(edge)
             # Register with indexes.
             self._register_with_indexes(edge)
-            chart_was_modified = True
 
         # Get the set of child pointer lists for this edge.
         cpls = self._edge_to_cpls.setdefault(edge, OrderedDict())
-
+        chart_was_modified = False
         for child_pointer_list in child_pointer_lists:
             child_pointer_list = tuple(child_pointer_list)
             if child_pointer_list not in cpls:
