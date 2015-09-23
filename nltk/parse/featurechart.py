@@ -25,7 +25,7 @@ from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               EmptyPredictRule, BottomUpPredictRule,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
-                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule)
+                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule, PGLeafInitRule)
 
 #////////////////////////////////////////////////////////////
 # Tree Edge
@@ -443,7 +443,6 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
             result = unify(lhs.filter_system_features(), rhs, rename_vars=False)
             if result:
                 if new_edge._lhs != result:
-                    #child_pointer_lists = chart.child_pointer_lists(new_edge)
                     new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
                     if chart.insert(new_right_edge, ()):
                         yield new_right_edge

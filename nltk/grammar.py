@@ -253,15 +253,8 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             return True
 
     def filter_system_features(self, filter_prod_id = False, filter_gram_func = False):
-        from nltk.topology.FeatTree import simplify_expression
-        from nltk.topology.FeatTree import combine_expression
-
-        GRAM_FUNC_FEATURE = 'GramFunc'
-        BRANCH_FEATURE = 'branch'
-        PRODUCTION_ID_FEATURE = 'ProdId'  # filter features
         filter_node = self.copy(deep=True)
         if EXPRESSION in filter_node:
-
             simpl_expres = simplify_expression(filter_node[EXPRESSION])
             if isinstance(simpl_expres, dict):
                 filter_node.pop(EXPRESSION, None)
@@ -281,7 +274,6 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             if filter_prod_id:
                 filter_node.pop(PRODUCTION_ID_FEATURE, None)
         return filter_node
-
 
 def is_nonterminal(item):
     """
@@ -1610,3 +1602,7 @@ __all__ = ['Nonterminal', 'nonterminals',
            'DependencyGrammar', 'DependencyProduction',
            'ProbabilisticDependencyGrammar',
            'induce_pcfg', 'read_grammar']
+
+from nltk.topology.FeatTree import simplify_expression
+from nltk.topology.FeatTree import combine_expression
+from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, BRANCH_FEATURE, PRODUCTION_ID_FEATURE
