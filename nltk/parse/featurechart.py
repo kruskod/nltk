@@ -25,7 +25,7 @@ from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               EmptyPredictRule, BottomUpPredictRule,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
-                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule, PGLeafInitRule)
+                              TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule)
 
 #////////////////////////////////////////////////////////////
 # Tree Edge
@@ -97,6 +97,10 @@ class FeatureTreeEdge(TreeEdge):
         return FeatureTreeEdge(span=(self._span[0], new_end),
                                lhs=self._lhs, rhs=self._rhs,
                                dot=self._dot + 1, bindings=bindings)
+    def hfc(self):
+        for nt in self.rhs():
+            if isinstance(nt, FeatStructNonterminal) and nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
+                return nt.filter_system_features(filter_prod_id=True, filter_gram_func=True)
 
     def _bind(self, nt, bindings):
         if not isinstance(nt, FeatStructNonterminal): return nt
@@ -352,30 +356,19 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
             found = found.rename_variables(used_vars=left_edge.variables())
             # Unify B1 (left_edge.nextsym) with B2 (right_edge.lhs) to
             # generate B3 (result).
-            result = unify(nextsym, found, bindings, rename_vars=False)
-            if result:
-                if right_edge._lhs != result:
-                    # child_pointer_lists = chart.child_pointer_lists(right_edge)
-                    new_right_edge = FeatureTreeEdge((right_edge.start(), right_edge.start()), result, right_edge.rhs())
-                    if chart.insert(new_right_edge):
-                        yield new_right_edge
 
-                    # if chart.insert_with_backpointer(new_right_edge, right_edge, ()):
-                    #     yield new_right_edge
-                    #
-                    # new_rhs = list(left_edge.rhs())
-                    # new_rhs[left_edge.dot()] = result
-                    # new_left_edge = FeatureTreeEdge(span=left_edge.span(),
-                    #            lhs=left_edge.lhs(), rhs=tuple(new_rhs), dot=left_edge.dot(), bindings=left_edge.bindings())
-                    #
-                    # if chart.insert_with_backpointer(new_left_edge, left_edge, ()):
-                    #     yield new_left_edge
+            hfc = right_edge.hfc()
+            if hfc:
+                hfc.pop(TYPE, None)
+                new_found = unify(found, hfc, rename_vars=False)
+                if not new_found or not unify(nextsym, new_found, bindings, rename_vars=False):
                     return
-                    #chart.insert(right_edge, ())
-                    # if chart.insert(right_edge, *child_pointer_lists):
-                    #     yield right_edge
-            else:
-                return
+                # if not new_found:
+                #     return
+                # elif not unify(nextsym, new_found, bindings, rename_vars=False):
+                #     return
+            result = unify(nextsym, found, bindings, rename_vars=False)
+            if result is None: return
         else:
             if nextsym != found: return
             # Create a copy of the bindings.
@@ -385,7 +378,6 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
         new_edge = left_edge.move_dot_forward(right_edge.end(), bindings)
 
         # Add it to the chart, with appropriate child pointers.
-                                        #new_edge, previous_edge, child_edge
         if chart.insert_with_backpointer(new_edge, left_edge, right_edge):
             yield new_edge
 
@@ -442,7 +434,13 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
             new_edge = FeatureTreeEdge.from_production(prod, edge.end())
             #unify new_edge and edge and insert unified edge in chart
             rhs = new_edge.lhs()
-            result = unify(lhs, rhs, rename_vars=False)
+            hfc = new_edge.hfc()
+            if hfc:
+                hfc.pop(TYPE, None)
+                new_rhs = unify(rhs, hfc, rename_vars=False)
+                if not new_rhs or not unify(lhs, new_rhs, rename_vars=False):
+                    continue
+            result = unify(lhs.filter_system_features(), rhs, rename_vars=False)
             if result:
                 if new_edge._lhs != result:
                     #child_pointer_lists = chart.child_pointer_lists(new_edge)
@@ -570,7 +568,7 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 TD_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       FeatureSingleEdgeFundamentalRule()]
+                       PGFeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),
@@ -782,7 +780,7 @@ def celex_preprocessing(file_name):
                                     nonterminal = nonterminal[:index] + insert + nonterminal[index:]
 
                                 if 'hd' == grammatical_function:
-                                    prodId = PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction
+                                    prodId = PRODUCTION_ID_FEATURE + '=' + postProduction
                                     nonterminal = nonterminal[:-1] + ',' + prodId + nonterminal[-1:]
                                     phrasal_head_map[postProduction] = (phrasal_head, prodId)
                                     # yield nonterminal + _PRODUCTION_SEPARATOR + postProduction

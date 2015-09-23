@@ -2,7 +2,6 @@ from collections import OrderedDict
 import copy
 import inspect
 
-from nltk import featstruct
 from nltk.featstruct import CelexFeatStructReader, EXPRESSION
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar
 from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser

@@ -1,16 +1,12 @@
-from _collections_abc import Iterable
-import copy
-from enum import Enum
-
-from nltk import Tree, TYPE
-from nltk.featstruct import EXPRESSION, unify
-from nltk.grammar import FeatStructNonterminal
+from nltk.tree import Tree
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 GRAM_FUNC_FEATURE = 'GramFunc'
 PRODUCTION_ID_FEATURE = 'ProdId'
+BRANCH_FEATURE = 'branch'
 
+from enum import Enum
 class AutoNumber(Enum):
     def __new__(cls):
         value = len(cls.__members__) + 1
@@ -202,10 +198,6 @@ class FeatTree(Tree):
                 child.numerate(gorn + counter)
             counter += 1
 
-
-
-
-
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
 
@@ -215,9 +207,9 @@ class FeatTree(Tree):
             return unify(self._label, top_fstruct)
         else:
             for key, val in features_map.items():
-                if key in self._label and val == self._label[key]:
-                    return True
-            return False
+                if key not in self._label or val != self._label[key]:
+                    return False
+            return True
 
     def fit(self, gf=None, ph=None):
         assert isinstance(gf, GF)
@@ -441,3 +433,9 @@ def get_feature(featStructNonTerm, feature):
         if feature in featStructNonTerm:
             result.add(featStructNonTerm[feature])
     return result
+
+from _collections_abc import Iterable
+import copy
+# from nltk.tree import Tree
+from nltk.featstruct import EXPRESSION, unify, TYPE
+from nltk.grammar import FeatStructNonterminal
