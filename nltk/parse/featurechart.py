@@ -323,7 +323,7 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
         for left_edge in chart.select(end=right_edge.start(),
                                       is_complete=False,
                                       nextsym=right_edge.lhs()):
-            for new_edge in self._fundamental_rule.apply(chart, grammar, left_edge, right_edge):
+            for new_edge in self.apply_rule(chart, grammar, left_edge, right_edge):
                 yield new_edge
 
     def _apply_incomplete(self, chart, grammar, left_edge):
@@ -355,16 +355,25 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
             result = unify(nextsym, found, bindings, rename_vars=False)
             if result:
                 if right_edge._lhs != result:
-                    # print('-'*80)
-                    # print(right_edge._lhs)
-                    # print('+'*80)
-                    # print(result)
-                    # print('-'*80)
-                    child_pointer_lists = chart.child_pointer_lists(right_edge)
-                    right_edge = FeatureTreeEdge(right_edge.span(), result, right_edge.rhs(), right_edge.dot(), right_edge.bindings())
-                    #right_edge._lhs = result
-                    #chart._register_with_indexes(right_edge)
+                    # child_pointer_lists = chart.child_pointer_lists(right_edge)
+                    new_right_edge = FeatureTreeEdge((right_edge.start(), right_edge.start()), result, right_edge.rhs())
+                    if chart.insert(new_right_edge):
+                        yield new_right_edge
+
+                    # if chart.insert_with_backpointer(new_right_edge, right_edge, ()):
+                    #     yield new_right_edge
+                    #
+                    # new_rhs = list(left_edge.rhs())
+                    # new_rhs[left_edge.dot()] = result
+                    # new_left_edge = FeatureTreeEdge(span=left_edge.span(),
+                    #            lhs=left_edge.lhs(), rhs=tuple(new_rhs), dot=left_edge.dot(), bindings=left_edge.bindings())
+                    #
+                    # if chart.insert_with_backpointer(new_left_edge, left_edge, ()):
+                    #     yield new_left_edge
+                    return
                     #chart.insert(right_edge, ())
+                    # if chart.insert(right_edge, *child_pointer_lists):
+                    #     yield right_edge
             else:
                 return
         else:
@@ -715,6 +724,7 @@ def celex_preprocessing(file_name):
     from nltk.featstruct import pair_checker
     _CELEX_SEPARATOR = "|-"
     _PRODUCTION_SEPARATOR = " -> "
+    phrasal_head_map = {};
     with open(file_name, encoding='utf-8') as file:
         line_num = 0
         for line in file:
@@ -740,6 +750,7 @@ def celex_preprocessing(file_name):
                                 start_nonterminal, end_nonterminal = pair_checker(s, start_group + 1)
                                 grammatical_function = s[start_group +1:start_nonterminal].strip()
                                 nonterminal = s[start_nonterminal + 1: end_nonterminal].strip()
+                                phrasal_head = nonterminal
                                 index = len(nonterminal)
                                 insert = GRAM_FUNC_FEATURE + '=' + grammatical_function
                                 # check if there are any features
@@ -749,6 +760,7 @@ def celex_preprocessing(file_name):
                                     insert = '[' + insert + ']'
                                 else:
                                     if feat_block:
+                                        phrasal_head = s[start_nonterminal + 1: feat_block[0]].strip()
                                         index -= 1
                                         if s[feat_block[0] + 1:feat_block[1]].strip(): # if feature block is not empty
                                             insert = ',' + insert
@@ -758,11 +770,24 @@ def celex_preprocessing(file_name):
                                     nonterminal = nonterminal[:index] + insert + nonterminal[index:]
 
                                 if 'hd' == grammatical_function:
+                                    phrasal_head_map[postProduction] = phrasal_head
                                     nonterminal = nonterminal[:-1] + ',' + PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction + nonterminal[-1:]
-                                    yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
+                                    # yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
                                 production.append(nonterminal)
                                 group = pair_checker(s, end_group + 1)
                     yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
+                elif _PRODUCTION_SEPARATOR in line:
+                    lhs, rhs = line.split(_PRODUCTION_SEPARATOR)
+                    group = pair_checker(lhs)
+                    if (group):
+                        phrasal_head = lhs[:group[0]].strip()
+                        if phrasal_head in phrasal_head_map:
+                            lhs = phrasal_head_map[phrasal_head] + lhs[group[0]:]
+                    else:
+                        phrasal_head = lhs.strip()
+                        if phrasal_head in phrasal_head_map:
+                            lhs = phrasal_head_map[phrasal_head]
+                    yield lhs + _PRODUCTION_SEPARATOR + rhs
                 else:
                     yield line
 

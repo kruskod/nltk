@@ -2793,7 +2793,7 @@ def calculate_collection_hash(fval, visited = list()):
     hash_val = 7
     if isinstance(fval, FeatStruct):
         hash_val += fval._calculate_hashvalue(visited)
-    elif isinstance(fval, (tuple, list)):
+    elif isinstance(fval, (tuple, list, set)):
         for item in fval:
             hash_val += calculate_collection_hash(item)
     elif isinstance(fval, dict):
