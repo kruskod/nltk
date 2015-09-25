@@ -1078,7 +1078,7 @@ class PGLeafInitRule(AbstractChartRule):
     NUM_EDGES = 0
 
     def apply(self, chart, grammar):
-        for comb in itertools.permutations(chart.leaves()):
+        for comb in set(itertools.permutations(chart.leaves())):
             for index, leaf in enumerate(comb):
                 new_edge = LeafEdge(leaf, index)
                 if chart.insert(new_edge, ()):
