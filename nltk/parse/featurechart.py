@@ -442,13 +442,13 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                     continue
             result = unify(lhs.filter_system_features(), rhs, rename_vars=False)
             if result:
-                if new_edge._lhs != result:
-                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
-                    if chart.insert(new_right_edge, ()):
-                        yield new_right_edge
-                else:
-                    if chart.insert(new_edge, ()):
-                        yield new_edge
+                # if new_edge._lhs != result:
+                #     new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
+                #     if chart.insert(new_right_edge, ()):
+                #         yield new_right_edge
+                # else:
+                if chart.insert(new_edge, ()):
+                    yield new_edge
             # if chart.insert(new_edge, ()):
             #     yield new_edge
         #branch=facultative logic
