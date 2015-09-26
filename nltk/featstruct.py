@@ -1314,6 +1314,13 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     assert isinstance(fstruct1, fs_class)
     assert isinstance(fstruct2, fs_class)
 
+    # if fstruct1[TYPE] == 'v':
+    #     if EXPRESSION in fstruct1:
+    #         simp_expressions = simplify_expression(fstruct1[EXPRESSION])
+    #         if simp_expressions[0]['ProdId'] == 'S23':
+    #             print('S23')
+
+
     # If bindings are unspecified, use an empty set of bindings.
     user_bindings = (bindings is not None)
     if bindings is None: bindings = {}
@@ -1334,27 +1341,27 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
             if isinstance(simp_expressions, dict):
                 simp_expressions = list(simp_expressions)
             for ex in simp_expressions:
-                fstructcopy = copy.deepcopy(fstruct1)
+                fstructcopy = fstruct1.copy()
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
                 fstructs1.append(fstructcopy)
         else:
-            fstructs1.append(copy.deepcopy(fstruct1))
+            fstructs1.append(fstruct1.copy())
 
         if EXPRESSION in fstruct2:
             simp_expressions = simplify_expression(fstruct2[EXPRESSION])
             if isinstance(simp_expressions, dict):
                 simp_expressions = list(simp_expressions)
             for ex in simp_expressions:
-                fstructcopy = copy.deepcopy(fstruct2)
+                fstructcopy = fstruct2.copy()
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
                 fstructs2.append(fstructcopy)
         else:
-            fstructs2.append(copy.deepcopy(fstruct2))
+            fstructs2.append(fstruct2.copy())
 
         #get all matches, then combine them in results
-        results = []
+        results = set()
         for fs1 in fstructs1:
             for fs2 in fstructs2:
                 bindings_copy = copy.deepcopy(bindings)
@@ -1364,25 +1371,27 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                     _rename_variables(fs2, vars1, vars2, {}, fs_class, set())
 
                 # Do the actual unification.  If it fails, return None.
-                forward = {}
                 if trace: _trace_unify_start((), fs1, fs2)
                 try:
-                    result = _destructively_unify(fs1.copy(), fs2.copy(), bindings_copy, forward, trace, fail, fs_class, ())
-                    if result is not UnificationFailure:
+                    fs1_fs2 = _destructively_unify(fs1.copy(), fs2.copy(), bindings_copy, {}, trace, fail, fs_class, ())
+                    if fs1_fs2 is not UnificationFailure:
                         bindings.update(bindings_copy)
-                        results.append(result)
+                        results.add(fs1_fs2)
                 except _UnificationFailureError:
                      pass
-        if len(results) > 1:
-            result_copy = FeatStructNonterminal()
-            result_copy[TYPE] = result[TYPE]
-            expressions = []
-            for item in results:
-                exp = dict(item)
-                del exp[TYPE]
-                expressions.append(exp)
-            result_copy[EXPRESSION] = combine_expression(expressions)
-            result = result_copy
+        if results:
+            if len(results) > 1:
+                result_copy = FeatStructNonterminal()
+                result_copy[TYPE] = fstruct1[TYPE]
+                expressions = []
+                for item in results:
+                    exp = dict(item)
+                    del exp[TYPE]
+                    expressions.append(exp)
+                result_copy[EXPRESSION] = combine_expression(expressions)
+                result = result_copy
+            else:
+                result = results.pop()
     else:
         (fstruct1copy, fstruct2copy, bindings_copy) = (
             copy.deepcopy((fstruct1, fstruct2, bindings)))

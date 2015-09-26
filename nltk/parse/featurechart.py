@@ -97,10 +97,22 @@ class FeatureTreeEdge(TreeEdge):
         return FeatureTreeEdge(span=(self._span[0], new_end),
                                lhs=self._lhs, rhs=self._rhs,
                                dot=self._dot + 1, bindings=bindings)
+
     def hfc(self):
+        """
+        :return: filtered features of the head node
+        """
         for nt in self.rhs():
             if isinstance(nt, FeatStructNonterminal) and nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
-                return nt.filter_system_features(filter_prod_id=True, filter_gram_func=True)
+                return nt.filter_system_features(filter_prod_id=True, filter_gram_func=True, filter_POS = True)
+
+    def apply_hfc(self):
+        """
+        Go throw the right part of edge and apply left-part inherited features for each nonterminal
+        if nonterminal is head, merge filtered nonterminal feautures with the left part of the rule
+        :return:
+        """
+
 
     def _bind(self, nt, bindings):
         if not isinstance(nt, FeatStructNonterminal): return nt
@@ -356,19 +368,18 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
             found = found.rename_variables(used_vars=left_edge.variables())
             # Unify B1 (left_edge.nextsym) with B2 (right_edge.lhs) to
             # generate B3 (result).
-
             hfc = right_edge.hfc()
             if hfc:
                 hfc.pop(TYPE, None)
                 new_found = unify(found, hfc, rename_vars=False)
-                if not new_found or not unify(nextsym, new_found, bindings, rename_vars=False):
-                    return
-                # if not new_found:
+                # if not new_found or not unify(nextsym, new_found, bindings, rename_vars=False):
                 #     return
-                # elif not unify(nextsym, new_found, bindings, rename_vars=False):
-                #     return
-            result = unify(nextsym, found, bindings, rename_vars=False)
-            if result is None: return
+                if new_found:
+                    result = unify(nextsym, new_found, bindings, rename_vars=False)
+            else:
+                result = unify(nextsym, found, bindings, rename_vars=False)
+            if result is None:
+                return
         else:
             if nextsym != found: return
             # Create a copy of the bindings.
@@ -435,23 +446,24 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
             #unify new_edge and edge and insert unified edge in chart
             rhs = new_edge.lhs()
             hfc = new_edge.hfc()
+            result = None
             if hfc:
                 hfc.pop(TYPE, None)
-                new_rhs = unify(rhs, hfc, rename_vars=False)
-                if not new_rhs or not unify(lhs, new_rhs, rename_vars=False):
-                    continue
-            result = unify(lhs.filter_system_features(), rhs, rename_vars=False)
+                rhs_hfc = unify(rhs, hfc, rename_vars=False)
+                if rhs_hfc:
+                    result = unify(lhs.filter_system_features(), rhs_hfc, rename_vars=False)
+            else:
+                # if is_nonterminal(rhs) and rhs[TYPE] == 'v':
+                #     print('verb')
+                result = unify(lhs.filter_system_features(), rhs, rename_vars=False)
             if result:
-                # if new_edge._lhs != result:
-                #     new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
-                #     if chart.insert(new_right_edge, ()):
-                #         yield new_right_edge
-                # else:
-                if chart.insert(new_edge, ()):
-                    yield new_edge
-            # if chart.insert(new_edge, ()):
-            #     yield new_edge
-        #branch=facultative logic
+                if rhs != result:
+                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
+                    if chart.insert(new_right_edge, ()):
+                        yield new_right_edge
+                else:
+                    if chart.insert(new_edge, ()):
+                        yield new_edge
         if is_nonterminal(lhs) and lhs.get(self.FACULTATIVE_PARAM) == self.FACULTATIVE_VAL:
             new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=edge.bindings())
             if chart.insert(new_edge, *chart.child_pointer_lists(edge)):

@@ -497,7 +497,6 @@ def process_dominance(tree, topology_rules):
                 unif = featstruct.unify(node, top_fstruct)
             else:
                 unif = True
-
             if unif:
                 topology = copy.deepcopy(temp_topol)
                 topology.edge = tree
@@ -571,7 +570,7 @@ def demo(print_times=True, print_grammar=False,
             # for top in feat_tree.topologies:
             #     print(top.read_out(tokens))
         end_time = timer()
-        TreeTabView(*dominance_structures)
+        TreeTabView(*dominance_structures[:20])
     print("------------------------------------------------")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
