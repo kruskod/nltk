@@ -5,6 +5,7 @@ __author__ = 'Denis Krusko: kruskod@gmail.com'
 GRAM_FUNC_FEATURE = 'GramFunc'
 PRODUCTION_ID_FEATURE = 'ProdId'
 BRANCH_FEATURE = 'branch'
+POS_FEATURE = 'POS'
 
 from enum import Enum
 class AutoNumber(Enum):
