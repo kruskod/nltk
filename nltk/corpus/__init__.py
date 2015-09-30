@@ -76,10 +76,10 @@ brown = LazyCorpusLoader(
     cat_file='cats.txt', tagset='brown', encoding="ascii")
 cess_cat = LazyCorpusLoader(
     'cess_cat', BracketParseCorpusReader, r'(?!\.).*\.tbf',
-    tagset='unknown', encoding='ISO-8859-2')
+    tagset='unknown', encoding='ISO-8859-15')
 cess_esp = LazyCorpusLoader(
     'cess_esp', BracketParseCorpusReader, r'(?!\.).*\.tbf',
-    tagset='unknown', encoding='ISO-8859-2')
+    tagset='unknown', encoding='ISO-8859-15')
 cmudict = LazyCorpusLoader(
     'cmudict', CMUDictCorpusReader, ['cmudict'])
 comtrans = LazyCorpusLoader(
@@ -147,6 +147,8 @@ movie_reviews = LazyCorpusLoader(
     'movie_reviews', CategorizedPlaintextCorpusReader,
     r'(?!\.).*\.txt', cat_pattern=r'(neg|pos)/.*',
     encoding='ascii')
+multext_east = LazyCorpusLoader(
+    'mte_teip5', MTECorpusReader, r'(oana).*\.xml', encoding="utf-8")
 names = LazyCorpusLoader(
     'names', WordListCorpusReader, r'(?!\.).*\.txt', encoding='ascii')
 nkjp = LazyCorpusLoader(
