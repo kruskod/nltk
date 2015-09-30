@@ -34,8 +34,8 @@ def are_files_identical(filename1, filename2, debug=False):
                     if debug:
                         print("Error while comparing files. " +
                               "First difference at line below.")
-                        print("=> Output file line: {}".format(lineA))
-                        print("=> Refer. file line: {}".format(lineB))
+                        print("=> Output file line: {0}".format(lineA))
+                        print("=> Refer. file line: {0}".format(lineB))
                     result = False
                     break
             return result
@@ -48,7 +48,7 @@ class TestJSON2CSV(unittest.TestCase):
             self.infile = [next(infile) for x in range(100)]
         infile.close()
         self.msg = "Test and reference files are not the same"
-        self.subdir = 'files'
+        self.subdir = os.path.join(os.path.dirname(__file__), 'files')
 
     def tearDown(self):
         return
