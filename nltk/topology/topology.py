@@ -539,6 +539,7 @@ def demo(print_times=True, print_grammar=False,
     # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/minlex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
+    print(productions.productions()[0].rhs()[0])
     cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sent.split()
     parses = cp.parse(tokens)

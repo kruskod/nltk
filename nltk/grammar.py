@@ -282,9 +282,8 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             if feature in self:
                 return self[feature]
 
-    def filter_feature(self, filter_coll=(BRANCH_FEATURE,)):
+    def filter_feature(self, *filter_coll):
         """
-
         """
         filter_node = self.copy(deep=True)
         if EXPRESSION in filter_node:
