@@ -264,6 +264,7 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                     ex.update(feature_map)
                 self[EXPRESSION] = combine_expression(simpl_expres)
         else:
+            self._frozen = False
             self.update(feature_map)
 
 
@@ -281,7 +282,7 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             if feature in self:
                 return self[feature]
 
-    def filter_system_features(self, filter_coll=(BRANCH_FEATURE,)):
+    def filter_feature(self, filter_coll=(BRANCH_FEATURE,)):
         """
 
         """
