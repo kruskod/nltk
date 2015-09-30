@@ -1,13 +1,12 @@
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE
 from nltk.tree import Tree
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
-GRAM_FUNC_FEATURE = 'GramFunc'
-PRODUCTION_ID_FEATURE = 'ProdId'
-BRANCH_FEATURE = 'branch'
-POS_FEATURE = 'POS'
+
 
 from enum import Enum
+
 class AutoNumber(Enum):
     def __new__(cls):
         value = len(cls.__members__) + 1
