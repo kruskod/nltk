@@ -106,7 +106,7 @@ class FeatureTreeEdge(TreeEdge):
         """
         for nt in self.rhs():
             if isinstance(nt, FeatStructNonterminal) and nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
-                return nt.filter_system_features(filter_coll=(PRODUCTION_ID_FEATURE, GRAM_FUNC_FEATURE, POS_FEATURE, BRANCH_FEATURE))
+                return nt.filter_feature(filter_coll=(PRODUCTION_ID_FEATURE, GRAM_FUNC_FEATURE, POS_FEATURE, BRANCH_FEATURE))
 
     def apply_hfc(self):
         """
@@ -116,26 +116,28 @@ class FeatureTreeEdge(TreeEdge):
         """
         #self._bindings
         lhs = self._lhs
-        rhs = list[self._lhs]
+        rhs = list(self._rhs)
         for i, nt in enumerate(rhs):
             inh_features = nt.get_feature(INHERITED_FEATURE)
             if inh_features:
                 #update rule bindings
                 feature_map = {}
+                if isinstance(inh_features, str):
+                    inh_features = (inh_features,)
                 for feat in inh_features:
                      feat_var = Variable(feat)
                      if feat in lhs:
-                        feat_val = self._bindings[feat_var]
+                        feat_val = lhs[feat]
                      elif feat_var in self._bindings:
                         feat_val = self._bindings[feat_var]
                      else:
                         feat_val = '?' + feat
                      self._bindings[feat_var] = feat_val
                      feature_map[feat] = feat_val
-                nt.filter_system_features(INHERITED_FEATURE)
+                nt.filter_feature(INHERITED_FEATURE)
                 nt.add_feature(feature_map)
             if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
-                new_nt = unify(nt, lhs.filter_system_features(GRAM_FUNC_FEATURE))
+                new_nt = unify(nt, lhs.filter_feature(GRAM_FUNC_FEATURE))
                 if not new_nt:
                     return False
                 rhs[i] = new_nt
@@ -152,7 +154,7 @@ class FeatureTreeEdge(TreeEdge):
     #         for feat in inh_features:
     #             bindings[Variable(feat)] = '?' + feat
     #             feature_map[feat] = '?' + feat
-    #         self.filter_system_features()
+    #         self.filter_feature()
     #         #update FeatStructNonterminal
 
 
@@ -493,14 +495,14 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                 hfc.pop(TYPE, None)
                 rhs_hfc = unify(rhs, hfc, rename_vars=False)
                 if rhs_hfc:
-                    result = unify(rhs_hfc, lhs.filter_system_features(), rename_vars=False)
+                    result = unify(rhs_hfc, lhs.filter_feature(filter_coll=(BRANCH_FEATURE, INHERITED_FEATURE)), rename_vars=False)
             else:
-                # if is_nonterminal(rhs) and rhs[TYPE] == 'v':
-                #     print('verb')
-                result = unify(rhs, lhs.filter_system_features(), rename_vars=False)
+                result = unify(rhs, lhs.filter_feature(filter_coll=(BRANCH_FEATURE, INHERITED_FEATURE)), rename_vars=False)
             if result:
                 if rhs != result:
                     new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
+                    if hfc:
+                        new_right_edge.apply_hfc()
                     if chart.insert(new_right_edge, ()):
                         yield new_right_edge
                 else:
