@@ -809,32 +809,31 @@ class FeatDict(FeatStruct, dict):
                 return ['[]']
 
         # What's the longest feature name?  Use this to align names.
-        maxfnamelen = max(len("%s" % k) for k in self.keys())
+        #maxfnamelen = max(len("%s" % k) for k in self.keys())
 
         lines = []
         # sorting note: keys are unique strings, so we'll never fall
         # through to comparing values.
         for (fname, fval) in sorted(self.items()):
-            fname = ("%s" % fname).ljust(maxfnamelen)
+            #fname = ("%s" % fname).ljust(maxfnamelen)
             if isinstance(fval, Variable):
-                lines.append('%s = %s' % (fname,fval.name))
+                lines.append('%s=%s' % (fname,fval.name))
 
             elif isinstance(fval, Expression):
-                lines.append('%s = <%s>' % (fname, fval))
+                lines.append('%s=<%s>' % (fname, fval))
 
             elif isinstance(fval, FeatList):
                 fval_repr = fval._repr(reentrances, reentrance_ids)
-                lines.append('%s = %s' % (fname, unicode_repr(fval_repr)))
+                lines.append('%s=%s' % (fname, unicode_repr(fval_repr)))
 
             elif not isinstance(fval, FeatDict):
                 # It's not a nested feature structure -- just print it.
-                lines.append('%s = %s' % (fname, unicode_repr(fval)))
+                lines.append('%s=%s' % (fname, unicode_repr(fval)))
 
             elif id(fval) in reentrance_ids:
                 # It's a feature structure we've seen before -- print
                 # the reentrance id.
-                lines.append('%s -> (%s)' % (fname, reentrance_ids[id(fval)]))
-
+                lines.append('%s->(%s)' % (fname, reentrance_ids[id(fval)]))
             else:
                 # It's a new feature structure.  Separate it from
                 # other values by a blank line.
@@ -844,12 +843,12 @@ class FeatDict(FeatStruct, dict):
                 fval_lines = fval._str(reentrances, reentrance_ids)
 
                 # Indent each line to make room for fname.
-                fval_lines = [(' '*(maxfnamelen+3))+l for l in fval_lines]
+                #fval_lines = [(' '*(maxfnamelen+3))+l for l in fval_lines]
 
                 # Pick which line we'll display fname on, & splice it in.
                 nameline = (len(fval_lines)-1) // 2
-                fval_lines[nameline] = (
-                        fname+' ='+fval_lines[nameline][maxfnamelen+2:])
+                #fval_lines[nameline] = (
+                #        fname+' ='+fval_lines[nameline][maxfnamelen+2:])
 
                 # Add the feature structure to the output.
                 lines += fval_lines
@@ -861,8 +860,9 @@ class FeatDict(FeatStruct, dict):
         if lines[-1] == '': lines.pop()
 
         # Add brackets around everything.
-        maxlen = max(len(line) for line in lines)
-        lines = ['[ %s%s ]' % (line, ' '*(maxlen-len(line))) for line in lines]
+        #maxlen = max(len(line) for line in lines)
+        #lines = ['[ %s%s ]' % (line, ' '*(maxlen-len(line))) for line in lines]
+        lines = ['[%s]' % line for line in lines]
 
         # If it's reentrant, then add on an identifier tag.
         if reentrances[id(self)]:
@@ -1618,7 +1618,7 @@ def _unify_feature_values(fname, fval1, fval2, bindings, forward,
 
                 if inter:
                     if len(inter) > 1:
-                        result = inter
+                        result = tuple(inter)
                     else:
                         result = inter.pop()
                 else:
@@ -1992,7 +1992,7 @@ class RangeFeature(Feature):
 
 SLASH = SlashFeature('slash', default=False, display='slash')
 TYPE = Feature('type', display='prefix')
-EXPRESSION = Feature('expression', display='prefix')
+EXPRESSION = Feature('exp', display='prefix')
 LEXFRAMEKEY = Feature('lexframekey')
 
 
