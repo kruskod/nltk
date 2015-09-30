@@ -13,10 +13,12 @@ feature structures as nodes.
 """
 from __future__ import print_function, unicode_literals
 
+
 from nltk.compat import xrange, python_2_unicode_compatible
-from nltk.featstruct import FeatStruct, unify, TYPE, find_variables
-from nltk.sem import logic
-from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, PRODUCTION_ID_FEATURE
+from nltk.featstruct import FeatStruct, unify, TYPE, find_variables, EXPRESSION
+from nltk.sem import logic, Variable
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, INHERITED_FEATURE, PRODUCTION_ID_FEATURE, POS_FEATURE, \
+    BRANCH_FEATURE
 from nltk.tree import Tree
 from nltk.grammar import (FeatStructNonterminal, is_nonterminal,
                           is_terminal)
@@ -104,7 +106,7 @@ class FeatureTreeEdge(TreeEdge):
         """
         for nt in self.rhs():
             if isinstance(nt, FeatStructNonterminal) and nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
-                return nt.filter_system_features(filter_prod_id=True, filter_gram_func=True, filter_POS = True)
+                return nt.filter_system_features(filter_coll=(PRODUCTION_ID_FEATURE, GRAM_FUNC_FEATURE, POS_FEATURE, BRANCH_FEATURE))
 
     def apply_hfc(self):
         """
@@ -112,6 +114,46 @@ class FeatureTreeEdge(TreeEdge):
         if nonterminal is head, merge filtered nonterminal feautures with the left part of the rule
         :return:
         """
+        #self._bindings
+        lhs = self._lhs
+        rhs = list[self._lhs]
+        for i, nt in enumerate(rhs):
+            inh_features = nt.get_feature(INHERITED_FEATURE)
+            if inh_features:
+                #update rule bindings
+                feature_map = {}
+                for feat in inh_features:
+                     feat_var = Variable(feat)
+                     if feat in lhs:
+                        feat_val = self._bindings[feat_var]
+                     elif feat_var in self._bindings:
+                        feat_val = self._bindings[feat_var]
+                     else:
+                        feat_val = '?' + feat
+                     self._bindings[feat_var] = feat_val
+                     feature_map[feat] = feat_val
+                nt.filter_system_features(INHERITED_FEATURE)
+                nt.add_feature(feature_map)
+            if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
+                new_nt = unify(nt, lhs.filter_system_features(GRAM_FUNC_FEATURE))
+                if not new_nt:
+                    return False
+                rhs[i] = new_nt
+        self._rhs = tuple(rhs)
+        return True
+
+
+    # def generate_bindings(self):
+    #     inh_features = self.get_feature(INHERITED_FEATURE)
+    #     if inh_features:
+    #         #update rule bindings
+    #         bindings = {}
+    #         feature_map = {}
+    #         for feat in inh_features:
+    #             bindings[Variable(feat)] = '?' + feat
+    #             feature_map[feat] = '?' + feat
+    #         self.filter_system_features()
+    #         #update FeatStructNonterminal
 
 
     def _bind(self, nt, bindings):
@@ -451,11 +493,11 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                 hfc.pop(TYPE, None)
                 rhs_hfc = unify(rhs, hfc, rename_vars=False)
                 if rhs_hfc:
-                    result = unify(lhs.filter_system_features(), rhs_hfc, rename_vars=False)
+                    result = unify(rhs_hfc, lhs.filter_system_features(), rename_vars=False)
             else:
                 # if is_nonterminal(rhs) and rhs[TYPE] == 'v':
                 #     print('verb')
-                result = unify(lhs.filter_system_features(), rhs, rename_vars=False)
+                result = unify(rhs, lhs.filter_system_features(), rename_vars=False)
             if result:
                 if rhs != result:
                     new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
@@ -782,9 +824,13 @@ def celex_preprocessing(file_name):
                                 else:
                                     if feat_block:
                                         phrasal_head = s[start_nonterminal + 1: feat_block[0]].strip()
-                                        index -= 1
                                         if s[feat_block[0] + 1:feat_block[1]].strip(): # if feature block is not empty
                                             insert = ',' + insert
+                                        #recognise case when there is not enough brackets
+                                        if len(s[feat_block[1] + 1:end_nonterminal].strip()) > 1:
+                                            nonterminal= phrasal_head + '[' + s[feat_block[0]:end_nonterminal] + ']'
+                                        index = len(nonterminal)
+                                        index -= 1
                                     else:
                                         insert = '[' + insert + ']'
                                 finally:

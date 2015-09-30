@@ -72,11 +72,11 @@ from __future__ import print_function, unicode_literals
 
 import re
 
-from nltk.util import transitive_closure, invert_graph
-from nltk.compat import (string_types, total_ordering, text_type,
-                         python_2_unicode_compatible, unicode_repr)
-from nltk.internals import raise_unorderable_types
+from nltk.topology.compassFeat import BRANCH_FEATURE
 
+from nltk.util import transitive_closure, invert_graph
+from nltk.compat import (string_types, total_ordering, python_2_unicode_compatible, unicode_repr)
+from nltk.internals import raise_unorderable_types
 from nltk.probability import ImmutableProbabilisticMixIn
 from nltk.featstruct import FeatStruct, FeatDict, FeatStructReader, SLASH, TYPE, EXPRESSION, unify
 
@@ -252,7 +252,39 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                     return False
             return True
 
-    def filter_system_features(self, filter_prod_id = False, filter_gram_func = False, filter_POS = False):
+    def add_feature(self, feature_map):
+        if EXPRESSION in self:
+            simpl_expres = simplify_expression(self[EXPRESSION])
+            if isinstance(simpl_expres, dict):
+                self.pop(EXPRESSION, None)
+                self.update(simpl_expres)
+                self.update(feature_map)
+            else:
+                for ex in simpl_expres:
+                    ex.update(feature_map)
+                self[EXPRESSION] = combine_expression(simpl_expres)
+        else:
+            self.update(feature_map)
+
+
+    def get_feature(self, feature):
+        """try to find feature and return it value/set of values"""
+
+        if EXPRESSION in self:
+            simpl_expres = simplify_expression(self[EXPRESSION])
+            result = set()
+            for ex in simpl_expres:
+                if feature in ex:
+                    result.update(ex[feature])
+            return result
+        else:
+            if feature in self:
+                return self[feature]
+
+    def filter_system_features(self, filter_coll=(BRANCH_FEATURE,)):
+        """
+
+        """
         filter_node = self.copy(deep=True)
         if EXPRESSION in filter_node:
             simpl_expres = simplify_expression(filter_node[EXPRESSION])
@@ -261,22 +293,13 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                 filter_node.update(simpl_expres)
             else:
                 for ex in simpl_expres:
-                    ex.pop(BRANCH_FEATURE, None)
-                    if filter_gram_func:
-                        ex.pop(GRAM_FUNC_FEATURE, None)
-                    if filter_prod_id:
-                        ex.pop(PRODUCTION_ID_FEATURE, None)
-                    if filter_POS:
-                        ex.pop(POS_FEATURE, None)
+                    for feat in filter_coll:
+                        ex.pop(feat, None)
                 filter_node[EXPRESSION] = combine_expression(simpl_expres)
-        else:
-            filter_node.pop(BRANCH_FEATURE, None)
-            if filter_gram_func:
-                filter_node.pop(GRAM_FUNC_FEATURE, None)
-            if filter_prod_id:
-                filter_node.pop(PRODUCTION_ID_FEATURE, None)
-            if filter_POS:
-                filter_node.pop(POS_FEATURE, None)
+                return filter_node
+
+        for feat in filter_coll:
+            filter_node.pop(feat, None)
         return filter_node
 
 def is_nonterminal(item):
@@ -1490,7 +1513,6 @@ def pcfg_demo():
     """
 
     from nltk.corpus import treebank
-    from nltk import treetransforms
     from nltk import induce_pcfg
     from nltk.parse import pchart
 
@@ -1607,6 +1629,4 @@ __all__ = ['Nonterminal', 'nonterminals',
            'ProbabilisticDependencyGrammar',
            'induce_pcfg', 'read_grammar']
 
-from nltk.topology.FeatTree import simplify_expression, POS_FEATURE
-from nltk.topology.FeatTree import combine_expression
-from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, BRANCH_FEATURE, PRODUCTION_ID_FEATURE
+from nltk.topology.FeatTree import combine_expression, simplify_expression
