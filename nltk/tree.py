@@ -29,7 +29,7 @@ from nltk.internals import raise_unorderable_types
 ## Trees
 ######################################################################
 
-@python_2_unicode_compatible
+
 class Tree(list):
     """
     A Tree represents a hierarchical grouping of leaves and subtrees.

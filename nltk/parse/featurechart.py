@@ -13,20 +13,20 @@ feature structures as nodes.
 """
 from __future__ import print_function, unicode_literals
 
+
 from nltk.compat import xrange, python_2_unicode_compatible
-from nltk.featstruct import FeatStruct, unify, TYPE, find_variables
-from nltk.sem import logic
-from nltk.topology.FeatTree import GRAM_FUNC_FEATURE, PRODUCTION_ID_FEATURE
+from nltk.featstruct import FeatStruct, unify, TYPE, find_variables, EXPRESSION
+from nltk.sem import logic, Variable
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, INHERITED_FEATURE, PRODUCTION_ID_FEATURE, POS_FEATURE, \
+    BRANCH_FEATURE
 from nltk.tree import Tree
-from nltk.grammar import (Nonterminal, Production, CFG,
-                          FeatStructNonterminal, is_nonterminal,
+from nltk.grammar import (FeatStructNonterminal, is_nonterminal,
                           is_terminal)
 from nltk.parse.chart import (TreeEdge, Chart, ChartParser, EdgeI,
                               FundamentalRule, LeafInitRule,
                               EmptyPredictRule, BottomUpPredictRule,
                               SingleEdgeFundamentalRule,
                               BottomUpPredictCombineRule,
-                              TopDownPredictRule,
                               TopDownInitRule, CachedTopDownPredictRule, AbstractChartRule, PGLeafInitRule)
 
 #////////////////////////////////////////////////////////////
@@ -99,6 +99,64 @@ class FeatureTreeEdge(TreeEdge):
         return FeatureTreeEdge(span=(self._span[0], new_end),
                                lhs=self._lhs, rhs=self._rhs,
                                dot=self._dot + 1, bindings=bindings)
+
+    def hfc(self):
+        """
+        :return: filtered features of the head node
+        """
+        for nt in self.rhs():
+            if isinstance(nt, FeatStructNonterminal) and nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
+                return nt.filter_feature(filter_coll=(PRODUCTION_ID_FEATURE, GRAM_FUNC_FEATURE, POS_FEATURE, BRANCH_FEATURE))
+
+    def apply_hfc(self):
+        """
+        Go throw the right part of edge and apply left-part inherited features for each nonterminal
+        if nonterminal is head, merge filtered nonterminal feautures with the left part of the rule
+        :return:
+        """
+        #self._bindings
+        lhs = self._lhs
+        rhs = list(self._rhs)
+        for i, nt in enumerate(rhs):
+            inh_features = nt.get_feature(INHERITED_FEATURE)
+            if inh_features:
+                #update rule bindings
+                feature_map = {}
+                if isinstance(inh_features, str):
+                    inh_features = (inh_features,)
+                for feat in inh_features:
+                     feat_var = Variable(feat)
+                     if feat in lhs:
+                        feat_val = lhs[feat]
+                     elif feat_var in self._bindings:
+                        feat_val = self._bindings[feat_var]
+                     else:
+                        feat_val = '?' + feat
+                     self._bindings[feat_var] = feat_val
+                     feature_map[feat] = feat_val
+                nt.filter_feature(INHERITED_FEATURE)
+                nt.add_feature(feature_map)
+            if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
+                new_nt = unify(nt, lhs.filter_feature(GRAM_FUNC_FEATURE))
+                if not new_nt:
+                    return False
+                rhs[i] = new_nt
+        self._rhs = tuple(rhs)
+        return True
+
+
+    # def generate_bindings(self):
+    #     inh_features = self.get_feature(INHERITED_FEATURE)
+    #     if inh_features:
+    #         #update rule bindings
+    #         bindings = {}
+    #         feature_map = {}
+    #         for feat in inh_features:
+    #             bindings[Variable(feat)] = '?' + feat
+    #             feature_map[feat] = '?' + feat
+    #         self.filter_feature()
+    #         #update FeatStructNonterminal
+
 
     def _bind(self, nt, bindings):
         if not isinstance(nt, FeatStructNonterminal): return nt
@@ -299,6 +357,85 @@ class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
             for new_edge in fr.apply(chart, grammar, left_edge, right_edge):
                 yield new_edge
 
+class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
+    """
+    A specialized version of the fundamental rule that operates on
+    nonterminals whose symbols are ``FeatStructNonterminal``s.  Rather
+    tha simply comparing the nonterminals for equality, they are
+    unified.  Variable bindings from these unifications are collected
+    and stored in the chart using a ``FeatureTreeEdge``.  When a
+    complete edge is generated, these bindings are applied to all
+    nonterminals in the edge.
+
+    The fundamental rule states that:
+
+    - ``[A -> alpha \* B1 beta][i:j]``
+    - ``[B2 -> gamma \*][j:k]``
+
+    licenses the edge:
+
+    - ``[A -> alpha B3 \* beta][i:j]``
+
+    assuming that B1 and B2 can be unified to generate B3.
+    """
+
+    def _apply_complete(self, chart, grammar, right_edge):
+        for left_edge in chart.select(end=right_edge.start(),
+                                      is_complete=False,
+                                      nextsym=right_edge.lhs()):
+            for new_edge in self.apply_rule(chart, grammar, left_edge, right_edge):
+                yield new_edge
+
+    def _apply_incomplete(self, chart, grammar, left_edge):
+        for right_edge in chart.select(start=left_edge.end(),
+                                       is_complete=True,
+                                       lhs=left_edge.nextsym()):
+            for new_edge in self.apply_rule(chart, grammar, left_edge, right_edge):
+                yield new_edge
+
+    def apply_rule(self, chart, grammar, left_edge, right_edge):
+        # Make sure the rule is applicable.
+        if not (left_edge.end() == right_edge.start() and
+                    #left_edge.is_incomplete() and
+                    right_edge.is_complete() and
+                    isinstance(left_edge, FeatureTreeEdge)):
+            return
+        found = right_edge.lhs()
+        nextsym = left_edge.nextsym()
+        if isinstance(right_edge, FeatureTreeEdge):
+            if not is_nonterminal(nextsym): return
+            if left_edge.nextsym()[TYPE] != right_edge.lhs()[TYPE]: return
+            # Create a copy of the bindings.
+            bindings = left_edge.bindings()
+            # We rename vars here, because we don't want variables
+            # from the two different productions to match.
+            found = found.rename_variables(used_vars=left_edge.variables())
+            # Unify B1 (left_edge.nextsym) with B2 (right_edge.lhs) to
+            # generate B3 (result).
+            hfc = right_edge.hfc()
+            if hfc:
+                hfc.pop(TYPE, None)
+                new_found = unify(found, hfc, rename_vars=False)
+                # if not new_found or not unify(nextsym, new_found, bindings, rename_vars=False):
+                #     return
+                if new_found:
+                    result = unify(nextsym, new_found, bindings, rename_vars=False)
+            else:
+                result = unify(nextsym, found, bindings, rename_vars=False)
+            if result is None:
+                return
+        else:
+            if nextsym != found: return
+            # Create a copy of the bindings.
+            bindings = left_edge.bindings()
+
+        # Construct the new edge.
+        new_edge = left_edge.move_dot_forward(right_edge.end(), bindings)
+
+        # Add it to the chart, with appropriate child pointers.
+        if chart.insert_with_backpointer(new_edge, left_edge, right_edge):
+            yield new_edge
+
 
 #////////////////////////////////////////////////////////////
 # Top-Down Prediction
@@ -350,9 +487,27 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
         lhs=edge.nextsym()
         for prod in grammar.productions(lhs):
             new_edge = FeatureTreeEdge.from_production(prod, edge.end())
-            if chart.insert(new_edge, ()):
-                yield new_edge
-        #branch=facultative logic
+            #unify new_edge and edge and insert unified edge in chart
+            rhs = new_edge.lhs()
+            hfc = new_edge.hfc()
+            result = None
+            if hfc:
+                hfc.pop(TYPE, None)
+                rhs_hfc = unify(rhs, hfc, rename_vars=False)
+                if rhs_hfc:
+                    result = unify(rhs_hfc, lhs.filter_feature(filter_coll=(BRANCH_FEATURE, INHERITED_FEATURE)), rename_vars=False)
+            else:
+                result = unify(rhs, lhs.filter_feature(filter_coll=(BRANCH_FEATURE, INHERITED_FEATURE)), rename_vars=False)
+            if result:
+                if rhs != result:
+                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
+                    if hfc:
+                        new_right_edge.apply_hfc()
+                    if chart.insert(new_right_edge, ()):
+                        yield new_right_edge
+                else:
+                    if chart.insert(new_edge, ()):
+                        yield new_edge
         if is_nonterminal(lhs) and lhs.get(self.FACULTATIVE_PARAM) == self.FACULTATIVE_VAL:
             new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=edge.bindings())
             if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
@@ -465,10 +620,10 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 # Feature Chart Parser
 #////////////////////////////////////////////////////////////
 
-TD_FEATURE_STRATEGY = [PGLeafInitRule(),
+TD_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       FeatureSingleEdgeFundamentalRule()]
+                       PGFeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),
@@ -597,7 +752,7 @@ def demo(print_times=True, print_grammar=True,
          trace=1,
          parser=FeatureChartParser,
          sent='I saw John with a dog with my cookie'):
-    import sys, time
+    import time
 
     print()
     grammar = demo_grammar()
@@ -634,9 +789,11 @@ def celex_preprocessing(file_name):
     from nltk.featstruct import pair_checker
     _CELEX_SEPARATOR = "|-"
     _PRODUCTION_SEPARATOR = " -> "
+    phrasal_head_map = {};
     with open(file_name, encoding='utf-8') as file:
         line_num = 0
         for line in file:
+            line_num += 1
             line = line.rstrip()
             if line and not line.startswith('#'):
                 if _CELEX_SEPARATOR in line:
@@ -658,6 +815,7 @@ def celex_preprocessing(file_name):
                                 start_nonterminal, end_nonterminal = pair_checker(s, start_group + 1)
                                 grammatical_function = s[start_group +1:start_nonterminal].strip()
                                 nonterminal = s[start_nonterminal + 1: end_nonterminal].strip()
+                                phrasal_head = nonterminal
                                 index = len(nonterminal)
                                 insert = GRAM_FUNC_FEATURE + '=' + grammatical_function
                                 # check if there are any features
@@ -667,23 +825,45 @@ def celex_preprocessing(file_name):
                                     insert = '[' + insert + ']'
                                 else:
                                     if feat_block:
-                                        index -= 1
+                                        phrasal_head = s[start_nonterminal + 1: feat_block[0]].strip()
                                         if s[feat_block[0] + 1:feat_block[1]].strip(): # if feature block is not empty
                                             insert = ',' + insert
+                                        #recognise case when there is not enough brackets
+                                        if len(s[feat_block[1] + 1:end_nonterminal].strip()) > 1:
+                                            nonterminal= phrasal_head + '[' + s[feat_block[0]:end_nonterminal] + ']'
+                                        index = len(nonterminal)
+                                        index -= 1
                                     else:
                                         insert = '[' + insert + ']'
                                 finally:
                                     nonterminal = nonterminal[:index] + insert + nonterminal[index:]
 
                                 if 'hd' == grammatical_function:
-                                    nonterminal = nonterminal[:-1] + ',' + PRODUCTION_ID_FEATURE + '=' + str(line_num) + postProduction + nonterminal[-1:]
-                                    yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
+                                    prodId = PRODUCTION_ID_FEATURE + '=' + postProduction
+                                    nonterminal = nonterminal[:-1] + ',' + prodId + nonterminal[-1:]
+                                    phrasal_head_map[postProduction] = (phrasal_head, prodId)
+                                    # yield nonterminal + _PRODUCTION_SEPARATOR + postProduction
                                 production.append(nonterminal)
                                 group = pair_checker(s, end_group + 1)
                     yield production[0] + _PRODUCTION_SEPARATOR + " ".join(production[1:])
+                elif _PRODUCTION_SEPARATOR in line:
+                    lhs, rhs = line.split(_PRODUCTION_SEPARATOR)
+                    group = pair_checker(lhs)
+                    if (group):
+                        phrasal_head = lhs[:group[0]].strip()
+                        if phrasal_head in phrasal_head_map:
+                            phrasal_head, prodId = phrasal_head_map[phrasal_head]
+                            if lhs[group[0] + 1:group[1]].strip(): # if feature block is not empty
+                                prodId = ',' + prodId
+                            lhs = phrasal_head + lhs[group[0]: -1] + prodId + lhs[group[1]:]
+                    else:
+                        phrasal_head = lhs.strip()
+                        if phrasal_head in phrasal_head_map:
+                            phrasal_head, prodId = phrasal_head_map[phrasal_head]
+                            lhs = phrasal_head + '[' + prodId + ']'
+                    yield lhs + _PRODUCTION_SEPARATOR + rhs
                 else:
                     yield line
-            line_num += 1
 
 def pg_demo():
     """
@@ -691,14 +871,12 @@ def pg_demo():
     """
 
     import time
-    import pickle
-    from nltk.data import _open, load
-    from nltk.featstruct import CelexFeatStructReader, pair_checker
+    from nltk.featstruct import CelexFeatStructReader
     from nltk.grammar import FeatureGrammar
     from nltk.parse.earleychart import wordPresenceVerifier
 
-    #sentence = 'Hans sieht'
-    sentence = 'sehe ich'
+    sentence = 'Hans sieht'
+    #sentence = 'sehe ich'
     t = time.clock()
     #grammar = load('../../examples/grammars/book_grammars/pg_german.fcfg')
     #grammar = load('../../examples/grammars/book_grammars/test.fcfg')
@@ -711,8 +889,8 @@ def pg_demo():
     # string_data = binary_data.decode('utf-8')
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     #grammar = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
-    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/pg_german.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    #productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/lex_test.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    productions = FeatureGrammar.fromstring(celex_preprocessing('../../examples/grammars/book_grammars/pg_german.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
     # lexical_productions = FeatureGrammar.fromstring(string_data, logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     #productions = FeatureGrammar(grammar_productions.start(), grammar_productions.productions())
@@ -730,7 +908,7 @@ def pg_demo():
     #print(productions)
     cp = FeatureTopDownChartParser(productions, trace=1)
     tokens = sentence.split()
-    trees = cp.parse(tokens)
+    trees = list(cp.parse(tokens))
 
     verifier = wordPresenceVerifier(tokens)
     dominance_structures = []
