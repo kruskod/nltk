@@ -612,7 +612,7 @@ class Chart(object):
         Add a new edge to the chart, using a pointer to the previous edge.
         """
         cpls = self.child_pointer_lists(previous_edge)
-        new_cpls = [cpl + (child_edge,) for cpl in cpls]
+        new_cpls = [cpl + (child_edge,) if child_edge else cpl for cpl in cpls]
         return self.insert(new_edge, *new_cpls)
 
     def insert(self, edge, *child_pointer_lists):
@@ -630,6 +630,7 @@ class Chart(object):
             the trees (or partial trees) that are associated with ``edge``.
         :rtype: bool
         """
+
         # Is it a new edge?
         if edge not in self._edge_to_cpls:
             # Add it to the list of edges.
@@ -731,7 +732,7 @@ class Chart(object):
             for tree in trees:
                 tree.extend(unexpanded)
 
-        # Update the memoization dictionary.
+        # Update the memorization dictionary.
         memo[edge] = trees
 
         # Return the list of trees.
@@ -1077,7 +1078,7 @@ class PGLeafInitRule(AbstractChartRule):
     NUM_EDGES = 0
 
     def apply(self, chart, grammar):
-        for comb in itertools.permutations(chart.leaves()):
+        for comb in set(itertools.permutations(chart.leaves())):
             for index, leaf in enumerate(comb):
                 new_edge = LeafEdge(leaf, index)
                 if chart.insert(new_edge, ()):

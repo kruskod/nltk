@@ -89,7 +89,7 @@ or if you plan to use them as dictionary keys, it is strongly
 recommended that you use full-fledged ``FeatStruct`` objects.
 """
 from __future__ import print_function, unicode_literals, division
-
+from _collections_abc import Iterable
 import re
 import copy
 
@@ -1303,8 +1303,8 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     """
     # Decide which class(es) will be treated as feature structures,
     # for the purposes of unification.
-    from nltk.topology.topology import simplify_expression
-
+    from nltk.topology.FeatTree import simplify_expression, combine_expression
+    from nltk.grammar import FeatStructNonterminal
 
     if fs_class == 'default':
         fs_class = _default_fs_class(fstruct1)
@@ -1313,6 +1313,13 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                              "dicts and lists is not supported.")
     assert isinstance(fstruct1, fs_class)
     assert isinstance(fstruct2, fs_class)
+
+    # if fstruct1[TYPE] == 'v':
+    #     if EXPRESSION in fstruct1:
+    #         simp_expressions = simplify_expression(fstruct1[EXPRESSION])
+    #         if simp_expressions[0]['ProdId'] == 'S23':
+    #             print('S23')
+
 
     # If bindings are unspecified, use an empty set of bindings.
     user_bindings = (bindings is not None)
@@ -1330,24 +1337,31 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
         fstructs1 = []
         fstructs2 = []
         if EXPRESSION in fstruct1:
-            for ex in simplify_expression(fstruct1[EXPRESSION]):
-                fstructcopy = copy.deepcopy(fstruct1)
+            simp_expressions = simplify_expression(fstruct1[EXPRESSION])
+            if isinstance(simp_expressions, dict):
+                simp_expressions = list(simp_expressions)
+            for ex in simp_expressions:
+                fstructcopy = fstruct1.copy()
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
                 fstructs1.append(fstructcopy)
         else:
-            fstructs1.append(copy.deepcopy(fstruct1))
+            fstructs1.append(fstruct1.copy())
 
         if EXPRESSION in fstruct2:
-            for ex in simplify_expression(fstruct2[EXPRESSION]):
-                fstructcopy = copy.deepcopy(fstruct2)
+            simp_expressions = simplify_expression(fstruct2[EXPRESSION])
+            if isinstance(simp_expressions, dict):
+                simp_expressions = list(simp_expressions)
+            for ex in simp_expressions:
+                fstructcopy = fstruct2.copy()
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
                 fstructs2.append(fstructcopy)
         else:
-            fstructs2.append(copy.deepcopy(fstruct2))
+            fstructs2.append(fstruct2.copy())
 
-        #go before first match
+        #get all matches, then combine them in results
+        results = set()
         for fs1 in fstructs1:
             for fs2 in fstructs2:
                 bindings_copy = copy.deepcopy(bindings)
@@ -1357,16 +1371,27 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                     _rename_variables(fs2, vars1, vars2, {}, fs_class, set())
 
                 # Do the actual unification.  If it fails, return None.
-                forward = {}
                 if trace: _trace_unify_start((), fs1, fs2)
                 try:
-                    result = _destructively_unify(fs1, fs2, bindings_copy, forward, trace, fail, fs_class, ())
-                    if result is not UnificationFailure:
+                    fs1_fs2 = _destructively_unify(fs1.copy(), fs2.copy(), bindings_copy, {}, trace, fail, fs_class, ())
+                    if fs1_fs2 is not UnificationFailure:
                         bindings.update(bindings_copy)
-                        break
+                        results.add(fs1_fs2)
                 except _UnificationFailureError:
-
                      pass
+        if results:
+            if len(results) > 1:
+                result_copy = FeatStructNonterminal()
+                result_copy[TYPE] = fstruct1[TYPE]
+                expressions = []
+                for item in results:
+                    exp = dict(item)
+                    del exp[TYPE]
+                    expressions.append(exp)
+                result_copy[EXPRESSION] = combine_expression(expressions)
+                result = result_copy
+            else:
+                result = results.pop()
     else:
         (fstruct1copy, fstruct2copy, bindings_copy) = (
             copy.deepcopy((fstruct1, fstruct2, bindings)))
@@ -1381,7 +1406,8 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
 
         # Do the actual unification.  If it fails, return None.
         if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
-        try: result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
+        try:
+            result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
                                            forward, trace, fail, fs_class, ())
         except _UnificationFailureError: return None
 
@@ -1571,10 +1597,32 @@ def _unify_feature_values(fname, fval1, fval2, bindings, forward,
                     (fval1, fval2, result, fval2.unify(fval1)))
         elif isinstance(fval2, CustomFeatureValue):
             result = fval2.unify(fval1)
-        # Case 5c: Simple values -- check if they're equal.
+
         else:
+            # Case 5c: Simple values -- check if they're equal.
             if fval1 == fval2:
                 result = fval1
+            # Case 5d: One of the values is a collection
+            elif not (isinstance(fval1, str) and  isinstance(fval2, str)) and (isinstance(fval1, Iterable) or isinstance(fval2, Iterable)):
+                fval1s = set()
+                fval2s = set()
+                if not isinstance(fval1, str) and isinstance(fval1, Iterable):
+                    fval1s.update(fval1)
+                else:
+                    fval1s.add(fval1)
+                if not isinstance(fval2, str) and isinstance(fval2, Iterable):
+                    fval2s.update(fval2)
+                else:
+                    fval2s.add(fval2)
+                inter = fval1s.intersection(fval2s)
+
+                if inter:
+                    if len(inter) > 1:
+                        result = inter
+                    else:
+                        result = inter.pop()
+                else:
+                    result = UnificationFailure
             else:
                 result = UnificationFailure
 
@@ -2324,10 +2372,10 @@ class FeatStructReader(object):
     def read_var_value(self, s, position, reentrances, match):
         return Variable(match.group()), match.end()
 
-    _SYM_CONSTS = {'None':None, 'True':True, 'False':False}
+    _SYM_CONSTS = {'none':None, 'true':True, 'false':False}
     def read_sym_value(self, s, position, reentrances, match):
         val, end = match.group(), match.end()
-        return self._SYM_CONSTS.get(val, val), end
+        return self._SYM_CONSTS.get(val.lower(), val), end
 
     def read_app_value(self, s, position, reentrances, match):
         """Mainly included for backwards compat."""
@@ -2486,15 +2534,20 @@ class CelexFeatStructReader(FeatStructReader):
         return self._finalize(s, end_group + 1, fstruct)
 
     def read_features(self, s, position = 0, fstruct = None):
+        from nltk.topology.FeatTree import OP
         group = pair_checker(s, position)
         if group:
+            remaining_part = None
+            start_group = group[0]
+            if start_group > position:
+                remaining_part = self.read_features(s[position:start_group], fstruct=dict())[0]
             expression_part = list()
             expression = list()
             last_operator = None
             while group:
                 start_group, end_group = group
                 if start_group > position:
-                    operator = s[position:start_group].strip()
+                    operator = OP[s[position:start_group].strip()]
                     if last_operator and operator != last_operator:
                         expression = tuple(last_operator, expression + expression_part)
                         expression_part = list()
@@ -2503,10 +2556,20 @@ class CelexFeatStructReader(FeatStructReader):
                 expression_part.append(self.read_features(s[start_group + 1:end_group], fstruct=dict())[0])
                 position = end_group + 1
                 group = pair_checker(s, position)
+            #check if there are some properties remaining
+            position += 1
+
+            if len(s) > position:
+                remaining_part, end_position = self.read_features(s[position:], fstruct=dict())
+                position += end_position
+            result = None
             if last_operator:
-                return (last_operator,tuple(expression + expression_part)), position
+                result = (last_operator,tuple(expression + expression_part))
             else:
-                return tuple(*expression_part), position
+                result = tuple(*expression_part)
+            if remaining_part:
+                result = (OP.AND, (remaining_part, result))
+            return result, position
         else:
             while position < len(s):
                 # Use these variables to hold info about each feature:
@@ -2523,6 +2586,11 @@ class CelexFeatStructReader(FeatStructReader):
                     if name is None:
                         raise ValueError('known special feature', match.start(2))
 
+                # Check if it's negation feature without value
+                if name[0] == '!':
+                    name = name[1:]
+                    value = False
+
                 # Check if this feature has a value already.
                 if name in fstruct:
                     raise ValueError('new name', match.start(2))
@@ -2530,6 +2598,7 @@ class CelexFeatStructReader(FeatStructReader):
                 # Boolean value ("+name" or "-name")
                 if match.group(1) == '+': value = True
                 if match.group(1) == '-': value = False
+
 
                 # Assignment ("= value").
                 if value is None:
@@ -2731,7 +2800,7 @@ def calculate_collection_hash(fval, visited = list()):
     hash_val = 7
     if isinstance(fval, FeatStruct):
         hash_val += fval._calculate_hashvalue(visited)
-    elif isinstance(fval, tuple):
+    elif isinstance(fval, (tuple, list, set)):
         for item in fval:
             hash_val += calculate_collection_hash(item)
     elif isinstance(fval, dict):

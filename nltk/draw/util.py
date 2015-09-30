@@ -1656,6 +1656,7 @@ class CanvasFrame(object):
             self._parent.bind('<Control-p>', lambda e: self.print_to_file())
             self._parent.bind('<Control-x>', self.destroy)
             self._parent.bind('<Control-q>', self.destroy)
+            # self._parent.bind('<Configure>', self.resizex)
         else:
             self._parent = parent
 
@@ -1672,6 +1673,7 @@ class CanvasFrame(object):
         xscrollbar.pack(fill='x', side='bottom')
         canvas.pack(expand=1, fill='both', side='left')
 
+
         # Set initial scroll region.
         scrollregion = '0 0 %s %s' % (canvas['width'], canvas['height'])
         canvas['scrollregion'] = scrollregion
@@ -1682,6 +1684,10 @@ class CanvasFrame(object):
         if parent is None:
             self.pack(expand=1, fill='both')
             self._init_menubar()
+
+    # def resizex(self, event):
+    #     w,h = event.width-100, event.height-100
+    #     self._canvas.config(width=w, height=h)
 
     def _init_menubar(self):
         menubar = Menu(self._parent)
