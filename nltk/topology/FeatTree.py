@@ -1,11 +1,7 @@
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE
-from nltk.tree import Tree
-
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
-
-
 from enum import Enum
+from nltk.tree import Tree
 
 class AutoNumber(Enum):
     def __new__(cls):
@@ -438,4 +434,6 @@ from _collections_abc import Iterable
 import copy
 # from nltk.tree import Tree
 from nltk.featstruct import EXPRESSION, unify, TYPE
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE
+
 from nltk.grammar import FeatStructNonterminal
