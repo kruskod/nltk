@@ -69,6 +69,7 @@ with the right hand side (*rhs*) in a tree (*tree*) is known as
 "expanding" *lhs* to *rhs* in *tree*.
 """
 from __future__ import print_function, unicode_literals
+from _collections_abc import Iterable
 
 import re
 
@@ -276,8 +277,12 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             result = set()
             for ex in simpl_expres:
                 if feature in ex:
-                    result.update(ex[feature])
-            return result
+                    val = ex[feature]
+                    if isinstance(val, tuple):
+                        result.update(val)
+                    else:
+                        result.add(val)
+            return tuple(result)
         else:
             if feature in self:
                 return self[feature]
@@ -296,8 +301,6 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                     for feat in filter_coll:
                         ex.pop(feat, None)
                 filter_node[EXPRESSION] = combine_expression(simpl_expres)
-                return filter_node
-
         for feat in filter_coll:
             filter_node.pop(feat, None)
         return filter_node

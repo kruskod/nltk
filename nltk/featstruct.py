@@ -104,6 +104,7 @@ from nltk.compat import (string_types, integer_types, total_ordering,
 ######################################################################
 
 
+
 @total_ordering
 class FeatStruct(SubstituteBindingsI):
     """
@@ -820,6 +821,8 @@ class FeatDict(FeatStruct, dict):
                 lines.append('%s=%s' % (fname,fval.name))
 
             elif isinstance(fval, Expression):
+                # from nltk.topology.FeatTree import combine_expression, simplify_expression
+                # fval_copy = combine_expression(sorted(simplify_expression(fval)))
                 lines.append('%s=<%s>' % (fname, fval))
 
             elif isinstance(fval, FeatList):
@@ -1046,6 +1049,7 @@ def substitute_bindings(fstruct, bindings, fs_class='default'):
 def _substitute_bindings(fstruct, bindings, fs_class, visited):
     # Visit each node only once:
     if id(fstruct) in visited: return
+    fstruct._frozen = False
     visited.add(id(fstruct))
 
     if _is_mapping(fstruct): items = fstruct.items()
@@ -1342,6 +1346,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                 simp_expressions = list(simp_expressions)
             for ex in simp_expressions:
                 fstructcopy = fstruct1.copy()
+
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
                 fstructs1.append(fstructcopy)
@@ -1354,6 +1359,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                 simp_expressions = list(simp_expressions)
             for ex in simp_expressions:
                 fstructcopy = fstruct2.copy()
+
                 del fstructcopy[EXPRESSION]
                 fstructcopy.update(ex)
                 fstructs2.append(fstructcopy)
@@ -2847,3 +2853,4 @@ if __name__ == '__main__':
 __all__ = ['FeatStruct', 'FeatDict', 'FeatList', 'unify', 'subsumes', 'conflicts',
            'Feature', 'SlashFeature', 'RangeFeature', 'SLASH', 'TYPE',
            'FeatStructReader']
+

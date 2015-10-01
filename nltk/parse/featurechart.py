@@ -126,15 +126,16 @@ class FeatureTreeEdge(TreeEdge):
                 if isinstance(inh_features, str):
                     inh_features = (inh_features,)
                 for feat in inh_features:
-                     feat_var = Variable(feat)
+                     feat_var = Variable('?' + feat)
+                     feat_val = lhs.get_feature(feat)
                      if feat_var in self._bindings:
-                        feat_val = self._bindings[feat_var]
-                     elif feat in lhs:
-                        feat_val = lhs[feat]
+                        feature_map[feat] = bindings[feat_var] = self._bindings[feat_var]
+                     elif feat_val:
+                        if not isinstance(feat_val, Variable):
+                            bindings[feat_var] = feat_val
+                        feature_map[feat] = feat_val
                      else:
-                        feat_val = '?' + feat
-                     bindings[feat_var] = feat_val
-                     feature_map[feat] = feat_val
+                        feature_map[feat] = feat_var
                 nt = nt.filter_feature(INHERITED_FEATURE)
                 nt.add_feature(feature_map)
             if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
@@ -357,6 +358,7 @@ class FeatureSingleEdgeFundamentalRule(SingleEdgeFundamentalRule):
             for new_edge in fr.apply(chart, grammar, left_edge, right_edge):
                 yield new_edge
 
+
 class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
     """
     A specialized version of the fundamental rule that operates on
@@ -412,6 +414,7 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
             found = found.rename_variables(used_vars=left_edge.variables())
             # Unify B1 (left_edge.nextsym) with B2 (right_edge.lhs) to
             # generate B3 (result).
+            result = None
             hfc = right_edge.hfc()
             if hfc:
                 hfc.pop(TYPE, None)
@@ -422,7 +425,7 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
                     result = unify(nextsym, new_found, bindings, rename_vars=False)
             else:
                 result = unify(nextsym, found, bindings, rename_vars=False)
-            if result is None:
+            if not result:
                 return
         else:
             if nextsym != found: return
@@ -502,15 +505,21 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                     new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
                     if hfc:
                         new_right_edge = new_right_edge.apply_hfc()
-                    if new_right_edge and chart.insert(new_right_edge, ()):
-                        yield new_right_edge
+                        #hash(new_right_edge)
+                    if new_right_edge:
+                        if chart.insert(new_right_edge, ()):
+                            yield new_right_edge
+                    else:
+                        return
                 else:
                     if chart.insert(new_edge, ()):
                         yield new_edge
-        if is_nonterminal(lhs) and lhs.get(BRANCH_FEATURE) == self.FACULTATIVE_VAL:
+        if is_nonterminal(lhs) and lhs.has_feature({BRANCH_FEATURE: self.FACULTATIVE_VAL}):
             new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=edge.bindings())
-            if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+            if chart.insert_with_backpointer(new_edge, edge, None):
                 yield new_edge
+            # if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+            #     yield new_edge
 
 class FeatureCachedTopDownPredictRule(CachedTopDownPredictRule):
     """
