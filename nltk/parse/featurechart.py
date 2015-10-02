@@ -108,6 +108,7 @@ class FeatureTreeEdge(TreeEdge):
             if isinstance(nt, FeatStructNonterminal) and nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
                 return nt.filter_feature(PRODUCTION_ID_FEATURE, GRAM_FUNC_FEATURE, POS_FEATURE, BRANCH_FEATURE)
 
+
     def apply_hfc(self):
         """
         Go throw the right part of edge and apply left-part inherited features for each nonterminal
@@ -117,6 +118,7 @@ class FeatureTreeEdge(TreeEdge):
 
         bindings = {}
         lhs = self._lhs.filter_feature(GRAM_FUNC_FEATURE, TYPE)
+        res_lhs = self._lhs.copy()
         rhs = list()
         for i, nt in enumerate(self._rhs):
             inh_features = nt.get_feature(INHERITED_FEATURE)
@@ -136,6 +138,7 @@ class FeatureTreeEdge(TreeEdge):
                         feature_map[feat] = feat_val
                      else:
                         feature_map[feat] = feat_var
+                        #res_lhs[feat] = feat_var
                 nt = nt.filter_feature(INHERITED_FEATURE)
                 nt.add_feature(feature_map)
             if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
@@ -143,7 +146,7 @@ class FeatureTreeEdge(TreeEdge):
                 if not nt:
                     return False
             rhs.append(nt)
-        return FeatureTreeEdge(self.span(), self._lhs.copy(), rhs, bindings=bindings)
+        return FeatureTreeEdge(self.span(), res_lhs, rhs)
 
 
     # def generate_bindings(self):
@@ -471,6 +474,8 @@ class FeatureTopDownPredictRule(AbstractChartRule):
             if chart.insert(new_edge, ()):
                 yield new_edge
 
+
+
 class PGFeatureTopDownPredictRule(AbstractChartRule):
     """
     A rule licensing edges corresponding to the grammar productions
@@ -483,6 +488,7 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
     """
     NUM_EDGES = 1
     FACULTATIVE_VAL = "facultative"
+    inserted_edges = []
 
     def apply(self, chart, grammar, edge):
         if edge.is_complete(): return
@@ -499,6 +505,10 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                 if rhs_hfc:
                     result = unify(rhs_hfc, lhs.filter_feature(BRANCH_FEATURE, INHERITED_FEATURE), rename_vars=False)
             else:
+                # increasing speed of parsing by checking terminal position
+                if is_terminal(new_edge.rhs()):
+                    if new_edge.rhs()[0] != chart._tokens[edge.end()]:
+                        continue
                 result = unify(rhs, lhs.filter_feature(BRANCH_FEATURE, INHERITED_FEATURE), rename_vars=False)
             if result:
                 if rhs != result:
@@ -508,9 +518,8 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                         #hash(new_right_edge)
                     if new_right_edge:
                         if chart.insert(new_right_edge, ()):
+                            self.inserted_edges.append(new_right_edge)
                             yield new_right_edge
-                    else:
-                        return
                 else:
                     if chart.insert(new_edge, ()):
                         yield new_edge

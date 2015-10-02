@@ -414,8 +414,71 @@ def simplify_expression(feat):
     else:
         raise ValueError("wrong type of argument:", feat)
 
+
+def minimize_expression(feat):
+    if not feat:
+        return feat
+
+    common_keys = feat[0].keys()
+    for exp in feat[1:]:
+        common_keys = common_keys & exp.keys()
+
+    if not common_keys:
+        return feat
+
+    min_exp = {}
+    expressions = list(copy.deepcopy(feat))
+
+    for key in common_keys:
+        val = expressions[0][key]
+        merge_allowed = True
+        for exp in expressions[1:]:
+            if val != exp[key]:
+                merge_allowed = False
+        if merge_allowed:
+            min_exp[key] = val
+            for exp in expressions:
+                del exp[key]
+                if not exp:
+                    # minimize by prinzip A OR (A & 1) = A
+                    return min_exp
+
+    # there is no common values to combine
+    if not min_exp:
+        return combine_expression(feat)
+
+    # if we have only one key with different values, we combine values in a set
+
+    last_value_combine_allowed = True
+    for exp in expressions:
+        if len(exp) != 1:
+            last_value_combine_allowed = False
+            break
+
+    if last_value_combine_allowed:
+        common_val = set()
+        last_key = None
+        for exp in expressions:
+            key, val = list(exp.items())[0]
+            if key != last_key:
+                if not last_key:
+                    last_key = key
+                else: # we have single element in every dictionary but with different keys
+                    last_value_combine_allowed = False
+                    break
+            if isinstance(val, tuple):
+                common_val.update(val)
+            else:
+                common_val.add(val)
+        if last_value_combine_allowed: # merging is finished, return a single result
+            min_exp[last_key] = tuple(common_val)
+            return min_exp
+
+    #if we have other features/values, we combine them in or expression
+    return (OP.AND, (min_exp, combine_expression(expressions)))
+
 def combine_expression(feat_list):
-    return (OP.OR, feat_list)
+    return (OP.OR, tuple(feat_list))
 
 def get_feature(featStructNonTerm, feature):
     result = set()
@@ -430,10 +493,37 @@ def get_feature(featStructNonTerm, feature):
             result.add(featStructNonTerm[feature])
     return result
 
+def minimize_nonterm(nt):
+    if not is_nonterminal(nt):
+        return nt
+    nt = nt.filter_feature(SLOT_FEATURE)
+    if EXPRESSION in nt:
+        simpl_expres = minimize_expression(simplify_expression(nt[EXPRESSION]))
+        if isinstance(simpl_expres, dict):
+            nt.pop(EXPRESSION, None)
+            nt.update(simpl_expres)
+        else:
+            nt[EXPRESSION] = simpl_expres
+    return nt
+
+def demo_simplifier(exp = (OP.OR, ((OP.OR, ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a': 2, 'c': 3})), (OP.AND, ({'b': 3, 'a': 5, 'c': 4}, {'c': 4}))))):
+    #test = (OP.AND, ({'a': 0}, (OP.OR, ({'b':1},{'b':2}))))
+    simplified_expression = simplify_expression(exp)
+    for i in simplified_expression:
+        print(i)
+    min_expression = minimize_expression(simplified_expression)
+    print(min_expression)
+
+if __name__ == "__main__":
+    demo_simplifier()
+    demo_simplifier(exp = (OP.OR, ({'a': 2, 'b': 3}, {'a': 2, 'c': 3},{'a': 2, 'c': 4})))
+
+
+
+
 from _collections_abc import Iterable
 import copy
 # from nltk.tree import Tree
 from nltk.featstruct import EXPRESSION, unify, TYPE
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE
-
-from nltk.grammar import FeatStructNonterminal
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE
+from nltk.grammar import FeatStructNonterminal, is_nonterminal
