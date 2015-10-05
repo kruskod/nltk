@@ -544,13 +544,13 @@ def demo(print_times=True, print_grammar=False,
         rhs = list(prod.rhs())
         for i, nt in enumerate(rhs):
             rhs[i] = minimize_nonterm(nt)
-        minimized_productions.append(Production(lhs, rhs))
+        minimized_productions.append(Production(lhs, rhs).process_inherited_features())
 
     productions = FeatureGrammar(str_prod.start(), minimized_productions)
     # print(productions.productions()[0].rhs()[0])
     cp = FeatureTopDownChartParser(productions, use_agenda=True, trace=1)
     tokens = sent.split()
-    parses = cp.parse(tokens)
+    parses = list(cp.parse(tokens))
 
     verifier = wordPresenceVerifier(tokens)
     dominance_structures = []
