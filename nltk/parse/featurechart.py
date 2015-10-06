@@ -462,6 +462,7 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
                 result = unify(nextsym, found, bindings, rename_vars=False)
             if result:
                 sync_bindings(left_edge.lhs(), result, bindings)
+                pass
             else:
                 return
         else:
@@ -569,22 +570,24 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                 hfc.pop(TYPE, None)
                 rhs_hfc = unify(rhs, hfc, rename_vars=False)
                 if rhs_hfc:
-                    result = unify(rhs_hfc, lhs.filter_feature(BRANCH_FEATURE, INHERITED_FEATURE),bindings=bindings, rename_vars=False)
+                    result = unify(rhs_hfc, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
             else:
                 # increasing speed of parsing by checking terminal position
                 if is_terminal(new_edge.rhs()):
-                    if new_edge.rhs()[0] != chart._tokens[edge.end()]:
+                    if edge.end() < len(chart._tokens) and new_edge.rhs()[0] != chart._tokens[edge.end()]:
                         continue
-                result = unify(rhs, lhs.filter_feature(BRANCH_FEATURE, INHERITED_FEATURE), bindings=bindings, rename_vars=False)
+                result = unify(rhs, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
             if result:
                 if rhs != result:
-                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs())
+                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs(), bindings=bindings)
                     if hfc:
                         new_right_edge = new_right_edge.apply_hfc(bindings)
                     if new_right_edge:
-                        if chart.insert(new_right_edge, ()):
-                            self.inserted_edges.append(new_right_edge)
-                            yield new_right_edge
+                        # if chart.insert(new_right_edge, ()):
+                        #     self.inserted_edges.append(new_right_edge)
+                        #     yield new_right_edge
+                        if chart.insert(new_edge, ()):
+                            yield new_edge
                 else:
                     if chart.insert(new_edge, ()):
                         yield new_edge

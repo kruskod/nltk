@@ -983,7 +983,6 @@ class TreeTabView(TreeView):
         for i in range(len(trees)):
             # page = Frame(nb)
             # canvas = Canvas(page)
-            # canvas.pack(expand=1, fill="both")
             cv = CanvasFrame(nb)
             cv.pack(expand=1, fill="both")
             canvas = cv.canvas()
@@ -1009,6 +1008,7 @@ class TreeTabView(TreeView):
             scrollregion = '0 0 %s %s' % (xbottom - xtop, ybottom - ytop + 10)
             widget._canvas['scrollregion'] = scrollregion
             # cv._scrollwatcher = ScrollWatcherWidget(canvas)
+
             if xbottom - xtop > xmax:
                 xmax = xbottom - xtop
             if ybottom - ytop > ymax:
