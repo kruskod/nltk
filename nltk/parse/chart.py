@@ -36,12 +36,14 @@ defines three chart parsers:
     be used to step through the parsing process.
 """
 from __future__ import print_function, division, unicode_literals
+import copy
 
 import itertools
 import re
 import warnings
 
-from nltk import compat
+from nltk import compat, unify
+from nltk.topology.FeatTree import minimize_nonterm
 from nltk.tree import Tree
 from nltk.grammar import PCFG, is_nonterminal, is_terminal, Nonterminal, nonterminals
 from nltk.util import OrderedDict
@@ -613,6 +615,7 @@ class Chart(object):
         """
         cpls = self.child_pointer_lists(previous_edge)
         new_cpls = [cpl + (child_edge,) if child_edge else cpl for cpl in cpls]
+        #new_cpls = [cpl+(child_edge,) for cpl in cpls]
         return self.insert(new_edge, *new_cpls)
 
     def insert(self, edge, *child_pointer_lists):
@@ -718,10 +721,35 @@ class Chart(object):
             # Get the set of child choices for each child pointer.
             # child_choices[i] is the set of choices for the tree's
             # ith child.
-            child_choices = [self._trees(cp, complete, memo, tree_class)
-                             for cp in cpl]
+            # child_choices = [self._trees(cp, complete, memo, tree_class)
+            #                  for cp in cpl]
 
-            # For each combination of children, add a tree.
+        # unify child with parent Nonterminal
+            child_choices = list()
+            i = last_hash_index = 0
+            for cp in cpl:
+                cp_child = self._trees(cp, complete, memo, tree_class)
+                if last_hash_index < i:
+                    last_hash_index = i
+                for child in cp_child:
+                    if isinstance(child, tree_class):
+                        cp_hash = hash(cp)
+                        new_label = None
+                        hash_match = False
+                        for i, nt_hash in edge.children.items()[last_hash_index:]:
+                            if cp_hash in nt_hash:
+                                hash_match = True
+                                new_label = unify(edge._rhs[i], cp.lhs(), rename_vars=False)
+                                if new_label:
+                                    child._label = minimize_nonterm(new_label)
+                                    break
+                        # if not new_label and hash_match:
+                        #     cp_child.remove(child)
+                        #     print('Caramba!')
+                if cp_child:
+                    child_choices.append(cp_child)
+
+        # For each combination of children, add a tree.
             for children in itertools.product(*child_choices):
                 trees.append(tree_class(lhs, children))
 

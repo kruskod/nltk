@@ -1042,9 +1042,9 @@ def substitute_bindings(fstruct, bindings, fs_class='default'):
     :param bindings: A dictionary mapping from variables to values.
     """
     if fs_class == 'default': fs_class = _default_fs_class(fstruct)
-    fstruct = copy.deepcopy(fstruct)
-    _substitute_bindings(fstruct, bindings, fs_class, set())
-    return fstruct
+    new_fstruct = copy.deepcopy(fstruct)
+    _substitute_bindings(new_fstruct, bindings, fs_class, set())
+    return new_fstruct
 
 def _substitute_bindings(fstruct, bindings, fs_class, visited):
     # Visit each node only once:
@@ -2355,7 +2355,7 @@ class FeatStructReader(object):
         ('read_var_value', re.compile(r'\?[a-zA-Z_][a-zA-Z0-9_]*')),
         ('read_str_value', re.compile("[uU]?[rR]?(['\"])")),
         ('read_int_value', re.compile(r'-?\d+(?=[,\]])')),
-        ('read_sym_value', re.compile(r'[a-zA-Z0-9_]*')),
+        ('read_sym_value', re.compile(r'[\w]*')),
         ('read_app_value', re.compile(r'<(app)\((\?[a-z][a-z]*)\s*,'
                                        r'\s*(\?[a-z][a-z]*)\)>')),
 #       ('read_logic_value', re.compile(r'<([^>]*)>')),
