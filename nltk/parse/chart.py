@@ -694,8 +694,8 @@ class Chart(object):
             than once, we can reuse the same trees.
         """
         # If we've seen this edge before, then reuse our old answer.
-        if edge in memo:
-            return memo[edge]
+        # if edge in memo:
+        #     return memo[edge]
 
         # when we're reading trees off the chart, don't use incomplete edges
         if complete and edge.is_incomplete():
@@ -726,30 +726,54 @@ class Chart(object):
 
         # unify child with parent Nonterminal
             child_choices = list()
-            i = last_hash_index = 0
-            for cp in cpl:
+            last_rhs_index = -1
+            for pointer_nummer, cp in enumerate(cpl):
                 cp_child = self._trees(cp, complete, memo, tree_class)
-                if last_hash_index < i:
-                    last_hash_index = i
+                children_hashes = list(edge.children.items())[pointer_nummer:]
+                last_rhs_index += 1
                 for child in cp_child:
                     if isinstance(child, tree_class):
                         cp_hash = hash(cp)
-                        new_label = None
-                        hash_match = False
-                        for i, nt_hash in edge.children.items()[last_hash_index:]:
+                        for i, nt_hash in children_hashes:
+                            if i < last_rhs_index:
+                                continue
                             if cp_hash in nt_hash:
-                                hash_match = True
                                 new_label = unify(edge._rhs[i], cp.lhs(), rename_vars=False)
                                 if new_label:
+                                    last_rhs_index = i
                                     child._label = minimize_nonterm(new_label)
                                     break
-                        # if not new_label and hash_match:
-                        #     cp_child.remove(child)
-                        #     print('Caramba!')
+                                else:
+                                    print('Polundra!')
+                                    # if not new_label and hash_match:
+                                    #     cp_child.remove(child)
+                                    #     print('Caramba!')
+
                 if cp_child:
                     child_choices.append(cp_child)
 
-        # For each combination of children, add a tree.
+            # for cp in cpl:
+            #     cp_child = self._trees(cp, complete, memo, tree_class)
+            #     children_hashes = list(edge.children.items())
+            #     for child in cp_child:
+            #         if isinstance(child, tree_class):
+            #             cp_hash = hash(cp)
+            #             for i, nt_hash in children_hashes:
+            #                 if cp_hash in nt_hash:
+            #                     new_label = unify(edge._rhs[i], cp.lhs(), rename_vars=False)
+            #                     if new_label:
+            #                         child._label = minimize_nonterm(new_label)
+            #                         break
+            #                     else:
+            #                         print('Polundra!')
+            #                         # if not new_label and hash_match:
+            #                         #     cp_child.remove(child)
+            #                         #     print('Caramba!')
+            #
+            #     if cp_child:
+            #         child_choices.append(cp_child)
+
+                    # For each combination of children, add a tree.
             for children in itertools.product(*child_choices):
                 trees.append(tree_class(lhs, children))
 
@@ -761,7 +785,7 @@ class Chart(object):
                 tree.extend(unexpanded)
 
         # Update the memorization dictionary.
-        memo[edge] = trees
+        #memo[edge] = trees
 
         # Return the list of trees.
         return trees
