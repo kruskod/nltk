@@ -151,7 +151,17 @@ class FeatTree(Tree):
             if not self.ishead():
                 for index, child in enumerate(self):
                     if isinstance(child, Tree):
-                        self[index] = FeatTree(child)
+                        feat_child = FeatTree(child)
+                        if feat_child:
+                            if feat_child.ishead():
+                                new_label = unify(child._label, self._label.filter_feature(BRANCH_FEATURE, TYPE, GRAM_FUNC_FEATURE), rename_vars=False)
+                                if new_label:
+                                    feat_child._label = minimize_nonterm(new_label)
+                                else:
+                                    raise ValueError
+                            self[index] = feat_child
+                        else:
+                            raise ValueError
         else:
             if children is None:
                 raise TypeError("%s: Expected a node value and child list " % type(self).__name__)
@@ -171,18 +181,18 @@ class FeatTree(Tree):
             return self._hcLabel
         else:
             if self.ishead():
-                head = self
+                self._hcLabel = self
             else:
                 # find hd
                 head = find_head(self)
-            if head:
-                # get all features of the hd child
-                self._hcLabel = copy.deepcopy(self.label())
-                # merge hd features with the node features
-                head_label = copy.deepcopy(head[0].label())
-                del head_label[TYPE]
-                self._hcLabel.update(head_label)
-                return self._hcLabel
+                if head:
+                    # get all features of the hd child
+                    self._hcLabel = copy.deepcopy(self.label())
+                    # merge hd features with the node features
+                    head_label = copy.deepcopy(head.label())
+                    del head_label[TYPE]
+                    self._hcLabel = unify(self.label(), head_label, rename_vars=False)
+            return self._hcLabel
         return None
 
     def numerate(self, gorn=0):
@@ -235,7 +245,7 @@ class FeatTree(Tree):
         return False
 
     def __str__(self):
-        out = '(' + str(self.gorn) + ')' + repr(self.hclabel())
+        out = '(' + str(self.gorn) + ')' + repr(self.label())
         # print leaves
         if self:
             leaves_str = ''.join(
@@ -350,6 +360,25 @@ def find_head(root):
 #             return feat
 #     else:
 #         raise ValueError("wrong type of argument:", feat)
+
+def pprint_expression(feat):
+    """
+    :param feat: expression
+    :return: formatted expression in string format
+    """
+    result = ''
+    if isinstance(feat, (tuple,list)):
+        if isinstance(feat[0], OP):
+            result = '{} ('.format(feat[0])
+            for exp in feat[1]:
+                result += pprint_expression(exp) + '\n'
+            result = result[:-1] + ')'
+    elif isinstance(feat, dict) and len(feat) > 0:
+        result = '['
+        for key in sorted(feat.keys()):
+            result += '{}:{},'.format(key, feat[key])
+        result = result[:-1] + ']'
+    return result
 
 
 def simplify_expression(feat):
@@ -525,5 +554,5 @@ from _collections_abc import Iterable
 import copy
 # from nltk.tree import Tree
 from nltk.featstruct import EXPRESSION, unify, TYPE
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE, BRANCH_FEATURE
 from nltk.grammar import FeatStructNonterminal, is_nonterminal

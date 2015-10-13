@@ -216,7 +216,6 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
 
     def pprint(self):
         head = feat = ''
-        maxLenght = 0
         exp = []
         sorted_keys = sorted(self.keys())
         for key in sorted_keys:
@@ -224,22 +223,20 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                 head = '[' + self[key] + ']'
             elif key == EXPRESSION:
                 expr = self[key]
-                op = expr[0]
-                for i, case in enumerate(expr[1]):
-                    if i == 0:
-                        line = str(case)
-                    else:
-                        line = '{} {}'.format(op, case)
-                    if len(line) > maxLenght:
-                        maxLenght = len(line)
-                    exp.append(line)
+                exp.append(pprint_expression(expr))
+                # op = expr[0]
+                # for i, case in enumerate(expr[1]):
+                #     if i == 0:
+                #         line = str(case)
+                #     else:
+                #         line = '{} {}'.format(op, case)
+                #     if len(line) > maxLenght:
+                #         maxLenght = len(line)
+                #     exp.append(line)
             else:
                 line = '{}:{}\n'.format(key, self[key])
-                if len(line) > maxLenght:
-                    maxLenght = len(line)
                 feat += line
-        center_format = '{:^' + str(maxLenght) + '}'
-        return center_format.format(head) + '\n' + '\n'.join(center_format.format(line) for line in exp) + feat
+        return head + '\n' + '\n'.join(line for line in exp) + feat
 
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
@@ -1700,5 +1697,5 @@ __all__ = ['Nonterminal', 'nonterminals',
            'ProbabilisticDependencyGrammar',
            'induce_pcfg', 'read_grammar']
 
-from nltk.topology.FeatTree import combine_expression, simplify_expression
+from nltk.topology.FeatTree import combine_expression, simplify_expression, pprint_expression
 from nltk.sem.logic import Variable

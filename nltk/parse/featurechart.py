@@ -12,9 +12,10 @@ Extension of chart parsing implementation to handle grammars with
 feature structures as nodes.
 """
 from __future__ import print_function, unicode_literals
-
+import copy
 
 from nltk.compat import xrange, python_2_unicode_compatible
+from nltk.draw.tree import TreeTabView
 from nltk.featstruct import FeatStruct, unify, TYPE, find_variables, EXPRESSION, _unify_feature_values, \
     _UnificationFailureError
 from nltk.sem import logic, Variable
@@ -49,7 +50,7 @@ class FeatureTreeEdge(TreeEdge):
     interface ``SubstituteBindingsI``.
     """
 
-    def __init__(self, span, lhs, rhs, dot=0, bindings=None):
+    def __init__(self, span, lhs, rhs, dot=0, bindings=None, children=None):
         """
         Construct a new edge.  If the edge is incomplete (i.e., if
         ``dot<len(rhs)``), then store the bindings as-is.  If the edge
@@ -59,6 +60,10 @@ class FeatureTreeEdge(TreeEdge):
         the other arguments.
         """
         if bindings is None: bindings = {}
+        if children is None:
+            self.children = {}
+        else:
+            self.children = children
 
         # If the edge is complete, then substitute in the bindings,
         # and then throw them away.  (If we didn't throw them away, we
@@ -74,6 +79,7 @@ class FeatureTreeEdge(TreeEdge):
         TreeEdge.__init__(self, span, lhs, rhs, dot)
         self._bindings = bindings
         self._comparison_key = (self._comparison_key, tuple(sorted(bindings.items())))
+
 
     @staticmethod
     def from_production(production, index):
@@ -100,7 +106,7 @@ class FeatureTreeEdge(TreeEdge):
         """
         return FeatureTreeEdge(span=(self._span[0], new_end),
                                lhs=self._lhs, rhs=self._rhs,
-                               dot=self._dot + 1, bindings=bindings)
+                               dot=self._dot + 1, bindings=bindings, children=self.children)
 
     def hfc(self):
         """
@@ -457,10 +463,13 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
                 # if not new_found or not unify(nextsym, new_found, bindings, rename_vars=False):
                 #     return
                 if new_found:
-                    result = unify(nextsym, new_found, bindings, rename_vars=False)
+                    result = unify(nextsym.filter_feature(BRANCH_FEATURE), new_found, bindings, rename_vars=False)
             else:
-                result = unify(nextsym, found, bindings, rename_vars=False)
+                result = unify(nextsym.filter_feature(BRANCH_FEATURE), found, bindings, rename_vars=False)
             if result:
+                #right_edge = FeatureTreeEdge(right_edge.span(), result, right_edge.rhs(), dot = right_edge.dot(), bindings=right_edge.bindings())
+                # if hfc:
+                #     right_edge = right_edge.apply_hfc()
                 sync_bindings(left_edge.lhs(), result, bindings)
                 pass
             else:
@@ -473,13 +482,24 @@ class PGFeatureSingleEdgeFundamentalRule(FeatureSingleEdgeFundamentalRule):
         # Construct the new edge.
         new_edge = left_edge.move_dot_forward(right_edge.end(), bindings)
 
+        if not left_edge.dot() in new_edge.children:
+            new_edge.children[left_edge.dot()] = set()
+
+        # if is_nonterminal(nextsym):
+        new_edge.children[left_edge.dot()].add(hash(right_edge))
         # Add it to the chart, with appropriate child pointers.
         if chart.insert_with_backpointer(new_edge, left_edge, right_edge):
             yield new_edge
 
 
 def sync_bindings(lhs, rhs, bindings):
-
+    """
+        iterating throw all lhs key/values and update bindings according to rhs values
+    :param lhs: FeatStructNonterminal
+    :param rhs: FeatStructNonterminal
+    :param bindings: map where keys are instances of Variable
+    :return: none
+    """
     if EXPRESSION in lhs:
         simpl_expres = simplify_expression(lhs[EXPRESSION])
         for exp in simpl_expres:
@@ -573,9 +593,9 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                     result = unify(rhs_hfc, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
             else:
                 # increasing speed of parsing by checking terminal position
-                if is_terminal(new_edge.rhs()):
-                    if edge.end() < len(chart._tokens) and new_edge.rhs()[0] != chart._tokens[edge.end()]:
-                        continue
+                # if is_terminal(new_edge.rhs()):
+                #     if edge.end() < len(chart._tokens) and new_edge.rhs()[0] != chart._tokens[edge.end()]:
+                        # continue
                 result = unify(rhs, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
             if result:
                 if rhs != result:
@@ -593,10 +613,10 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                         yield new_edge
         if is_nonterminal(lhs) and lhs.has_feature({BRANCH_FEATURE: self.FACULTATIVE_VAL}):
             new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=bindings)
-            if chart.insert_with_backpointer(new_edge, edge, None):
-                yield new_edge
-            # if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+            # if chart.insert_with_backpointer(new_edge, edge, None):
             #     yield new_edge
+            if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+                yield new_edge
 
 class FeatureCachedTopDownPredictRule(CachedTopDownPredictRule):
     """
@@ -1012,6 +1032,7 @@ def pg_demo():
         print("Dominance structures:")
         for tree in dominance_structures:
             print(tree)
+        TreeTabView(*dominance_structures[:20])
 
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
