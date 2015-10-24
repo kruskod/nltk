@@ -721,36 +721,36 @@ class Chart(object):
             # Get the set of child choices for each child pointer.
             # child_choices[i] is the set of choices for the tree's
             # ith child.
-            # child_choices = [self._trees(cp, complete, memo, tree_class)
-            #                  for cp in cpl]
+            child_choices = [self._trees(cp, complete, memo, tree_class)
+                             for cp in cpl]
 
         # unify child with parent Nonterminal
-            child_choices = list()
-            last_rhs_index = -1
-            for pointer_nummer, cp in enumerate(cpl):
-                cp_child = self._trees(cp, complete, memo, tree_class)
-                children_hashes = list(edge.children.items())[pointer_nummer:]
-                last_rhs_index += 1
-                for child in cp_child:
-                    if isinstance(child, tree_class):
-                        cp_hash = hash(cp)
-                        for i, nt_hash in children_hashes:
-                            if i < last_rhs_index:
-                                continue
-                            if cp_hash in nt_hash:
-                                new_label = unify(edge._rhs[i], cp.lhs(), rename_vars=False)
-                                if new_label:
-                                    last_rhs_index = i
-                                    child._label = minimize_nonterm(new_label)
-                                    break
-                                else:
-                                    print('Polundra!')
-                                    # if not new_label and hash_match:
-                                    #     cp_child.remove(child)
-                                    #     print('Caramba!')
-
-                if cp_child:
-                    child_choices.append(cp_child)
+        #     child_choices = list()
+        #     last_rhs_index = -1
+        #     for pointer_nummer, cp in enumerate(cpl):
+        #         cp_child = self._trees(cp, complete, memo, tree_class)
+        #         children_hashes = list(edge.children.items())[pointer_nummer:]
+        #         last_rhs_index += 1
+        #         for child in cp_child:
+        #             if isinstance(child, tree_class):
+        #                 cp_hash = hash(cp)
+        #                 for i, nt_hash in children_hashes:
+        #                     if i < last_rhs_index:
+        #                         continue
+        #                     if cp_hash in nt_hash:
+        #                         new_label = unify(edge._rhs[i], cp.lhs(), rename_vars=False)
+        #                         if new_label:
+        #                             last_rhs_index = i
+        #                             child._label = minimize_nonterm(new_label)
+        #                             break
+        #                         else:
+        #                             print('Polundra!')
+        #                             # if not new_label and hash_match:
+        #                             #     cp_child.remove(child)
+        #                             #     print('Caramba!')
+        #
+        #         if cp_child:
+        #             child_choices.append(cp_child)
 
             # for cp in cpl:
             #     cp_child = self._trees(cp, complete, memo, tree_class)
