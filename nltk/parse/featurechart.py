@@ -612,7 +612,12 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
                     if chart.insert(new_edge, ()):
                         yield new_edge
         if is_nonterminal(lhs) and lhs.has_feature({BRANCH_FEATURE: self.FACULTATIVE_VAL}):
-            new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=bindings)
+            # new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=bindings)
+            rhs = list(edge.rhs())
+            rhs.remove(lhs)
+            new_edge = FeatureTreeEdge(edge.span(),
+                               lhs=edge.lhs(), rhs=tuple(rhs),
+                               dot=edge.dot(), bindings=bindings, children=copy.deepcopy(edge.children))
             # if chart.insert_with_backpointer(new_edge, edge, None):
             #     yield new_edge
             if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
@@ -725,10 +730,10 @@ class FeatureEmptyPredictRule(EmptyPredictRule):
 # Feature Chart Parser
 #////////////////////////////////////////////////////////////
 
-TD_FEATURE_STRATEGY = [LeafInitRule(),
+TD_FEATURE_STRATEGY = [PGLeafInitRule(),
                        FeatureTopDownInitRule(),
                        PGFeatureTopDownPredictRule(),
-                       PGFeatureSingleEdgeFundamentalRule()]
+                       FeatureSingleEdgeFundamentalRule()]
 BU_FEATURE_STRATEGY = [LeafInitRule(),
                        FeatureEmptyPredictRule(),
                        FeatureBottomUpPredictRule(),

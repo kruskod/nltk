@@ -10,7 +10,7 @@ from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartPars
 from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF, minimize_nonterm
 from nltk.draw.tree import TreeTabView
 from nltk.topology.compassFeat import GRAM_FUNC_FEATURE
-from nltk.topology.pgsql import get_rules, read_extensions
+from nltk.topology.pgsql import get_rules, read_extensions, build_rules
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -542,36 +542,36 @@ def demo(print_times=True, print_grammar=False,
     # str_prod = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/monopole.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     tokens = sent.split()
     #get_rules(tokens)
-    str_prod = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/query.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    # str_prod = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/query.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     # filter features and minify expressions in productions
-    minimized_productions = []
-    extensions = read_extensions()
-    for prod in str_prod.productions():
-        lhs = minimize_nonterm(prod.lhs())
-        select_extensions = [ext for ext in extensions if ext['lhs'] == lhs[TYPE]]
-        rhs = list(prod.rhs())
-        for i, nt in enumerate(rhs):
-            for ext in select_extensions:
-                if ext['rhs'] == nt[TYPE] and nt.has_feature({GRAM_FUNC_FEATURE:ext[GRAM_FUNC_FEATURE]}):
-                    if 'cond' in ext:
-                        feat = fstruct_reader.fromstring('[' + ext['cond'] + ']')
-                        if not nt.has_feature(feat):
-                            continue
-                        # else:
-                        #     print("Condition match!!!!!!!")
-                    nt = unify(nt, fstruct_reader.fromstring(ext['feat']))
-                    break
-            if nt:
-                rhs[i] = minimize_nonterm(nt)
-            else:
-                rhs = None
-                break
-        if rhs:
-            minimized_productions.append(Production(lhs, rhs).process_inherited_features())
-
-    productions = FeatureGrammar(str_prod.start(), minimized_productions)
+    # minimized_productions = []
+    # extensions = read_extensions()
+    # for prod in str_prod.productions():
+    #     lhs = minimize_nonterm(prod.lhs())
+    #     select_extensions = [ext for ext in extensions if ext['lhs'] == lhs[TYPE]]
+    #     rhs = list(prod.rhs())
+    #     for i, nt in enumerate(rhs):
+    #         for ext in select_extensions:
+    #             if ext['rhs'] == nt[TYPE] and nt.has_feature({GRAM_FUNC_FEATURE:ext[GRAM_FUNC_FEATURE]}):
+    #                 if 'cond' in ext:
+    #                     feat = fstruct_reader.fromstring('[' + ext['cond'] + ']')
+    #                     if not nt.has_feature(feat):
+    #                         continue
+    #                     # else:
+    #                     #     print("Condition match!!!!!!!")
+    #                 nt = unify(nt, fstruct_reader.fromstring(ext['feat']))
+    #                 break
+    #         if nt:
+    #             rhs[i] = minimize_nonterm(nt)
+    #         else:
+    #             rhs = None
+    #             break
+    #     if rhs:
+    #         minimized_productions.append(Production(lhs, rhs).process_inherited_features())
+    #
+    # productions = FeatureGrammar(str_prod.start(), minimized_productions)
     # print(productions.productions()[0].rhs()[0])
-    cp = FeatureTopDownChartParser(productions, use_agenda=True, trace=1)
+    cp = FeatureTopDownChartParser(build_rules(tokens, fstruct_reader), use_agenda=True, trace=1)
 
     dominance_structures = []
     count_trees = 0
@@ -586,9 +586,8 @@ def demo(print_times=True, print_grammar=False,
                 dominance_structures.append(tree)
             except ValueError:
                 pass
-        else:
-            print(tree)
-            print("Word presence verification result: {}\n".format(ver_result))
+        print(tree)
+        print("Word presence verification result: {}\n".format(ver_result))
     # topologies = build_topologies()
     end_time = timer()
     if dominance_structures:

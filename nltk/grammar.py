@@ -516,6 +516,7 @@ class Production(object):
                             if PERSON_FEATURE in production_features and not nt.get_feature(PERSON_FEATURE):
                                 nt.add_feature({PERSON_FEATURE:production_features[PERSON_FEATURE]})
                         break
+            res_lhs = res_lhs.filter_feature(INHERITED_FEATURE)
             return Production(res_lhs, rhs)
 
 
