@@ -522,7 +522,7 @@ def process_dominance(tree, topology_rules):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='Monopole sollen geknackt werden', numparses=0):
+         sent='ich sehe', numparses=0):
     """
     sent examples:
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
@@ -586,8 +586,8 @@ def demo(print_times=True, print_grammar=False,
                 dominance_structures.append(tree)
             except ValueError:
                 pass
-        print(tree)
-        print("Word presence verification result: {}\n".format(ver_result))
+        #print(tree)
+        #print("Word presence verification result: {}".format(ver_result))
     # topologies = build_topologies()
     end_time = timer()
     if dominance_structures:
@@ -603,11 +603,14 @@ def demo(print_times=True, print_grammar=False,
             # for top in feat_tree.topologies:
             #     print(top.read_out(tokens))
         end_time = timer()
-        TreeTabView(*dominance_structures[:20])
     print("------------------------------------------------")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
+    print('Count of productions:', len(cp._grammar._productions))
     print("Time: {:.3f}s.\n".format (end_time - t))
+
+    if dominance_structures:
+        TreeTabView(*dominance_structures[:20])
 
 if __name__ == "__main__":
     #demo_simplifier()
