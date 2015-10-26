@@ -452,72 +452,118 @@ class Production(object):
         return self._hash
 
     def process_inherited_features(self):
-            """
-            Go throw the right part of edge and apply left-part inherited features for each nonterminal
-            if nonterminal is head, merge filtered nonterminal feautures with the left part of the rule
-            :return:
-            """
-            if self.is_lexical():
-                return self
-            res_lhs = self._lhs.copy(deep=True)
-            production_features = {}
-            rhs = list()
-            for nt in self._rhs:
-                inh_features = nt.get_feature(INHERITED_FEATURE)
-                if inh_features:
-                    #update rule bindings
-                    feature_map = {}
-                    if isinstance(inh_features, str):
-                        inh_features = (inh_features,)
-                    for feat in inh_features:
-                         feat_var = Variable('?' + feat)
-                         feature_map[feat] = feat_var
-                         if feat not in res_lhs:
-                            res_lhs[feat] = feat_var
-                    nt = nt.filter_feature(INHERITED_FEATURE)
-                    nt.add_feature(feature_map)
-                    production_features.update(feature_map)
-                rhs.append(nt)
+        """
+        Go throw the right part of edge and apply left-part inherited features for each nonterminal
+        if nonterminal is head, merge filtered nonterminal feautures with the left part of the rule
+        :return:
+        """
+        if self.is_lexical():
+            return self
+        lhs = self._lhs
+        del lhs._hash
+        lhs._frozen = False
+        rhs = list()
+        for nt in self._rhs:
+            del nt._hash
+            nt._frozen = False
+            inh_features = nt.get_feature(INHERITED_FEATURE)
+            if inh_features:
+                #update rule bindings
+                feature_map = {}
+                if isinstance(inh_features, str):
+                    inh_features = (inh_features,)
+                for feat in inh_features:
+                     if feat not in lhs:
+                        feat_var = Variable('?' + feat)
+                        feature_map[feat] = feat_var
+                        lhs[feat] = feat_var
+                     else:
+                         feat_val = lhs[feat]
+                         feature_map[feat] = feat_val
+                nt = nt.filter_feature(INHERITED_FEATURE)
+                nt.add_feature(feature_map)
+            rhs.append(nt)
 
-            # generate variables for subject-verb agreement
-            if NUMBER_FEATURE in production_features or PERSON_FEATURE in production_features:
-                for i,nt in enumerate(self._rhs):
-                    if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
-                        nt._frozen = False
-                        status_feat = nt.get_feature(STATUS_FEATURE)
-                        if status_feat:
-                             if isinstance(status_feat, str):
-                                status_feat = (status_feat,)
-                             if 'Fin' in status_feat:
-                                 if EXPRESSION in nt:
-                                     simp_expr = simplify_expression(nt[EXPRESSION])
-                                     if isinstance(simp_expr, dict):
-                                        simp_expr = list(simp_expr)
-                                     for exp in simp_expr:
-                                         if STATUS_FEATURE in exp:
-                                             status_val = exp[STATUS_FEATURE]
-                                             if isinstance(status_feat, str):
-                                                status_val = (status_val,)
-                                             if not 'Fin' in status_val:
-                                                continue
-                                         if NUMBER_FEATURE in production_features:
-                                            exp[NUMBER_FEATURE] = production_features[NUMBER_FEATURE]
-                                         if PERSON_FEATURE in production_features:
-                                            exp[PERSON_FEATURE] = production_features[PERSON_FEATURE]
-                                     nt[EXPRESSION] = combine_expression(simp_expr)
-                                 else:
-                                    if NUMBER_FEATURE in production_features:
-                                        nt[NUMBER_FEATURE] = production_features[NUMBER_FEATURE]
-                                    if PERSON_FEATURE in production_features:
-                                        nt[PERSON_FEATURE] = production_features[PERSON_FEATURE]
-                        else:
-                            if NUMBER_FEATURE in production_features and not nt.get_feature(NUMBER_FEATURE):
-                                nt.add_feature({NUMBER_FEATURE:production_features[NUMBER_FEATURE]})
-                            if PERSON_FEATURE in production_features and not nt.get_feature(PERSON_FEATURE):
-                                nt.add_feature({PERSON_FEATURE:production_features[PERSON_FEATURE]})
-                        break
-            res_lhs = res_lhs.filter_feature(INHERITED_FEATURE)
-            return Production(res_lhs, rhs)
+        #Add subject-verb agreement
+        if NUMBER_FEATURE in lhs or PERSON_FEATURE in lhs:
+            for nt in rhs:
+                if nt[TYPE] == 'hd':
+                    if NUMBER_FEATURE not in nt and NUMBER_FEATURE in lhs:
+                        nt[NUMBER_FEATURE] = lhs[NUMBER_FEATURE]
+                    if PERSON_FEATURE not in nt and PERSON_FEATURE in lhs:
+                        nt[PERSON_FEATURE] = lhs[PERSON_FEATURE]
+                    break
+        if INHERITED_FEATURE in lhs:
+            lhs = lhs.filter_feature(INHERITED_FEATURE)
+        return Production(lhs, rhs)
+
+    # def process_inherited_features(self):
+    #         """
+    #         Go throw the right part of edge and apply left-part inherited features for each nonterminal
+    #         if nonterminal is head, merge filtered nonterminal feautures with the left part of the rule
+    #         :return:
+    #         """
+    #         if self.is_lexical():
+    #             return self
+    #         res_lhs = self._lhs.copy(deep=True)
+    #         production_features = {}
+    #         rhs = list()
+    #         for nt in self._rhs:
+    #             inh_features = nt.get_feature(INHERITED_FEATURE)
+    #             if inh_features:
+    #                 #update rule bindings
+    #                 feature_map = {}
+    #                 if isinstance(inh_features, str):
+    #                     inh_features = (inh_features,)
+    #                 for feat in inh_features:
+    #                      feat_var = Variable('?' + feat)
+    #                      feature_map[feat] = feat_var
+    #                      if feat not in res_lhs:
+    #                         res_lhs[feat] = feat_var
+    #                 nt = nt.filter_feature(INHERITED_FEATURE)
+    #                 nt.add_feature(feature_map)
+    #                 production_features.update(feature_map)
+    #             rhs.append(nt)
+    #
+    #         # generate variables for subject-verb agreement
+    #         if NUMBER_FEATURE in production_features or PERSON_FEATURE in production_features:
+    #             for i,nt in enumerate(self._rhs):
+    #                 if nt.has_feature({GRAM_FUNC_FEATURE:'hd'}):
+    #                     nt._frozen = False
+    #                     status_feat = nt.get_feature(STATUS_FEATURE)
+    #                     if status_feat:
+    #                          if isinstance(status_feat, str):
+    #                             status_feat = (status_feat,)
+    #                          if 'Fin' in status_feat:
+    #                              if EXPRESSION in nt:
+    #                                  simp_expr = simplify_expression(nt[EXPRESSION])
+    #                                  if isinstance(simp_expr, dict):
+    #                                     simp_expr = list(simp_expr)
+    #                                  for exp in simp_expr:
+    #                                      if STATUS_FEATURE in exp:
+    #                                          status_val = exp[STATUS_FEATURE]
+    #                                          if isinstance(status_feat, str):
+    #                                             status_val = (status_val,)
+    #                                          if not 'Fin' in status_val:
+    #                                             continue
+    #                                      if NUMBER_FEATURE in production_features:
+    #                                         exp[NUMBER_FEATURE] = production_features[NUMBER_FEATURE]
+    #                                      if PERSON_FEATURE in production_features:
+    #                                         exp[PERSON_FEATURE] = production_features[PERSON_FEATURE]
+    #                                  nt[EXPRESSION] = combine_expression(simp_expr)
+    #                              else:
+    #                                 if NUMBER_FEATURE in production_features:
+    #                                     nt[NUMBER_FEATURE] = production_features[NUMBER_FEATURE]
+    #                                 if PERSON_FEATURE in production_features:
+    #                                     nt[PERSON_FEATURE] = production_features[PERSON_FEATURE]
+    #                     else:
+    #                         if NUMBER_FEATURE in production_features and not nt.get_feature(NUMBER_FEATURE):
+    #                             nt.add_feature({NUMBER_FEATURE:production_features[NUMBER_FEATURE]})
+    #                         if PERSON_FEATURE in production_features and not nt.get_feature(PERSON_FEATURE):
+    #                             nt.add_feature({PERSON_FEATURE:production_features[PERSON_FEATURE]})
+    #                     break
+    #         res_lhs = res_lhs.filter_feature(INHERITED_FEATURE)
+    #         return Production(res_lhs, rhs)
 
 
 @python_2_unicode_compatible

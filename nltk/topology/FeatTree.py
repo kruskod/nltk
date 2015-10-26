@@ -1,3 +1,5 @@
+import itertools
+
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 from enum import Enum
@@ -443,6 +445,28 @@ def simplify_expression(feat):
     else:
         raise ValueError("wrong type of argument:", feat)
 
+def simplify_fstruct(fstruct):
+     if is_nonterminal(fstruct) and EXPRESSION in fstruct:
+        fstructs = []
+        for ex in simplify_expression(fstruct[EXPRESSION]):
+            fstructcopy = copy.deepcopy(fstruct)
+            del fstructcopy[EXPRESSION]
+            fstructcopy.update(ex)
+            fstructs.append(fstructcopy)
+        return fstructs
+     else:
+        return (fstruct,)
+
+def open_disjunction(production):
+
+    cproduction = copy.deepcopy(production)
+    # open disjunction in the left part of expression
+    fstructs = []
+    fstructs.append(simplify_fstruct(production.lhs()))
+    fstructs.extend(map(simplify_fstruct,cproduction.rhs()))
+
+    for productions in itertools.product(*fstructs):
+        yield Production(productions[0],productions[1:])
 
 def minimize_expression(feat):
     if not feat:
@@ -555,4 +579,4 @@ import copy
 # from nltk.tree import Tree
 from nltk.featstruct import EXPRESSION, unify, TYPE
 from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE, BRANCH_FEATURE
-from nltk.grammar import FeatStructNonterminal, is_nonterminal
+from nltk.grammar import FeatStructNonterminal, is_nonterminal, Production

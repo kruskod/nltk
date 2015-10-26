@@ -1,8 +1,10 @@
 import copy
-from nltk.featstruct import CelexFeatStructReader, unify, TYPE
+
+from nltk.featstruct import CelexFeatStructReader, unify, TYPE, EXPRESSION
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
-from nltk.topology.FeatTree import minimize_nonterm
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, LEMMA_FEATURE, PRODUCTION_ID_FEATURE, BRANCH_FEATURE
+from nltk.topology.FeatTree import minimize_nonterm, open_disjunction, simplify_expression
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, LEMMA_FEATURE, PRODUCTION_ID_FEATURE, BRANCH_FEATURE, \
+    INHERITED_FEATURE, SLOT_FEATURE
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -12,7 +14,7 @@ from mysql.connector import errorcode
 
 def connect():
     try:
-        cnx = mysql.connector.connect(host="localhost", port=3307, user='root', database='pgc', use_unicode = True, charset='utf8')
+        cnx = mysql.connector.connect(host="localhost", port=3307, user='root', database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")
@@ -41,7 +43,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         frameQuery = ( 'select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
         ' inner join Segment s on s.position = w.position' +
         ' left join PartOfSpeech p on p.pos = s.pos3' +
-        ' where w.lexFrameKey = %s and pos2 !="mod" ' +
+        ' where w.lexFrameKey = %s' + #  and pos2 !="mod"
         ' order by w.facultative, w.position;')
 
         unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
@@ -58,14 +60,19 @@ def build_rules(tokens, fstruct_reader, dump = True):
         for token in tokens:
             cursor.execute(query, (token,))
             for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in cursor:
+                word = word.decode('utf8')
                 if formFeature:
                     formNT = minimize_nonterm(fstruct_reader.fromstring(formFeature))
                     formNT[TYPE] = pos
                     nt = formNT
+                else:
+                    formNT = None
                 if categoryFeature:
                     catNT = minimize_nonterm(fstruct_reader.fromstring(categoryFeature))
                     catNT[TYPE] = pos
                     nt = catNT
+                else:
+                    catNT = None
                 if formNT and catNT:
                     nt = unify(formNT, catNT)
                 nt.add_feature({LEMMA_FEATURE:lemma})
@@ -74,6 +81,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
                 frameCursor.execute(frameQuery, (lexFrameKey,))
                 gf = set()
                 rhs = []
+                #hd = (None, None)
                 for (position, pos1, pos2, pos3, feature, facultative) in frameCursor:
                     pos2NT = FeatStructNonterminal(pos2)
                     if facultative:
@@ -91,7 +99,11 @@ def build_rules(tokens, fstruct_reader, dump = True):
                                 continue
                         unNT = fstruct_reader.fromstring(un_feature)
                         pos3NT = unify(pos3NT, unNT)
+                        if pos3NT.get_feature(SLOT_FEATURE):
+                            pos3NT.filter_feature(SLOT_FEATURE)
                         pos2NT = unify(pos2NT, unNT)
+                        if pos2NT.get_feature(SLOT_FEATURE):
+                            pos2NT.filter_feature(SLOT_FEATURE)
 
                     if pos2 not in gf:
                         gf.add(pos2)
@@ -99,20 +111,44 @@ def build_rules(tokens, fstruct_reader, dump = True):
                             if feature:
                                 headNT = fstruct_reader.fromstring(feature)
                                 nt = unify(nt, headNT)
-                            nt_copy = copy.deepcopy(nt)
-                            del nt_copy[TYPE]
-                            #pos2NT = unify(pos2NT, nt_copy)
-                            #pos3NT = unify(pos3NT, nt_copy)
-                            pos3NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
-                        rhs.append(pos2NT)
+                            # don't generate head features
+                            #continue
+                            # nt_copy = copy.deepcopy(nt)
+                            # del nt_copy[TYPE]
+                            # pos2NT = unify(pos2NT, nt_copy)
+                            # pos3NT = unify(pos3NT, nt_copy)
+                            # # number_var = Variable('?' + NUMBER_FEATURE)
+                            # person_var = Variable('?' + NUMBER_FEATURE)
+                            # if not pos2NT.get_feature(NUMBER_FEATURE):
+                            #     pos2NT.add_feature({NUMBER_FEATURE:number_var})
+                            # if not pos3NT.get_feature(NUMBER_FEATURE):
+                            #     pos3NT.add_feature({NUMBER_FEATURE:number_var})
+                            # if not pos2NT.get_feature(PERSON_FEATURE):
+                            #     pos2NT.add_feature({PERSON_FEATURE:person_var})
+                            # if not pos3NT.get_feature(PERSON_FEATURE):
+                            #     pos3NT.add_feature({PERSON_FEATURE:person_var})
+                            #hd = pos2NT, pos3NT
+                            keys = set(nt.keys())
+                            keys.remove(TYPE)
 
-                    productions.append(Production(copy.deepcopy(pos2NT), (copy.deepcopy(pos3NT),))) # .process_inherited_features()
+                            if EXPRESSION in nt:
+                                keys.remove(EXPRESSION)
+                                for exp in simplify_expression(nt[EXPRESSION]):
+                                    keys.update(exp.keys())
+                            keys=tuple(keys)
+                            pos2NT.add_feature({INHERITED_FEATURE:keys})
+                            pos3NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey,INHERITED_FEATURE:keys})
+                        rhs.append(pos2NT)
+                    # simplify disjunction to separate rules
+                    #map(process_inherited_features,openDisjunction(Production(pos2NT, pos3NT)))
+                    productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(pos2NT, (pos3NT,))))))
                 lhs = copy.deepcopy(nt)
                 lhs[TYPE] = pos1
-                productions.append(Production(lhs, rhs).process_inherited_features()) #
                 nt.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
-                productions.append(Production(nt, (word,)))
-
+                productions.extend(open_disjunction(Production(nt, (word,))))
+                # productions.append(Production(nt, (word,)))
+                productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(lhs, rhs)))))
+                # productions.append(Production(lhs, rhs).process_inherited_features())
         if dump:
             with open('../../fsa/query.fcfg', "w") as f:
                 for rule in productions:
@@ -158,9 +194,7 @@ def get_frame_extensions(dump = True):
     if cnx:
         cursor = cnx.cursor()
         query = ('select CONCAT(position, ";", COALESCE(cond,""), ";", features, ";", example) from LexFrameExtensions;')
-
         cursor.execute(query)
-
         for (line,) in cursor:
             extensions.append(line)
         if dump:
@@ -194,4 +228,4 @@ if __name__ == "__main__":
     # get_frame_extensions()
     # print(read_extensions())
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    build_rules('Monopole sollen geknackt werden'.split(), fstruct_reader)
+    build_rules('ich sehe'.split(), fstruct_reader)

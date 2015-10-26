@@ -581,47 +581,60 @@ class PGFeatureTopDownPredictRule(AbstractChartRule):
         bindings = edge.bindings()
         for prod in grammar.productions(lhs):
             new_edge = FeatureTreeEdge.from_production(prod, edge.end())
-            #unify new_edge and edge and insert unified edge in chart
-
-            rhs = new_edge.lhs()
-            hfc = new_edge.hfc()
-            result = None
-            if hfc:
-                hfc.pop(TYPE, None)
-                rhs_hfc = unify(rhs, hfc, rename_vars=False)
-                if rhs_hfc:
-                    result = unify(rhs_hfc, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
-            else:
-                # increasing speed of parsing by checking terminal position
-                # if is_terminal(new_edge.rhs()):
-                #     if edge.end() < len(chart._tokens) and new_edge.rhs()[0] != chart._tokens[edge.end()]:
-                        # continue
-                result = unify(rhs, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
-            if result:
-                if rhs != result:
-                    new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs(), bindings=bindings)
-                    if hfc:
-                        new_right_edge = new_right_edge.apply_hfc(bindings)
-                    if new_right_edge:
-                        # if chart.insert(new_right_edge, ()):
-                        #     self.inserted_edges.append(new_right_edge)
-                        #     yield new_right_edge
-                        if chart.insert(new_edge, ()):
-                            yield new_edge
-                else:
-                    if chart.insert(new_edge, ()):
-                        yield new_edge
+            if chart.insert(new_edge, ()):
+                yield new_edge
         if is_nonterminal(lhs) and lhs.has_feature({BRANCH_FEATURE: self.FACULTATIVE_VAL}):
-            # new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=bindings)
-            rhs = list(edge.rhs())
-            rhs.remove(lhs)
-            new_edge = FeatureTreeEdge(edge.span(),
-                               lhs=edge.lhs(), rhs=tuple(rhs),
-                               dot=edge.dot(), bindings=bindings, children=copy.deepcopy(edge.children))
-            # if chart.insert_with_backpointer(new_edge, edge, None):
-            #     yield new_edge
+            new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=bindings)
             if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
                 yield new_edge
+
+    # def apply(self, chart, grammar, edge):
+    #     if edge.is_complete(): return
+    #     lhs=edge.nextsym()
+    #     bindings = edge.bindings()
+    #     for prod in grammar.productions(lhs):
+    #         new_edge = FeatureTreeEdge.from_production(prod, edge.end())
+    #         #unify new_edge and edge and insert unified edge in chart
+    #
+    #         rhs = new_edge.lhs()
+    #         hfc = new_edge.hfc()
+    #         result = None
+    #         if hfc:
+    #             hfc.pop(TYPE, None)
+    #             rhs_hfc = unify(rhs, hfc, rename_vars=False)
+    #             if rhs_hfc:
+    #                 result = unify(rhs_hfc, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
+    #         else:
+    #             # increasing speed of parsing by checking terminal position
+    #             # if is_terminal(new_edge.rhs()):
+    #             #     if edge.end() < len(chart._tokens) and new_edge.rhs()[0] != chart._tokens[edge.end()]:
+    #                     # continue
+    #             result = unify(rhs, lhs.filter_feature(BRANCH_FEATURE), bindings=bindings, rename_vars=False)
+    #         if result:
+    #             if rhs != result:
+    #                 new_right_edge = FeatureTreeEdge(new_edge.span(), result, new_edge.rhs(), bindings=bindings)
+    #                 if hfc:
+    #                     new_right_edge = new_right_edge.apply_hfc(bindings)
+    #                 if new_right_edge:
+    #                     # if chart.insert(new_right_edge, ()):
+    #                     #     self.inserted_edges.append(new_right_edge)
+    #                     #     yield new_right_edge
+    #                     if chart.insert(new_edge, ()):
+    #                         yield new_edge
+    #             else:
+    #                 if chart.insert(new_edge, ()):
+    #                     yield new_edge
+    #     if is_nonterminal(lhs) and lhs.has_feature({BRANCH_FEATURE: self.FACULTATIVE_VAL}):
+    #         new_edge = edge.move_dot_forward(new_end=edge.end(),bindings=bindings)
+    #         # rhs = list(edge.rhs())
+    #         # rhs.remove(lhs)
+    #         # new_edge = FeatureTreeEdge(edge.span(),
+    #         #                    lhs=edge.lhs(), rhs=tuple(rhs),
+    #         #                    dot=edge.dot(), bindings=bindings, children=copy.deepcopy(edge.children))
+    #         # if chart.insert_with_backpointer(new_edge, edge, None):
+    #         #     yield new_edge
+    #         if chart.insert(new_edge, *chart.child_pointer_lists(edge)):
+    #             yield new_edge
 
 class FeatureCachedTopDownPredictRule(CachedTopDownPredictRule):
     """
