@@ -33,7 +33,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         frameCursor = cnx.cursor(buffered = True)
         unificationCursor = cnx.cursor(buffered = True)
         query = (
-        ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.lemma, f.lexFrameKey, w.word from WordForm w' +
+        ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.feature, l.lemma, f.lexFrameKey, w.word from WordForm w' +
         ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey' +
         ' inner join Lemma l on l.lemmaId = w.lemmaId' +
         ' inner join WordFrame f on f.lemmaId = w.lemmaId' +
@@ -43,7 +43,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         frameQuery = ( 'select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
         ' inner join Segment s on s.position = w.position' +
         ' left join PartOfSpeech p on p.pos = s.pos3' +
-        ' where w.lexFrameKey = %s' + #  and pos2 !="mod"
+        ' where w.lexFrameKey = %s ' + #  and pos2 !="mod"
         ' order by w.facultative, w.position;')
 
         unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
@@ -59,7 +59,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
 
         for token in tokens:
             cursor.execute(query, (token,))
-            for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in cursor:
+            for (pos, formFeature, categoryFeature, lemmaFeature, lemma, lexFrameKey, word) in cursor:
                 word = word.decode('utf8')
                 if formFeature:
                     formNT = minimize_nonterm(fstruct_reader.fromstring(formFeature))
@@ -75,6 +75,8 @@ def build_rules(tokens, fstruct_reader, dump = True):
                     catNT = None
                 if formNT and catNT:
                     nt = unify(formNT, catNT)
+                if lemmaFeature:
+                    nt = unify(nt, minimize_nonterm(fstruct_reader.fromstring(lemmaFeature)))
                 nt.add_feature({LEMMA_FEATURE:lemma})
                 nt[TYPE] = pos
                 nt = minimize_nonterm(nt)
@@ -98,7 +100,8 @@ def build_rules(tokens, fstruct_reader, dump = True):
                             if not unify(nt, condNT):
                                 continue
                         unNT = fstruct_reader.fromstring(un_feature)
-                        pos3NT = unify(pos3NT, unNT)
+                        un_pos3NT = unify(pos3NT, unNT)
+                        pos3NT = un_pos3NT
                         if pos3NT.get_feature(SLOT_FEATURE):
                             pos3NT.filter_feature(SLOT_FEATURE)
                         pos2NT = unify(pos2NT, unNT)

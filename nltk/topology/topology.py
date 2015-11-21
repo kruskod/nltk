@@ -482,7 +482,6 @@ def build_topologies():
     )
 
 
-
 def process_dominance(tree, topology_rules):
     from nltk import Tree, TYPE
     # get all topolgies for tree
@@ -522,12 +521,15 @@ def process_dominance(tree, topology_rules):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='ich sehe', numparses=0):
+         sent='Monopole sollen geschlagen werden', numparses=0):
     """
     sent examples:
+        wen habe ich gesehen
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
         Monopole sollen geknackt und Märkte getrennt werden.
         Monopole sollen geknackt werden und Märkte getrennt.
+
+        Katzen werden geschlagen - läuft 20.11.15
 
         sehe ich den Mann
 
@@ -581,7 +583,12 @@ def demo(print_times=True, print_grammar=False,
     for tree in parses:
         count_trees += 1
         ver_result = verifier(tree)
-        if ver_result:
+        has_subj = False
+        for sub_tree in tree:
+            if sub_tree._label[TYPE] == 'subj':
+                has_subj = True
+                break
+        if ver_result and has_subj and tree._label.has_feature({'status': 'Fin'}):
             try:
                 dominance_structures.append(tree)
             except ValueError:
@@ -603,7 +610,7 @@ def demo(print_times=True, print_grammar=False,
             # for top in feat_tree.topologies:
             #     print(top.read_out(tokens))
         end_time = timer()
-    print("------------------------------------------------")
+    print("####################################################")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
     print('Count of productions:', len(cp._grammar._productions))
@@ -611,6 +618,11 @@ def demo(print_times=True, print_grammar=False,
 
     if dominance_structures:
         TreeTabView(*dominance_structures[:20])
+# TODO
+# split features like case=(dat/nom/acc) to separate rules
+# add feature to lemma
+# check Der Mann will ich sehen
+# add voice=passive for lemma Lexikon
 
 if __name__ == "__main__":
     #demo_simplifier()

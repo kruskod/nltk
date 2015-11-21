@@ -10,4 +10,3 @@ NUMBER_FEATURE = 'number'
 PERSON_FEATURE = 'person'
 LEMMA_FEATURE = 'lemma'
 FACULTATIVE_FEATURE = 'facultative'
-
