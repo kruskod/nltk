@@ -4,6 +4,8 @@ import inspect
 from timeit import default_timer as timer
 import itertools
 
+import pickle
+
 from nltk.featstruct import CelexFeatStructReader, EXPRESSION, TYPE, FeatStructReader, unify
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar, Production
 from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser
@@ -518,10 +520,9 @@ def process_dominance(tree, topology_rules):
     return result
 
 
-
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='Monopole sollen geschlagen werden', numparses=0):
+         sent='Monopole sollen geknackt werden', numparses=0):
     """
     sent examples:
         wen habe ich gesehen
@@ -615,6 +616,9 @@ def demo(print_times=True, print_grammar=False,
     print("Nr Dominance structures:", len(dominance_structures))
     print('Count of productions:', len(cp._grammar._productions))
     print("Time: {:.3f}s.\n".format (end_time - t))
+
+    with open('../../fsa/dominance_structures.dump', 'wb') as f:
+        pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
 
     if dominance_structures:
         TreeTabView(*dominance_structures[:20])

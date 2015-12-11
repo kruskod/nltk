@@ -8,13 +8,13 @@
 """
 Graphically display a Tree.
 """
+from tkinter import ttk
+from tkinter.font import Font
+
 from nltk import TYPE
 
-import nltk.compat
-import sys
-
-from tkinter import IntVar, Menu, Tk, BOTH, YES, Frame, Canvas
-from tkinter import ttk
+from tkinter import *
+from tkinter.ttk import *
 from nltk.grammar import FeatStructNonterminal
 
 from nltk.util import in_idle
@@ -825,6 +825,9 @@ class TreeView(object):
         self._trees = trees
 
         self._top = Tk()
+        style = ttk.Style()
+        print(style.theme_names())
+        style.theme_use('clam')
         # self._top.resizable(width=True, height=True)
         self._top.title('NLTK')
         self._top.bind('<Control-x>', self.destroy)
@@ -948,10 +951,12 @@ def draw_trees(*trees):
 
 class TreeTabView(TreeView):
     def __init__(self, *trees, label='Dominance structures'):
-        from math import sqrt, ceil
 
         self._trees = trees
         self._top = Tk()
+        style = ttk.Style()
+        # print(style.theme_names())
+        style.theme_use('clam')
         # self._top.resizable(width=True, height=True)
         self._top.title(label)
         self._top.bind('<Control-x>', self.destroy)
@@ -978,14 +983,32 @@ class TreeTabView(TreeView):
         # helvetica
         bold = ('monospace', -self._size.get(), 'bold')
         mono = ('monospace', -self._size.get())
+        self.font = font.nametofont("TkDefaultFont")
+        # self.font = Font(family='Helvetica', size=10)
 
         self._widgets = []
         for i in range(len(trees)):
             # page = Frame(nb)
             # canvas = Canvas(page)
-            cv = CanvasFrame(nb)
-            cv.pack(expand=1, fill="both")
-            canvas = cv.canvas()
+            tab = Frame(nb)
+            canvas = Canvas(tab, borderwidth=0, bg='white')
+            frame = ttk.Frame(canvas)
+            #frame.pack(expand=1, fill="both")
+
+            vsb = Scrollbar(tab, orient="vertical", command=canvas.yview)
+            canvas.configure(yscrollcommand=vsb.set)
+            vsb.pack(side="right", fill="y")
+
+            hsb = Scrollbar(tab, orient="horizontal", command=canvas.xview)
+            canvas.configure(xscrollcommand=hsb.set)
+            hsb.pack(side="bottom", fill="x")
+
+            canvas.pack(side='left', fill='both', expand=True)
+            canvas.create_window((0, 0), window=frame, anchor='nw', tags='frame')
+
+            #cv = CanvasFrame(nb)
+            #cv.pack(expand=1, fill="both")
+            #canvas = cv.canvas()
             widget = TreeWidget(canvas, trees[i], node_font=mono,
                                 leaf_color='#008040', node_color='#004080',
                                 roof_color='#004040', roof_fill='white',
@@ -993,7 +1016,7 @@ class TreeTabView(TreeView):
                                 leaf_font=bold)
             self._widgets.append(widget)
             widget.bind_click_trees(widget.toggle_collapsed)
-            nb.add(cv._frame, text=(' '.join(trees[i].leaves())))
+            nb.add(tab, text=(' '.join(trees[i].leaves())))
         self._layout()
         self._init_menubar()
         nb.pack(expand=1, fill="both")
@@ -1017,13 +1040,15 @@ class TreeTabView(TreeView):
 
     def _init_menubar(self):
         menubar = Menu(self._top)
-
+        menubar.config(font = self.font)
         filemenu = Menu(menubar, tearoff=0)
+        filemenu.config(font = self.font)
         filemenu.add_command(label='Exit', underline=1,
-                             command=self.destroy, accelerator='Ctrl-x')
-        menubar.add_cascade(label='File', underline=0, menu=filemenu)
+                             command=self.destroy, accelerator='Ctrl-x' )
+        menubar.add_cascade(label='File', underline=0, menu=filemenu )
 
         zoommenu = Menu(menubar, tearoff=0)
+        zoommenu.config(font = self.font)
         zoommenu.add_radiobutton(label='Tiny', variable=self._size,
                                  underline=0, value=10, command=self.resize)
         zoommenu.add_radiobutton(label='Small', variable=self._size,

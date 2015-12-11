@@ -34,10 +34,8 @@ homepage (http://www.ags.uni-sb.de/~konrad/clig.html).
 
 """
 
-
-import nltk.compat
-from tkinter import (Button, Canvas, Entry, Frame, Label, Menu, Menubutton,
-                     RAISED, Scrollbar, StringVar, Text, Tk, Toplevel, Widget)
+from tkinter import *
+from tkinter.ttk import *
 
 import tkinter.font, tkinter.messagebox, tkinter.filedialog
 
