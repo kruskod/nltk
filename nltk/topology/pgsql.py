@@ -14,7 +14,8 @@ from mysql.connector import errorcode
 
 def connect():
     try:
-        cnx = mysql.connector.connect(host="localhost", port=3307, user='root', database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
+        cnx = mysql.connector.connect(host="localhost", port=3306, user='root', password='total', database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
+        # cnx = mysql.connector.connect(unix_socket="", database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")
@@ -225,6 +226,148 @@ def read_extensions():
                     ext['example'] = columns[3]
                 extensions.append(ext)
     return extensions
+
+def compass_export():
+    cnx = connect()
+    productions = []
+    if cnx:
+        cursor = cnx.cursor(buffered = True)
+        frameCursor = cnx.cursor(buffered = True)
+        unificationCursor = cnx.cursor(buffered = True)
+
+        # hier ist die Bespiel-Wortform “flog”, fuer die es zwei Baume gibt:
+        # flog : (S (cmpr CP[branch=facultative]) (mod /S[branch=facultative]/NP[case=gen/dat/acc|branch=facultative]/PP[particle=false|branch=facultative]/ADVP[branch=facultative]/) (subj /NP[status=Fin|case=nom|inheritedFeature=number/person/wh|branch=facultative]/S[status=Fin|number=singular|person=3rd|inheritedFeature=wh|branch=facultative]/) (hd v[branch=obligatory|lemma=fliegen intrans.|lemmaNo=13986|perf_aux=haben/sein|personal=true|sepPrefix=none|vcat=VS|inflForm=26|inflPara=25|{[mood=indicative|number=singular|person=1st|status=Fin|tense=past] OR [mood=indicative|number=singular|person=3rd|status=Fin|tense=past]}]))
+        # flog : (S (mod /ADVP[branch=facultative]/S[branch=facultative]/NP[case=gen/dat/acc|branch=facultative]/PP[particle=false|branch=facultative]/) (subj /NP[status=Fin|case=nom|inheritedFeature=number/person/wh|branch=facultative]/S[status=Fin|number=singular|person=3rd|inheritedFeature=wh|branch=facultative]/) (dobj NP[case=acc|branch=obligatory]) (cmpr CP[branch=facultative]) (hd v[branch=obligatory|lemma=fliegen oblig. trans.|lemmaNo=13988|perf_aux=haben/sein|personal=true|sepPrefix=none|vcat=VS|inflForm=26|inflPara=25|{[mood=indicative|number=singular|person=1st|status=Fin|tense=past] OR [mood=indicative|number=singular|person=3rd|status=Fin|tense=past]}]))
+
+        query = (
+        ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.feature, l.lemma, f.lexFrameKey, w.word from WordForm w' +
+        ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey' +
+        ' inner join Lemma l on l.lemmaId = w.lemmaId' +
+        ' inner join WordFrame f on f.lemmaId = w.lemmaId' +
+        ' inner join WordCategory c on c.lexFrameKey = f.lexFrameKey' +
+        ' where w.word=%s;')
+
+        frameQuery = ( 'select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
+        ' inner join Segment s on s.position = w.position' +
+        ' left join PartOfSpeech p on p.pos = s.pos3' +
+        ' where w.lexFrameKey = %s ' + #  and pos2 !="mod"
+        ' order by w.facultative, w.position;')
+
+        unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
+
+        # lhs = minimize_nonterm(prod.lhs())
+        # select_extensions = [ext for ext in extensions if ext['lhs'] == lhs[TYPE]]
+        # rhs = list(prod.rhs())
+        # for i, nt in enumerate(rhs):
+        #     for ext in select_extensions:
+        #         if ext['rhs'] == nt[TYPE] and nt.has_feature({GRAM_FUNC_FEATURE:ext[GRAM_FUNC_FEATURE]}):
+        #             if 'cond' in ext:
+        #                 feat = fstruct_reader.fromstring('[' + ext['cond'] + ']')
+
+        for token in tokens:
+            cursor.execute(query, (token,))
+            for (pos, formFeature, categoryFeature, lemmaFeature, lemma, lexFrameKey, word) in cursor:
+                word = word.decode('utf8')
+                if formFeature:
+                    formNT = minimize_nonterm(fstruct_reader.fromstring(formFeature))
+                    formNT[TYPE] = pos
+                    nt = formNT
+                else:
+                    formNT = None
+                if categoryFeature:
+                    catNT = minimize_nonterm(fstruct_reader.fromstring(categoryFeature))
+                    catNT[TYPE] = pos
+                    nt = catNT
+                else:
+                    catNT = None
+                if formNT and catNT:
+                    nt = unify(formNT, catNT)
+                if lemmaFeature:
+                    nt = unify(nt, minimize_nonterm(fstruct_reader.fromstring(lemmaFeature)))
+                nt.add_feature({LEMMA_FEATURE:lemma})
+                nt[TYPE] = pos
+                nt = minimize_nonterm(nt)
+                frameCursor.execute(frameQuery, (lexFrameKey,))
+                gf = set()
+                rhs = []
+                #hd = (None, None)
+                for (position, pos1, pos2, pos3, feature, facultative) in frameCursor:
+                    pos2NT = FeatStructNonterminal(pos2)
+                    if facultative:
+                        pos2NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey, BRANCH_FEATURE:'facultative'})
+                    else:
+                        pos2NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
+                    # pos2NT[TYPE] = pos2
+                    pos3NT = FeatStructNonterminal(pos3)
+
+                    unificationCursor.execute(unificationQuery, (position,))
+                    for (cond, un_feature) in unificationCursor:
+                        if cond:
+                            condNT = fstruct_reader.fromstring('[' + cond + ']')
+                            if not unify(nt, condNT):
+                                continue
+                        unNT = fstruct_reader.fromstring(un_feature)
+                        un_pos3NT = unify(pos3NT, unNT)
+                        pos3NT = un_pos3NT
+                        if pos3NT.get_feature(SLOT_FEATURE):
+                            pos3NT.filter_feature(SLOT_FEATURE)
+                        pos2NT = unify(pos2NT, unNT)
+                        if pos2NT.get_feature(SLOT_FEATURE):
+                            pos2NT.filter_feature(SLOT_FEATURE)
+
+                    if pos2 not in gf:
+                        gf.add(pos2)
+                        if pos2 == 'hd':
+                            if feature:
+                                headNT = fstruct_reader.fromstring(feature)
+                                nt = unify(nt, headNT)
+                            # don't generate head features
+                            #continue
+                            # nt_copy = copy.deepcopy(nt)
+                            # del nt_copy[TYPE]
+                            # pos2NT = unify(pos2NT, nt_copy)
+                            # pos3NT = unify(pos3NT, nt_copy)
+                            # # number_var = Variable('?' + NUMBER_FEATURE)
+                            # person_var = Variable('?' + NUMBER_FEATURE)
+                            # if not pos2NT.get_feature(NUMBER_FEATURE):
+                            #     pos2NT.add_feature({NUMBER_FEATURE:number_var})
+                            # if not pos3NT.get_feature(NUMBER_FEATURE):
+                            #     pos3NT.add_feature({NUMBER_FEATURE:number_var})
+                            # if not pos2NT.get_feature(PERSON_FEATURE):
+                            #     pos2NT.add_feature({PERSON_FEATURE:person_var})
+                            # if not pos3NT.get_feature(PERSON_FEATURE):
+                            #     pos3NT.add_feature({PERSON_FEATURE:person_var})
+                            #hd = pos2NT, pos3NT
+                            keys = set(nt.keys())
+                            keys.remove(TYPE)
+
+                            if EXPRESSION in nt:
+                                keys.remove(EXPRESSION)
+                                for exp in simplify_expression(nt[EXPRESSION]):
+                                    keys.update(exp.keys())
+                            keys=tuple(keys)
+                            pos2NT.add_feature({INHERITED_FEATURE:keys})
+                            pos3NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey,INHERITED_FEATURE:keys})
+                        rhs.append(pos2NT)
+                    # simplify disjunction to separate rules
+                    #map(process_inherited_features,openDisjunction(Production(pos2NT, pos3NT)))
+                    productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(pos2NT, (pos3NT,))))))
+                lhs = copy.deepcopy(nt)
+                lhs[TYPE] = pos1
+                nt.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
+                productions.extend(open_disjunction(Production(nt, (word,))))
+                # productions.append(Production(nt, (word,)))
+                productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(lhs, rhs)))))
+                # productions.append(Production(lhs, rhs).process_inherited_features())
+        if dump:
+            with open('../../fsa/query.fcfg', "w") as f:
+                for rule in productions:
+                    f.write(repr(rule) + '\n\n')
+        unificationCursor.close()
+        cursor.close()
+        frameCursor.close()
+        cnx.close()
+    return FeatureGrammar(FeatStructNonterminal('S'), productions)
 
 if __name__ == "__main__":
     # get_rules('Monopole sollen geknackt werden'.split())
