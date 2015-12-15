@@ -6,6 +6,7 @@ import itertools
 
 import pickle
 
+from nltk import featstruct
 from nltk.featstruct import CelexFeatStructReader, EXPRESSION, TYPE, FeatStructReader, unify
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar, Production
 from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser
@@ -628,6 +629,14 @@ def demo(print_times=True, print_grammar=False,
 # check Der Mann will ich sehen
 # add voice=passive for lemma Lexikon
 
+def unify_demo():
+    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    fs1 = fstruct_reader.fromstring('N[status=Infin]')
+    fs2 = fstruct_reader.fromstring('N[wh=true]')
+    result = unify(fs1, fs2)
+    print(result)
+
 if __name__ == "__main__":
     #demo_simplifier()
-    demo()
+    unify_demo()
+    #demo()
