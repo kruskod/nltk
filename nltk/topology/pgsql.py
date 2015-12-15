@@ -1,6 +1,6 @@
 import copy
 
-from nltk.featstruct import CelexFeatStructReader, unify, TYPE, EXPRESSION
+from nltk.featstruct import CelexFeatStructReader, unify, TYPE, EXPRESSION, _unify_feature_values
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
 from nltk.topology.FeatTree import minimize_nonterm, open_disjunction, simplify_expression
 from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, LEMMA_FEATURE, PRODUCTION_ID_FEATURE, BRANCH_FEATURE, \
@@ -70,12 +70,13 @@ def build_rules(tokens, fstruct_reader, dump = True):
                     formNT = None
                 if categoryFeature:
                     catNT = minimize_nonterm(fstruct_reader.fromstring(categoryFeature))
+                    catNT =  catNT.filter_feature("personal", "inflected")
                     catNT[TYPE] = pos
                     nt = catNT
                 else:
                     catNT = None
                 if formNT and catNT:
-                    nt = unify(formNT, catNT)
+                    nt = unify(formNT, catNT, treatBool=False)
                 if lemmaFeature:
                     nt = unify(nt, minimize_nonterm(fstruct_reader.fromstring(lemmaFeature)))
                 nt.add_feature({LEMMA_FEATURE:lemma})
@@ -101,13 +102,18 @@ def build_rules(tokens, fstruct_reader, dump = True):
                             if not unify(nt, condNT):
                                 continue
                         unNT = fstruct_reader.fromstring(un_feature)
-                        un_pos3NT = unify(pos3NT, unNT)
+                        # It is actually not unification, but features merging
+                        un_pos3NT = unify(pos3NT, unNT, treatBool=False)
                         pos3NT = un_pos3NT
                         if pos3NT.get_feature(SLOT_FEATURE):
-                            pos3NT.filter_feature(SLOT_FEATURE)
-                        pos2NT = unify(pos2NT, unNT)
+                            pos3NT = pos3NT.filter_feature(SLOT_FEATURE)
+
+                        pos2NT = unify(pos2NT, unNT, treatBool=False)
                         if pos2NT.get_feature(SLOT_FEATURE):
                             pos2NT.filter_feature(SLOT_FEATURE)
+
+                        # pos3NT =  pos3NT.filter_feature("personal", "inflected")
+                        # pos2NT = pos2NT.filter_feature("personal", "inflected")
 
                     if pos2 not in gf:
                         gf.add(pos2)

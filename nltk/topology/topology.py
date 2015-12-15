@@ -525,6 +525,7 @@ def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
          sent='Monopole sollen geknackt werden', numparses=0):
     """
+    Monopole sollen geknackt
     sent examples:
         wen habe ich gesehen
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
@@ -612,14 +613,13 @@ def demo(print_times=True, print_grammar=False,
             # for top in feat_tree.topologies:
             #     print(top.read_out(tokens))
         end_time = timer()
+        with open('../../fsa/dominance_structures.dump', 'wb') as f:
+            pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
     print("####################################################")
     print("Nr trees:", count_trees)
     print("Nr Dominance structures:", len(dominance_structures))
     print('Count of productions:', len(cp._grammar._productions))
     print("Time: {:.3f}s.\n".format (end_time - t))
-
-    with open('../../fsa/dominance_structures.dump', 'wb') as f:
-        pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
 
     if dominance_structures:
         TreeTabView(*dominance_structures[:20])
@@ -638,5 +638,5 @@ def unify_demo():
 
 if __name__ == "__main__":
     #demo_simplifier()
-    unify_demo()
-    #demo()
+    #unify_demo()
+    demo()
