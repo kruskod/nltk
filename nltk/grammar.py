@@ -241,15 +241,12 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
 
-        if EXPRESSION in features_map or EXPRESSION in self:
-            top_fstruct = FeatStructNonterminal()
-            top_fstruct.update(features_map)
-            return unify(self, top_fstruct)
-        else:
-            for key, val in features_map.items():
-                if key not in self or val != self[key]:
-                    return False
+        top_fstruct = FeatStructNonterminal()
+        top_fstruct.update(features_map)
+        if unify(self, top_fstruct):
             return True
+        else:
+            return False
 
     def add_feature(self, feature_map):
         if EXPRESSION in self:
