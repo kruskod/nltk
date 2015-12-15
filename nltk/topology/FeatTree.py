@@ -134,17 +134,32 @@ class Share:
         'status': ('Fin', 'Infin', 'PInfin')
     }
 
+class TopTree(Tree):
+
+    def label(self, label):
+        self._label = label
+        return self
+
+    def anti(self, anti):
+        self._anti = anti
+        return self
+
+    def position(self, position):
+        if not self._position:
+            self._position = []
+        self._position.append(position)
+        return self
+
 #Declarative sentense wh = false
 class FeatTree(Tree):
-    def __init__(self, node, children=None):
+    def __init__(self, node, children=None, parent=None):
         self._hcLabel = None
         if isinstance(node, Tree):
             self._label = node._label
             list.__init__(self, node)
             self.ph = PH[self._label[TYPE]]
-            feat = get_feature(self._label, GRAM_FUNC_FEATURE)
-            if feat:
-                self.gf = GF[feat.pop()]
+            if parent:
+                self.gf = GF[parent._label[TYPE]]
             else:
                 self.gf = None
             self.tag = None
@@ -152,18 +167,19 @@ class FeatTree(Tree):
             # make all leaves also FeatTree
             if not self.ishead():
                 for index, child in enumerate(self):
+                    # nodes with GF at this level
                     if isinstance(child, Tree):
-                        feat_child = FeatTree(child)
+                        feat_child = FeatTree(child[0], children=None, parent= child)
                         if feat_child:
-                            if feat_child.ishead():
-                                new_label = unify(child._label, self._label.filter_feature(BRANCH_FEATURE, TYPE, GRAM_FUNC_FEATURE), rename_vars=False)
-                                if new_label:
-                                    feat_child._label = minimize_nonterm(new_label)
-                                else:
-                                    raise ValueError
                             self[index] = feat_child
                         else:
                             raise ValueError
+            # else: we have already children
+
+            #     leaves = []
+            #     for child in self:
+            #         leaves.append(list(child))
+            #     list.__init__(self, leaves)
         else:
             if children is None:
                 raise TypeError("%s: Expected a node value and child list " % type(self).__name__)
@@ -251,13 +267,14 @@ class FeatTree(Tree):
         # print leaves
         if self:
             leaves_str = ''.join(
-                leaf.pformat(parens='  ', quotes=True) for leaf in self if not isinstance(leaf, FeatTree))
+                leaf for leaf in self if not isinstance(leaf, FeatTree))
             if leaves_str:
                 out += ' -> ' + leaves_str
         # print all topologies
         if self.topologies:
             # initialize the field matrix
             for top in self.topologies:
+
                 fields = [[]]
                 max_length = 0
                 for type, field in top.items():
@@ -289,6 +306,7 @@ class FeatTree(Tree):
                 border = '\r\n' + '-' * ((len(fields[0]) * (max_length + 1)) + 1) + '\r\n'
                 format_expr = '{:^' + str(max_length) + '}|'
                 table = border
+                out += '\n' + str(top.tag)
                 for row in fields:
                     row_line = '|'
                     for col in row:
@@ -570,9 +588,6 @@ def demo_simplifier(exp = (OP.OR, ((OP.OR, ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a'
 if __name__ == "__main__":
     demo_simplifier()
     demo_simplifier(exp = (OP.OR, ({'a': 2, 'b': 3}, {'a': 2, 'c': 3},{'a': 2, 'c': 4})))
-
-
-
 
 from _collections_abc import Iterable
 import copy
