@@ -158,10 +158,13 @@ class FeatTree(Tree):
             self._label = node._label
             list.__init__(self, node)
             self.ph = PH[self._label[TYPE]]
+
             if parent:
                 self.gf = GF[parent._label[TYPE]]
+                self.parent = parent
             else:
                 self.gf = None
+                self.parent = None
             self.tag = None
             self.topologies = []
             # make all leaves also FeatTree
@@ -225,15 +228,12 @@ class FeatTree(Tree):
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
 
-        if EXPRESSION in features_map or EXPRESSION in self._label:
-            top_fstruct = FeatStructNonterminal()
-            top_fstruct.update(features_map)
-            return unify(self._label, top_fstruct)
-        else:
-            for key, val in features_map.items():
-                if key not in self._label or val != self._label[key]:
-                    return False
+        top_fstruct = FeatStructNonterminal()
+        top_fstruct.update(features_map)
+        if unify(self._label, top_fstruct):
             return True
+        else:
+            return False
 
     def fit(self, gf=None, ph=None):
         assert isinstance(gf, GF)
@@ -306,14 +306,15 @@ class FeatTree(Tree):
                 border = '\r\n' + '-' * ((len(fields[0]) * (max_length + 1)) + 1) + '\r\n'
                 format_expr = '{:^' + str(max_length) + '}|'
                 table = border
-                out += '\n' + str(top.tag)
+                label_expr = '|{:^' + str(len(fields[0]) * (max_length + 1) - 1) + '}|'
+                out += border + label_expr.format(str(top.tag))
                 for row in fields:
                     row_line = '|'
                     for col in row:
                         row_line += format_expr.format(col)
                     table += row_line + border
                 # do recursive for children
-                app = '\r\n'
+                app = ''
                 for ast in self:
                     app += str(ast)
                 out += table + app
@@ -587,7 +588,7 @@ def demo_simplifier(exp = (OP.OR, ((OP.OR, ({'a': (1, 2, 3, 4, 5), 'b': 2}, {'a'
 
 if __name__ == "__main__":
     demo_simplifier()
-    demo_simplifier(exp = (OP.OR, ({'a': 2, 'b': 3}, {'a': 2, 'c': 3},{'a': 2, 'c': 4})))
+    demo_simplifier(exp = (OP.OR, ({'a': 2, 'b': 3}, {'a': 2, 'c': 3}, {'a': 2, 'c': 4})))
 
 from _collections_abc import Iterable
 import copy
