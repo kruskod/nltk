@@ -1262,7 +1262,7 @@ UnificationFailure = _UnificationFailure()
 #   3. Apply forward pointers, to preserve reentrance.
 #   4. Replace bound variables with their values.
 def unify(fstruct1, fstruct2, bindings=None, trace=False,
-          fail=None, rename_vars=True, fs_class='default'):
+          fail=None, rename_vars=True, fs_class='default', treatBool = True):
     """
     Unify ``fstruct1`` with ``fstruct2``, and return the resulting feature
     structure.  This unified feature structure is the minimal
@@ -1379,7 +1379,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
                 # Do the actual unification.  If it fails, return None.
                 if trace: _trace_unify_start((), fs1, fs2)
                 try:
-                    fs1_fs2 = _destructively_unify(fs1.copy(), fs2.copy(), bindings_copy, {}, trace, fail, fs_class, ())
+                    fs1_fs2 = _destructively_unify(fs1.copy(), fs2.copy(), bindings_copy, {}, trace, fail, fs_class, (), treatBool)
                     if fs1_fs2 is not UnificationFailure:
                         bindings.update(bindings_copy)
                         results.add(fs1_fs2)
@@ -1414,7 +1414,7 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
         if trace: _trace_unify_start((), fstruct1copy, fstruct2copy)
         try:
             result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
-                                           forward, trace, fail, fs_class, ())
+                                           forward, trace, fail, fs_class, (), treatBool)
         except _UnificationFailureError: return None
 
     # _destructively_unify might return UnificationFailure, e.g. if we
@@ -1445,7 +1445,7 @@ class _UnificationFailureError(Exception):
     unification when a failure is encountered."""
 
 def _destructively_unify(fstruct1, fstruct2, bindings, forward,
-                         trace, fail, fs_class, path):
+                         trace, fail, fs_class, path, treatBool = True):
     """
     Attempt to unify ``fstruct1`` and ``fstruct2`` by modifying them
     in-place.  If the unification succeeds, then ``fstruct1`` will
@@ -1499,9 +1499,13 @@ def _destructively_unify(fstruct1, fstruct2, bindings, forward,
                 fstruct1[fname] = _unify_feature_values(
                     fname, fstruct1[fname], fval2, bindings,
                     forward, trace, fail, fs_class, path+(fname,))
+            # during an unification if one structure has some feature = True,
+            # another structure should has it too. => Default value of all missed
+            # features = False
+            elif treatBool and fval2 is True:
+                raise _UnificationFailureError
             else:
                 fstruct1[fname] = fval2
-
         return fstruct1 # Contains the unified value.
 
     # Unifying two sequences:
