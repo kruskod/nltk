@@ -464,17 +464,60 @@ def simplify_expression(feat):
     else:
         raise ValueError("wrong type of argument:", feat)
 
+
+
+        #Add subject-verb agreement
+        if NUMBER_FEATURE in lhs or PERSON_FEATURE in lhs:
+            for nt in rhs:
+                if nt[TYPE] == 'hd':
+                    if NUMBER_FEATURE not in nt and NUMBER_FEATURE in lhs:
+                        nt[NUMBER_FEATURE] = lhs[NUMBER_FEATURE]
+                    if PERSON_FEATURE not in nt and PERSON_FEATURE in lhs:
+                        nt[PERSON_FEATURE] = lhs[PERSON_FEATURE]
+                    break
+        if INHERITED_FEATURE in lhs:
+            lhs = lhs.filter_feature(INHERITED_FEATURE)
+        return Production(lhs, rhs)
+
+
 def simplify_fstruct(fstruct):
-     if is_nonterminal(fstruct) and EXPRESSION in fstruct:
-        fstructs = []
-        for ex in simplify_expression(fstruct[EXPRESSION]):
-            fstructcopy = copy.deepcopy(fstruct)
-            del fstructcopy[EXPRESSION]
-            fstructcopy.update(ex)
-            fstructs.append(fstructcopy)
+    '''
+    inherited features should not be simplified, because they should be treated further
+    :param fstruct:
+    :return:
+    '''
+    if is_nonterminal(fstruct):
+        if EXPRESSION in fstruct:
+            fstructs = []
+            for ex in simplify_expression(fstruct[EXPRESSION]):
+                fstructcopy = copy.deepcopy(fstruct)
+                del fstructcopy[EXPRESSION]
+                fstructcopy.update(ex)
+                fstructs.append(fstructcopy)
+        else:
+            fstructs = list((fstruct,))
+        #disabled because to many tree will be generated if singlefy all features
+
+        # singlefied = list()
+        # for nt in fstructs:
+        #     inh_feat = nt.get_feature(INHERITED_FEATURE)
+        #     if inh_feat:
+        #         nt = nt.filter_feature(INHERITED_FEATURE)
+        #     pool = set((nt,))
+        #     # simplify nonterminal until it can not be simplified further
+        #     while (pool):
+        #         nonterminals_buffer = simplify_expression(pool.pop())
+        #         if isinstance(nonterminals_buffer, FeatStructNonterminal):
+        #             if inh_feat:
+        #                 nonterminals_buffer.add_feature({INHERITED_FEATURE:inh_feat})
+        #             singlefied.append(nonterminals_buffer)
+        #         else:
+        #             pool.update(nonterminals_buffer)
+        # return singlefied
         return fstructs
-     else:
+    else:
         return (fstruct,)
+
 
 def open_disjunction(production):
 
@@ -594,5 +637,5 @@ from _collections_abc import Iterable
 import copy
 # from nltk.tree import Tree
 from nltk.featstruct import EXPRESSION, unify, TYPE
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE, BRANCH_FEATURE
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE, BRANCH_FEATURE, INHERITED_FEATURE
 from nltk.grammar import FeatStructNonterminal, is_nonterminal, Production

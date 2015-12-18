@@ -1570,7 +1570,7 @@ def _unify_feature_values(fname, fval1, fval2, bindings, forward,
     # Case 1: Two feature structures (recursive case)
     if isinstance(fval1, fs_class) and isinstance(fval2, fs_class):
         result = _destructively_unify(fval1, fval2, bindings, forward,
-                                      trace, fail, fs_class, fpath)
+                                      trace, fail, fs_class, fpath, treatBool)
 
     # Case 2: Two unbound variables (create alias)
     elif (isinstance(fval1, Variable) and
@@ -2471,7 +2471,8 @@ class CelexFeatStructReader(FeatStructReader):
 
 
     _FEATURE_CLOSE = re.compile("\[[^\[\]]*?\]")
-    _READ_SYM_VALUE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+    # _READ_SYM_VALUE = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+    _READ_SYM_VALUE = re.compile(r'\w*')
 
     # TODO: the left part of the expression should also have features
 

@@ -525,6 +525,7 @@ def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
          sent='Monopole sollen geknackt werden', numparses=0):
     """
+    Monopole sollen geknackt werden
     Monopole sollen geknackt
     sent examples:
         wen habe ich gesehen

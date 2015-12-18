@@ -73,6 +73,8 @@ from _collections_abc import Iterable
 
 import re
 
+import itertools
+
 from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, INHERITED_FEATURE, STATUS_FEATURE, \
     NUMBER_FEATURE, PERSON_FEATURE
 
@@ -241,12 +243,15 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
 
-        top_fstruct = FeatStructNonterminal()
-        top_fstruct.update(features_map)
-        if unify(self, top_fstruct):
-            return True
+        if EXPRESSION in features_map or EXPRESSION in self:
+            top_fstruct = FeatStructNonterminal()
+            top_fstruct.update(features_map)
+            return unify(self, top_fstruct)
         else:
-            return False
+            for key, val in features_map.items():
+                if key not in self or val != self[key]:
+                    return False
+            return True
 
     def add_feature(self, feature_map):
         if EXPRESSION in self:
@@ -493,6 +498,31 @@ class Production(object):
         if INHERITED_FEATURE in lhs:
             lhs = lhs.filter_feature(INHERITED_FEATURE)
         return Production(lhs, rhs)
+
+    def simplify(self):
+        """
+        open disjunction in features like case=acc/gen/dat
+        call this function until it returns one production
+        :return:
+        """
+        if self.is_lexical():
+            return self
+        nonterminals = list((self._lhs,) +  self._rhs)
+        singlefied = list()
+
+        for i, nt in enumerate(nonterminals):
+            # del nt._hash
+            # nt._frozen = False
+            pool = set((nt,))
+            singlefied.append(list())
+            # simplify nonterminal until it can not be simplified further
+            while(pool):
+                nonterminals_buffer = simplify_expression(pool.pop())
+                if isinstance(nonterminals_buffer, FeatStructNonterminal):
+                    singlefied[i].append(nonterminals_buffer)
+                else:
+                    pool.update(nonterminals_buffer)
+        return [Production(production[0], production[1:]) for production in itertools.product(*singlefied, repeat = 1)]
 
     # def process_inherited_features(self):
     #         """
