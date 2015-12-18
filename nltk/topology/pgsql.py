@@ -4,7 +4,7 @@ from nltk.featstruct import CelexFeatStructReader, unify, TYPE, EXPRESSION, _uni
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
 from nltk.topology.FeatTree import minimize_nonterm, open_disjunction, simplify_expression
 from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, LEMMA_FEATURE, PRODUCTION_ID_FEATURE, BRANCH_FEATURE, \
-    INHERITED_FEATURE, SLOT_FEATURE
+    INHERITED_FEATURE, SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -64,13 +64,14 @@ def build_rules(tokens, fstruct_reader, dump = True):
                 word = word.decode('utf8')
                 if formFeature:
                     formNT = minimize_nonterm(fstruct_reader.fromstring(formFeature))
+                    # formNT = formNT.filter_feature("personal", "inflected")
                     formNT[TYPE] = pos
                     nt = formNT
                 else:
                     formNT = None
                 if categoryFeature:
                     catNT = minimize_nonterm(fstruct_reader.fromstring(categoryFeature))
-                    catNT =  catNT.filter_feature("personal", "inflected")
+                    catNT = catNT.filter_feature("personal")
                     catNT[TYPE] = pos
                     nt = catNT
                 else:
@@ -95,6 +96,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
                     # pos2NT[TYPE] = pos2
                     pos3NT = FeatStructNonterminal(pos3)
 
+                    #After this point inherited features will be added
                     unificationCursor.execute(unificationQuery, (position,))
                     for (cond, un_feature) in unificationCursor:
                         if cond:
@@ -104,16 +106,10 @@ def build_rules(tokens, fstruct_reader, dump = True):
                         unNT = fstruct_reader.fromstring(un_feature)
                         # It is actually not unification, but features merging
                         un_pos3NT = unify(pos3NT, unNT, treatBool=False)
-                        pos3NT = un_pos3NT
-                        if pos3NT.get_feature(SLOT_FEATURE):
-                            pos3NT = pos3NT.filter_feature(SLOT_FEATURE)
+                        pos3NT = un_pos3NT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
 
                         pos2NT = unify(pos2NT, unNT, treatBool=False)
-                        if pos2NT.get_feature(SLOT_FEATURE):
-                            pos2NT.filter_feature(SLOT_FEATURE)
-
-                        # pos3NT =  pos3NT.filter_feature("personal", "inflected")
-                        # pos2NT = pos2NT.filter_feature("personal", "inflected")
+                        pos2NT = pos2NT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
 
                     if pos2 not in gf:
                         gf.add(pos2)
@@ -121,23 +117,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
                             if feature:
                                 headNT = fstruct_reader.fromstring(feature)
                                 nt = unify(nt, headNT)
-                            # don't generate head features
-                            #continue
-                            # nt_copy = copy.deepcopy(nt)
-                            # del nt_copy[TYPE]
-                            # pos2NT = unify(pos2NT, nt_copy)
-                            # pos3NT = unify(pos3NT, nt_copy)
-                            # # number_var = Variable('?' + NUMBER_FEATURE)
-                            # person_var = Variable('?' + NUMBER_FEATURE)
-                            # if not pos2NT.get_feature(NUMBER_FEATURE):
-                            #     pos2NT.add_feature({NUMBER_FEATURE:number_var})
-                            # if not pos3NT.get_feature(NUMBER_FEATURE):
-                            #     pos3NT.add_feature({NUMBER_FEATURE:number_var})
-                            # if not pos2NT.get_feature(PERSON_FEATURE):
-                            #     pos2NT.add_feature({PERSON_FEATURE:person_var})
-                            # if not pos3NT.get_feature(PERSON_FEATURE):
-                            #     pos3NT.add_feature({PERSON_FEATURE:person_var})
-                            #hd = pos2NT, pos3NT
+
                             keys = set(nt.keys())
                             keys.remove(TYPE)
 
@@ -148,16 +128,24 @@ def build_rules(tokens, fstruct_reader, dump = True):
                             keys=tuple(keys)
                             pos2NT.add_feature({INHERITED_FEATURE:keys})
                             pos3NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey,INHERITED_FEATURE:keys})
+
                         rhs.append(pos2NT)
                     # simplify disjunction to separate rules
                     #map(process_inherited_features,openDisjunction(Production(pos2NT, pos3NT)))
                     productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(pos2NT, (pos3NT,))))))
+                # simplify lhs here
                 lhs = copy.deepcopy(nt)
                 lhs[TYPE] = pos1
                 nt.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
                 productions.extend(open_disjunction(Production(nt, (word,))))
                 # productions.append(Production(nt, (word,)))
                 productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(lhs, rhs)))))
+                # Add productions simplifier
+        # simplified_prodiuctions = list()
+        # for production in productions:
+        #     simplified_prodiuctions.extend([production.simplify()])
+        # productions = simplified_prodiuctions
+
                 # productions.append(Production(lhs, rhs).process_inherited_features())
         if dump:
             with open('../../fsa/query.fcfg', "w") as f:
