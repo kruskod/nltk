@@ -14,8 +14,9 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         print(tree)
         feat_tree = FeatTree(tree)
         feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
-        print(feat_tree)
-        print(80*'-')
+        print(*feat_tree.bfs())
+        # print(feat_tree)
+        print(80*'#')
 
         # for top in feat_tree.topologies:
         #     print(top.read_out(tokens))
