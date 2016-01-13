@@ -1,5 +1,7 @@
 import itertools
 
+from nltk.topology.orderedSet import OrderedSet
+
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 from enum import Enum
@@ -263,7 +265,7 @@ class FeatTree(Tree):
         return False
 
     def __str__(self):
-        out = '(' + str(self.gorn) + ')' + repr(self.label())
+        out = '\r\n(' + str(self.gorn) + ')' + repr(self.label())
         # print leaves
         if self:
             leaves_str = ''.join(
@@ -274,7 +276,6 @@ class FeatTree(Tree):
         if self.topologies:
             # initialize the field matrix
             for top in self.topologies:
-
                 fields = [[]]
                 max_length = 0
                 for type, field in top.items():
@@ -307,23 +308,38 @@ class FeatTree(Tree):
                 format_expr = '{:^' + str(max_length) + '}|'
                 table = border
                 label_expr = '|{:^' + str(len(fields[0]) * (max_length + 1) - 1) + '}|'
-                out += border + label_expr.format(str(top.tag))
+
+                ## "\r\nAlternative: {} \r\n".format(alternative_number) + "=" * (len(fields[0]) * max_length) +
+
+                out +=  border + label_expr.format(str(top.tag))
                 for row in fields:
                     row_line = '|'
                     for col in row:
                         row_line += format_expr.format(col)
                     table += row_line + border
                 # do recursive for children
-                app = ''
-                for ast in self:
-                    app += str(ast)
-                out += table + app
+                # app = ''
+                # for ast in self:
+                #     app += str(ast)
+                out += table# + app
         else:
             out += '\n'
         return out
 
+    def bfs(self, visited=OrderedSet()):
+        queue = [self]
+        while queue:
+            vertex = queue.pop(0)
+            if vertex.topologies:
+                if vertex not in visited:
+                    visited.add(vertex)
+                    queue.extend(set(vertex) - visited)
+            else:
+                visited.add(vertex)
+        return visited
+
     def __hash__(self):
-        return hash(self)
+        return hash(super(FeatTree,self))
 
 
 def find_head(root):
@@ -450,72 +466,94 @@ def simplify_expression(feat):
                 raise ValueError("unknown operator:{} in {}".format(operator, feat))
 
     elif isinstance(feat, dict):
-        result = []
-        for key, val in feat.items():  # looking for cases like {'a':(1,2)}
-            if isinstance(val, tuple):
-                for sub_val in val:
-                    feat_copy = feat.copy()
-                    feat_copy[key] = sub_val
-                    result.append(feat_copy)
-        if result:
-            return result
-        else:
-            return feat
+        # working code. disabled to not simplify dictionaries
+        # singlefied = list()
+        # pool = [feat.copy(),]
+        #
+        # while (pool):
+        #     feat_dict = pool.pop()
+        #     for key, val in feat_dict.items():  # looking for cases like {'a':(1,2)}
+        #         if isinstance(val, tuple):
+        #             for sub_val in val:
+        #                 feat_copy = feat_dict.copy()
+        #                 feat_copy[key] = sub_val
+        #                 pool.append(feat_copy)
+        #             break
+        #     else:
+        #         singlefied.append(feat_dict)
+        #
+        # if singlefied:
+        #     return singlefied
+        # else:
+        #     return feat
+        return feat
     else:
         raise ValueError("wrong type of argument:", feat)
 
 
 
-        #Add subject-verb agreement
-        if NUMBER_FEATURE in lhs or PERSON_FEATURE in lhs:
-            for nt in rhs:
-                if nt[TYPE] == 'hd':
-                    if NUMBER_FEATURE not in nt and NUMBER_FEATURE in lhs:
-                        nt[NUMBER_FEATURE] = lhs[NUMBER_FEATURE]
-                    if PERSON_FEATURE not in nt and PERSON_FEATURE in lhs:
-                        nt[PERSON_FEATURE] = lhs[PERSON_FEATURE]
-                    break
-        if INHERITED_FEATURE in lhs:
-            lhs = lhs.filter_feature(INHERITED_FEATURE)
-        return Production(lhs, rhs)
+        # #Add subject-verb agreement
+        # if NUMBER_FEATURE in lhs or PERSON_FEATURE in lhs:
+        #     for nt in rhs:
+        #         if nt[TYPE] == 'hd':
+        #             if NUMBER_FEATURE not in nt and NUMBER_FEATURE in lhs:
+        #                 nt[NUMBER_FEATURE] = lhs[NUMBER_FEATURE]
+        #             if PERSON_FEATURE not in nt and PERSON_FEATURE in lhs:
+        #                 nt[PERSON_FEATURE] = lhs[PERSON_FEATURE]
+        #             break
+        # if INHERITED_FEATURE in lhs:
+        #     lhs = lhs.filter_feature(INHERITED_FEATURE)
+        # return Production(lhs, rhs)
 
+
+# def simplify_fstruct(fstruct):
+#     '''
+#     inherited features should not be simplified, because they should be treated further
+#     :param fstruct:
+#     :return:
+#     '''
+#     if is_nonterminal(fstruct):
+#         if EXPRESSION in fstruct:
+#             fstructs = []
+#             for ex in simplify_expression(fstruct[EXPRESSION]):
+#                 fstructcopy = copy.deepcopy(fstruct)
+#                 del fstructcopy[EXPRESSION]
+#                 fstructcopy.update(ex)
+#                 fstructs.append(fstructcopy)
+#         else:
+#             fstructs = list((fstruct,))
+#         #disabled because to many tree will be generated if singlefy all features
+#
+#         # singlefied = list()
+#         # for nt in fstructs:
+#         #     inh_feat = nt.get_feature(INHERITED_FEATURE)
+#         #     if inh_feat:
+#         #         nt = nt.filter_feature(INHERITED_FEATURE)
+#         #     pool = set((nt,))
+#         #     # simplify nonterminal until it can not be simplified further
+#         #     while (pool):
+#         #         nonterminals_buffer = simplify_expression(pool.pop())
+#         #         if isinstance(nonterminals_buffer, FeatStructNonterminal):
+#         #             if inh_feat:
+#         #                 nonterminals_buffer.add_feature({INHERITED_FEATURE:inh_feat})
+#         #             singlefied.append(nonterminals_buffer)
+#         #         else:
+#         #             pool.update(nonterminals_buffer)
+#         # return singlefied
+#         return fstructs
+#     else:
+#         return (fstruct,)
 
 def simplify_fstruct(fstruct):
-    '''
-    inherited features should not be simplified, because they should be treated further
-    :param fstruct:
-    :return:
-    '''
-    if is_nonterminal(fstruct):
-        if EXPRESSION in fstruct:
-            fstructs = []
-            for ex in simplify_expression(fstruct[EXPRESSION]):
-                fstructcopy = copy.deepcopy(fstruct)
-                del fstructcopy[EXPRESSION]
-                fstructcopy.update(ex)
-                fstructs.append(fstructcopy)
-        else:
-            fstructs = list((fstruct,))
-        #disabled because to many tree will be generated if singlefy all features
-
-        # singlefied = list()
-        # for nt in fstructs:
-        #     inh_feat = nt.get_feature(INHERITED_FEATURE)
-        #     if inh_feat:
-        #         nt = nt.filter_feature(INHERITED_FEATURE)
-        #     pool = set((nt,))
-        #     # simplify nonterminal until it can not be simplified further
-        #     while (pool):
-        #         nonterminals_buffer = simplify_expression(pool.pop())
-        #         if isinstance(nonterminals_buffer, FeatStructNonterminal):
-        #             if inh_feat:
-        #                 nonterminals_buffer.add_feature({INHERITED_FEATURE:inh_feat})
-        #             singlefied.append(nonterminals_buffer)
-        #         else:
-        #             pool.update(nonterminals_buffer)
-        # return singlefied
+     if is_nonterminal(fstruct) and EXPRESSION in fstruct:
+        fstructs = []
+        for ex in simplify_expression(fstruct[EXPRESSION]):
+            fstructcopy = copy.deepcopy(fstruct)
+            del fstructcopy[EXPRESSION]
+            fstructcopy.update(ex)
+            fstructs.append(fstructcopy)
         return fstructs
-    else:
+     else:
         return (fstruct,)
 
 
@@ -524,7 +562,7 @@ def open_disjunction(production):
     cproduction = copy.deepcopy(production)
     # open disjunction in the left part of expression
     fstructs = []
-    fstructs.append(simplify_fstruct(production.lhs()))
+    fstructs.append(simplify_fstruct(cproduction.lhs()))
     fstructs.extend(map(simplify_fstruct,cproduction.rhs()))
 
     for productions in itertools.product(*fstructs):
