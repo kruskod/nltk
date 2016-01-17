@@ -1,23 +1,41 @@
-from collections import OrderedDict
 import copy
+import hashlib
 import inspect
-from timeit import default_timer as timer
-import itertools
-
 import pickle
+from collections import OrderedDict
+from timeit import default_timer as timer
 
 from nltk import featstruct
-from nltk.featstruct import CelexFeatStructReader, EXPRESSION, TYPE, FeatStructReader, unify
-from nltk.grammar import FeatStructNonterminal, FeatureGrammar, Production
-from nltk.parse.featurechart import celex_preprocessing, FeatureTopDownChartParser
-from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF, minimize_nonterm
 from nltk.draw.tree import TreeTabView
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE
-from nltk.topology.pgsql import get_rules, read_extensions, build_rules
+from nltk.featstruct import CelexFeatStructReader, TYPE, unify
+from nltk.grammar import FeatStructNonterminal
+from nltk.parse.featurechart import FeatureTopDownChartParser
+from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF
+from nltk.topology.pgsql import build_rules
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 class Topology(OrderedDict):
+
+    def __eq__(self, other):
+        if not isinstance(other, Topology):
+            return NotImplemented
+        elif self is other:
+            return True
+        else:
+            if self.ph == other.ph and self.tag == other.tag and self.edge == other.edge:
+                for field in self.values():
+                    if (not field.ft in other) or repr(field) != repr(other[field.ft]):
+                        return False
+                return True
+        return False
+
+    def __hash__(self, *args, **kwargs):
+        field_hash = 13
+        for field in self.values():
+            field_hash ^= hash(repr(field))
+        result = field_hash ^ hash(self.ph) ^ hash(self.tag)
+        return result
 
     def __init__(self, ph=None, tag=None, features=None, fields=None, edge=None):
         self.ph = ph
@@ -44,7 +62,12 @@ class Topology(OrderedDict):
         #app = ''
         for type, field in self.items():
             field_type += "{:^8}|".format(str(type) + (str(field.mod) if field.mod else ''))
-            field_val += "{:^8}|".format(str(*field.edges))
+            # field_val += "{:^8}|".format(*field.edges)
+            if field.edges:
+                for edge in field.edges:
+                    field_val += "{:^8}|".format(str(edge))
+
+                # field_val += "{:^8}|".format(field.edges)
             # for e in field.edges:
             #     for t in e.topologies:
             #         app+= str(t) + '\n'
@@ -53,6 +76,22 @@ class Topology(OrderedDict):
         field_val += '\n'
         border = '-' * (len(field_type) - 1) + '\n'
         return out + '\n' + border + field_type + border + field_val + border # + app
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        out = "{}:{}[".format(class_name,self.tag)
+        return out + ",".join([repr(field) for field in self.values()]) + ']'
+        # for type, field in self.items():
+        #     if field.edges:
+        #         out += "{}[".format(type)
+        #         for edge in field.edges:
+        #             out += "{} {}({})".format(edge.gf, edge.ph, edge.gorn)
+        #         out += '],'
+        # if out[-1] == ',':
+        #     return out[:-1] + ']'
+        # else:
+        #     return out + ']'
+
 
     def add_field(self, field):
         self[field.ft] = field
@@ -136,6 +175,25 @@ class Topology(OrderedDict):
 class Field:
     # M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
 
+    # def __eq__(self, other):
+    #     if not isinstance(other, Field):
+    #         return NotImplemented
+    #     elif self is other:
+    #         return True
+    #     else:
+    #         if self.ft == other.ft and self.topology == other.topology and self.mod == other.mod and self.edges == other.edges:
+    #             return True
+    #     return False
+
+    # def __hash__(self, *args, **kwargs):
+    #     # edge_hash = 7
+    #     # for edge in self.edges:
+    #     #     edge_hash ^= hash(edge)
+    #     # result = edge_hash ^ hash(self.ft) ^ hash(self.mod)
+    #     # return result
+    #     # return hash(repr(self))
+    #     return hash(super(self,))
+
     def __init__(self, ft=None, mod=None, grammatical_funcs=None, topology=None, dependencies=None):
         self.ft = ft
         self.topology = topology
@@ -167,6 +225,16 @@ class Field:
                     return self.ph == edge.ph
         return False
 
+    def __repr__(self):
+        count_edges = len(self.edges)
+        if count_edges:
+            out = '['
+            for index, edge in enumerate(self.edges):
+                out += "{} {}({})".format(edge.gf, edge.ph, edge.gorn)
+                if index < count_edges -1 :
+                    out += ' '
+            return '{}{}]'.format(self.ft, out)
+        return str(self.ft)
 
 class GramFunc:
     def __init__(self, gf=None, ph=None, expression=None, field=None, tag=None):
@@ -188,7 +256,6 @@ class GramFunc:
     def __str__(self):
         return " {:<5}: {}".format(self.gf, (inspect.getsource(self.expression).strip()
                                              if self.expression else (self.ph if self.ph else '')))
-
 
 def build_topologies():
 
@@ -581,12 +648,12 @@ def process_dominance(tree, topology_rules):
                 result.append(topology)
     return result
 
-
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
          sent='Monopole sollen geknackt werden', numparses=0):
     """
     Monopole sollen geknackt werden
+
     sent examples:
         wen habe ich gesehen
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.

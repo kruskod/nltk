@@ -265,7 +265,7 @@ class FeatTree(Tree):
         return False
 
     def __str__(self):
-        out = '\r\n(' + str(self.gorn) + ')' + repr(self.label())
+        out = "\r\n({}) {} ".format(self.gorn, self.gf if self.gf else '') +  repr(self.label())
         # print leaves
         if self:
             leaves_str = ''.join(
@@ -277,26 +277,32 @@ class FeatTree(Tree):
             # initialize the field matrix
             for top in self.topologies:
                 fields = [[]]
+                fields_length = []
                 max_length = 0
                 for type, field in top.items():
                     line = str(type) + (str(field.mod) if field.mod else '')
                     fields[0].append(line)
+                    fields_length.append(len(line))
                     if len(line) > max_length:
                         max_length = len(line)
                 counter = 0
                 while True:
                     has_items = False
                     fields.append([])
+                    index = 0
                     for type, field in top.items():
                         if len(field.edges) > counter:
                             has_items = True
                             edge = field.edges[counter]
-                            line = str(edge.ph) + '(' + str(edge.gorn) + ')'
+                            line = "{} {} ({})".format(edge.gf, edge.ph, edge.gorn)
                             if len(line) > max_length:
                                 max_length = len(line)
+                            if len(line) > fields_length[index]:
+                                fields_length[index] = len(line)
                         else:
                             line = ''
                         fields[counter + 1].append(line)
+                        index +=1
                     if not has_items:
                         del fields[-1]
                         break
@@ -304,17 +310,17 @@ class FeatTree(Tree):
 
                 # generate a pretty string from the matrix
                 # ------------------------------------------plus cell border---plus 1 for the | at the line beginning
-                border = '\r\n' + '-' * ((len(fields[0]) * (max_length + 1)) + 1) + '\r\n'
-                format_expr = '{:^' + str(max_length) + '}|'
+                border = '\r\n' + '-' * (sum(fields_length) + len(fields_length) + 1) + '\r\n'
                 table = border
-                label_expr = '|{:^' + str(len(fields[0]) * (max_length + 1) - 1) + '}|'
+                label_expr = '|{:^' + str(sum(fields_length) + len(fields_length) - 1) + '}|'
 
                 ## "\r\nAlternative: {} \r\n".format(alternative_number) + "=" * (len(fields[0]) * max_length) +
 
                 out +=  border + label_expr.format(str(top.tag))
                 for row in fields:
                     row_line = '|'
-                    for col in row:
+                    for index, col in enumerate(row):
+                        format_expr = '{:^' + str(fields_length[index]) + '}|'
                         row_line += format_expr.format(col)
                     table += row_line + border
                 # do recursive for children
@@ -339,8 +345,69 @@ class FeatTree(Tree):
         return visited
 
     def __hash__(self):
-        return hash(super(FeatTree,self))
+        return hash(self.gorn)
 
+    def alternatives(self):
+        result = set()
+        for topology in self.topologies:
+            # print("\nInitial topology: \n" + repr(topology))
+            # split topology to topologies with only one item in one field
+            unified_topologies = [copy.deepcopy(topology),]
+            has_duplicate = True
+            while(has_duplicate):
+                has_duplicate = False
+                forks = []
+                for index, top in enumerate(unified_topologies):
+                    for field_name, field_node in top.items():
+                        if len(field_node.edges) > 1:
+                            has_duplicate = True
+                            del unified_topologies[index]
+                            for edge in field_node.edges:
+                                new_topology = copy.deepcopy(topology)
+                                new_topology[field_name].edges = [edge,]
+                                forks.append(new_topology)
+                if forks:
+                     unified_topologies.extend(forks)
+
+            # print("\nHandling duplicates:")
+            # for unified_topology in unified_topologies:
+            #     print(repr(unified_topology))
+
+            for unified_topology in unified_topologies:
+                places = dict()
+                # fill places for node . f.e. NP -> F1, F2
+                for field_name, field in unified_topology.items():
+                    for field_node in field.edges:
+                        if field_node not in places:
+                            places[field_node] = set()
+                        places[field_node].add(field_name)
+                # if (len(places) < len(self)): # not all nodes were used for topology - topology is wrong
+                #     continue
+
+                generated_topologies = [copy.deepcopy(unified_topology),]
+                for field_node, fields in places.items():
+                    forks = []
+                    if len(fields) > 1:
+                        while generated_topologies:
+                            top = generated_topologies.pop()
+                            for field in fields:
+                                new_topology = copy.deepcopy(top)
+                                for field_to_free in fields:
+                                    if field_to_free != field:
+                                        new_topology[field_to_free].edges.remove(field_node)
+                                forks.append(new_topology)
+                    generated_topologies.extend(forks)
+                result.update(generated_topologies)
+        self.topologies = sorted(result, key=repr)
+        # self.topologies = result
+        if not self.ishead():
+            for index, child in enumerate(self):
+                # nodes with GF at this level
+                if isinstance(child, Tree):
+                    child.alternatives()
+        # print("\nAfter generation:")
+        # for top in result:
+        #     print(repr(top))
 
 def find_head(root):
     for child in root:
