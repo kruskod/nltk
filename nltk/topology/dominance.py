@@ -1,3 +1,4 @@
+import copy
 import pickle
 
 from nltk.topology.FeatTree import FeatTree
@@ -10,16 +11,18 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         dumped_trees = pickle.load(f)
 
     topologies = build_topologies()
+    # top_dict = dict()
+    # for topology in topologies:
+    #     top_dict[topology.tag] = copy.copy(topology)
     for tree in dumped_trees:
         print(tree)
         feat_tree = FeatTree(tree)
         feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
+        # print(feat_tree.topologies)
+        feat_tree.alternatives()
         print(*feat_tree.bfs())
         # print(feat_tree)
         print(80*'#')
-
-        # for top in feat_tree.topologies:
-        #     print(top.read_out(tokens))
 
 if __name__ == "__main__":
     demo()

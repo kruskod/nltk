@@ -37,8 +37,6 @@ homepage (http://www.ags.uni-sb.de/~konrad/clig.html).
 from tkinter import *
 from tkinter.ttk import *
 
-import tkinter.font, tkinter.messagebox, tkinter.filedialog
-
 from nltk.util import in_idle
 
 ##//////////////////////////////////////////////////////
@@ -1728,6 +1726,7 @@ class CanvasFrame(object):
             this ``CanvasFrame``.
         :rtype: 4-tuple of int
         """
+        # canvas.winfo_width(), canvas.winfo_height()
         (x1, y1, x2, y2) = self._canvas['scrollregion'].split()
         return (int(x1), int(y1), int(x2), int(y2))
 

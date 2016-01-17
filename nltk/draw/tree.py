@@ -8,19 +8,18 @@
 """
 Graphically display a Tree.
 """
-from tkinter import ttk
-from tkinter.font import Font
-
-from nltk import TYPE
+# from tkinter import font
 
 from tkinter import *
+from tkinter import font
 from tkinter.ttk import *
-from nltk.grammar import FeatStructNonterminal
 
-from nltk.util import in_idle
-from nltk.tree import Tree
+from nltk import TYPE
 from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
-                            TextWidget, ParenWidget, OvalWidget, ScrollWatcherWidget)
+                            TextWidget, ParenWidget, OvalWidget)
+from nltk.grammar import FeatStructNonterminal
+from nltk.tree import Tree
+from nltk.util import in_idle
 
 ##//////////////////////////////////////////////////////
 ##  Tree Segment
@@ -825,9 +824,16 @@ class TreeView(object):
         self._trees = trees
 
         self._top = Tk()
-        style = ttk.Style()
-        print(style.theme_names())
-        style.theme_use('clam')
+        self._top.style = Style()
+
+        print(self._top.style.theme_names())
+
+        print(self._top.style.theme_use())
+        self._top.style.theme_use("clam")
+        print(self._top.style.theme_use())
+
+        #('clam', 'alt', 'default', 'classic')
+        # print(style.theme_names())
         # self._top.resizable(width=True, height=True)
         self._top.title('NLTK')
         self._top.bind('<Control-x>', self.destroy)
@@ -927,6 +933,8 @@ class TreeView(object):
         self._top.destroy()
         self._top = None
 
+
+
     def mainloop(self, *args, **kwargs):
         """
         Enter the Tkinter mainloop.  This function must be called if
@@ -954,16 +962,19 @@ class TreeTabView(TreeView):
 
         self._trees = trees
         self._top = Tk()
-        style = ttk.Style()
-        # print(style.theme_names())
-        style.theme_use('clam')
-        # self._top.resizable(width=True, height=True)
+        self._top.style = Style()
+#('clam', 'alt', 'default', 'classic')
+        # print(self._top.style.theme_names())
+        # print(self._top.style.theme_use())
+        self._top.style.theme_use("clam")
+        # print(self._top.style.theme_use())
+
         self._top.title(label)
         self._top.bind('<Control-x>', self.destroy)
         self._top.bind('<Control-q>', self.destroy)
         # self._top.bind('<Control-p>', self._cframe.print_to_file)
 
-        self._cframe = nb = ttk.Notebook(self._top)
+        self._cframe = nb = Notebook(self._top)
 
         # adding Frames as pages for the ttk.Notebook
         # first page, which would get widgets gridded into it
@@ -991,9 +1002,7 @@ class TreeTabView(TreeView):
             # page = Frame(nb)
             # canvas = Canvas(page)
             tab = Frame(nb)
-            canvas = Canvas(tab, borderwidth=0, bg='white')
-            frame = ttk.Frame(canvas)
-            #frame.pack(expand=1, fill="both")
+            tab._canvas = canvas = Canvas(tab, borderwidth=0, bg='white')
 
             vsb = Scrollbar(tab, orient="vertical", command=canvas.yview)
             canvas.configure(yscrollcommand=vsb.set)
@@ -1003,13 +1012,7 @@ class TreeTabView(TreeView):
             canvas.configure(xscrollcommand=hsb.set)
             hsb.pack(side="bottom", fill="x")
 
-            canvas.pack(side='left', fill='both', expand=True)
-            canvas.create_window((0, 0), window=frame, anchor='nw', tags='frame')
-
-            #cv = CanvasFrame(nb)
-            #cv.pack(expand=1, fill="both")
-            #canvas = cv.canvas()
-            widget = TreeWidget(canvas, trees[i], node_font=mono,
+            widget = TreeWidget(canvas, trees[i], #node_font=mono,
                                 leaf_color='#008040', node_color='#004080',
                                 roof_color='#004040', roof_fill='white',
                                 line_color='#004040', draggable=0, shapeable=1,
@@ -1017,6 +1020,7 @@ class TreeTabView(TreeView):
             self._widgets.append(widget)
             widget.bind_click_trees(widget.toggle_collapsed)
             nb.add(tab, text=(' '.join(trees[i].leaves())))
+            canvas.pack(side='left', fill='both', expand=True)
         self._layout()
         self._init_menubar()
         nb.pack(expand=1, fill="both")
@@ -1040,15 +1044,18 @@ class TreeTabView(TreeView):
 
     def _init_menubar(self):
         menubar = Menu(self._top)
-        menubar.config(font = self.font)
+        # menubar.config(font = self.font)
         filemenu = Menu(menubar, tearoff=0)
-        filemenu.config(font = self.font)
+        # filemenu.config(font = self.font)
+        filemenu.add_command(label='Print to Postscript', underline=0,
+                             command=self.save,
+                             accelerator='Ctrl-p')
         filemenu.add_command(label='Exit', underline=1,
                              command=self.destroy, accelerator='Ctrl-x' )
         menubar.add_cascade(label='File', underline=0, menu=filemenu )
 
         zoommenu = Menu(menubar, tearoff=0)
-        zoommenu.config(font = self.font)
+        # zoommenu.config(font = self.font)
         zoommenu.add_radiobutton(label='Tiny', variable=self._size,
                                  underline=0, value=10, command=self.resize)
         zoommenu.add_radiobutton(label='Small', variable=self._size,
@@ -1063,6 +1070,30 @@ class TreeTabView(TreeView):
 
         self._top.config(menu=menubar)
 
+    def save(self, filename = None):
+
+        """
+        Print the contents of this ``CanvasFrame`` to a postscript
+        file.  If no filename is given, then prompt the user for one.
+
+        :param filename: The name of the file to print the tree to.
+        :type filename: str
+        :rtype: None
+        """
+        if filename is None:
+            from tkinter.filedialog import asksaveasfilename
+            ftypes = [('Postscript files', '.ps'),
+                      ('All files', '*')]
+            filename = asksaveasfilename(filetypes=ftypes,
+                                         defaultextension='.ps')
+            if not filename: return
+        canvas =  self._top.nametowidget(self._cframe.select())._canvas
+        (x0, y0, w, h) = (0,0,canvas.winfo_width(), canvas.winfo_height())
+        canvas.postscript(file=filename, x=x0, y=y0,
+                                width=w+2, height=h+2,
+                                pagewidth=w+2, # points = 1/72 inch
+                                pageheight=h+2, # points = 1/72 inch
+                                pagex=0, pagey=0)
 
 ##//////////////////////////////////////////////////////
 ##  Demo Code
@@ -1086,6 +1117,7 @@ def demo():
                     roof_fill='white', roof_color='black',
                     leaf_color='green4', node_color='blue2')
     cf.add_widget(tc, 10, 10)
+
 
     def boxit(canvas, text):
         big = ('helvetica', -16, 'bold')
