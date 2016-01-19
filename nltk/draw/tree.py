@@ -643,6 +643,8 @@ class TreeWidget(CanvasWidget):
         label = t.label()
         if isinstance(label, FeatStructNonterminal):
             label = label[TYPE]
+            if hasattr(t, 'field'):
+                label = "{} {} {}".format(t.field if t.field else "", t.gf if t.gf else "", label)
         node = make_node(canvas, label, **self._nodeattribs)
         self._nodes.append(node)
         leaves = [make_leaf(canvas, l, **self._leafattribs)
@@ -671,6 +673,8 @@ class TreeWidget(CanvasWidget):
             label = t.label()
             if isinstance(label, FeatStructNonterminal):
                 label = label.pprint()
+                if hasattr(t, 'field'):
+                   label = "{} {} {}".format(t.field if t.field else "", t.gf if t.gf else "", label)
             node = make_node(canvas, label, justify='center', **self._nodeattribs)
             self._nodes.append(node)
             children = t
