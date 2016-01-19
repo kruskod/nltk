@@ -136,22 +136,6 @@ class Share:
         'status': ('Fin', 'Infin', 'PInfin')
     }
 
-class TopTree(Tree):
-
-    def label(self, label):
-        self._label = label
-        return self
-
-    def anti(self, anti):
-        self._anti = anti
-        return self
-
-    def position(self, position):
-        if not self._position:
-            self._position = []
-        self._position.append(position)
-        return self
-
 #Declarative sentense wh = false
 class FeatTree(Tree):
     def __init__(self, node, children=None, parent=None):
@@ -168,6 +152,7 @@ class FeatTree(Tree):
                 self.gf = None
                 self.parent = None
             self.tag = None
+            self.field = None
             self.topologies = []
             # make all leaves also FeatTree
             if not self.ishead():
@@ -409,6 +394,66 @@ class FeatTree(Tree):
         # for top in result:
         #     print(repr(top))
 
+    def split_alternatives(self):
+        if not self.ishead():
+            alternatives = []
+            child_alternatives = dict()
+            for top in self.topologies:
+                children_index = []
+
+                 # children_order = [tup[1] for tup in sorted([(index, field.edges[0]) for index, field in enumerate(top.values()) if field.edges], key = lambda x: x[0])]
+
+                for index, field in enumerate(top.values()):
+                    if field.edges:
+                        new_edge = copy.deepcopy(field.edges[0])
+                        new_edge.field = field.ft
+                        children_index.append((index,new_edge))
+                children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
+                new_self = copy.deepcopy(self)
+                list.__init__(new_self, children_order)
+                # new_self.children = children_order
+                alternatives.append(new_self)
+
+            for child in self:
+                if not child.ishead():
+                    child_alternatives[child.gorn] = child.split_alternatives()
+
+            for gorn, child_alternatives in child_alternatives.items():
+                forks = []
+                while(alternatives):
+                    self_alternative = alternatives.pop()
+                    for index, edge in enumerate(self_alternative):
+                        if isinstance(edge, FeatTree) and gorn == edge.gorn:
+                            for child_alternative in child_alternatives:
+                                new_self = copy.deepcopy(self_alternative)
+                                new_alternative = copy.deepcopy(child_alternative)
+                                new_alternative.field = edge.field
+                                new_self[index] = new_alternative
+                                forks.append(new_self)
+                            break
+                    else:
+                        forks.append(self_alternative)
+                alternatives.extend(forks)
+            return alternatives
+
+            # result = []
+            # for self_alternative in alternatives:
+            #     topology_alternatives=[]
+            #     for index, edge in enumerate(self_alternative):
+            #         if edge.gorn in child_alternatives:
+            #             for child_alternative in child_alternatives[edge.gorn]:
+            #                 child_alternative.field = edge.field
+            #                 new_self = copy.deepcopy(self_alternative)
+            #                 new_self[index] = child_alternative
+            #                 topology_alternatives.append(new_self)
+            #     if topology_alternatives:
+            #         result.extend(topology_alternatives)
+            #     else:
+            #         result.append(self_alternative)
+            # return result
+            # else:
+            #     return self
+
 def find_head(root):
     for child in root:
         if isinstance(child, FeatTree):
@@ -419,6 +464,8 @@ def find_head(root):
             if GRAM_FUNC_FEATURE in label and label[GRAM_FUNC_FEATURE] == 'hd':
                 return child
     return None
+
+
 
 # def simplify_expression(feat):
 #     # check arguments
