@@ -156,6 +156,10 @@ class Topology(OrderedDict):
                                             pass
         return leaves
 
+    def gorns(self):
+        for field in self.values():
+            if field.edges:
+                yield from (e.gorn for e in field.edges)
 
     # def read_out(self):
     #     #check obligatory fields

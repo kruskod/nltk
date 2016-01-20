@@ -641,11 +641,14 @@ class TreeWidget(CanvasWidget):
         make_leaf = self._make_leaf
 
         label = t.label()
+        prefix = ""
         if isinstance(label, FeatStructNonterminal):
             label = label[TYPE]
-            if hasattr(t, 'field'):
-                label = "{} {} {}".format(t.field if t.field else "", t.gf if t.gf else "", label)
-        node = make_node(canvas, label, **self._nodeattribs)
+        if hasattr(t, 'fields'):
+            prefix = "{} {} ".format(t.fields if t.fields else "", t.gf if t.gf else "")
+        if t.topologies:
+            prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
+        node = make_node(canvas, prefix + label, **self._nodeattribs)
         self._nodes.append(node)
         leaves = [make_leaf(canvas, l, **self._leafattribs)
                   for l in t.leaves()]
@@ -671,11 +674,14 @@ class TreeWidget(CanvasWidget):
 
         if isinstance(t, Tree):
             label = t.label()
+            prefix = ""
             if isinstance(label, FeatStructNonterminal):
                 label = label.pprint()
-                if hasattr(t, 'field'):
-                   label = "{} {} {}".format(t.field if t.field else "", t.gf if t.gf else "", label)
-            node = make_node(canvas, label, justify='center', **self._nodeattribs)
+            if hasattr(t, 'fields'):
+                prefix = "{} {} ".format(t.fields if t.fields else "", t.gf if t.gf else "")
+            if t.topologies:
+                prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
+            node = make_node(canvas, prefix + label, justify='center', **self._nodeattribs)
             self._nodes.append(node)
             children = t
             subtrees = [self._make_expanded_tree(canvas, children[i], key + (i,))
