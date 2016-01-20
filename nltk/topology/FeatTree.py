@@ -152,7 +152,7 @@ class FeatTree(Tree):
                 self.gf = None
                 self.parent = None
             self.tag = None
-            self.field = None
+            self.fields = None
             self.topologies = []
             # make all leaves also FeatTree
             if not self.ishead():
@@ -383,6 +383,7 @@ class FeatTree(Tree):
                                 forks.append(new_topology)
                     generated_topologies.extend(forks)
                 result.update(generated_topologies)
+
         self.topologies = sorted(result, key=repr)
         # self.topologies = result
         if not self.ishead():
@@ -398,21 +399,61 @@ class FeatTree(Tree):
         if not self.ishead():
             alternatives = []
             child_alternatives = dict()
+
+            # group topologies by tag and edges order
+            topology_tags_map = dict()
             for top in self.topologies:
-                children_index = []
+                if not top.tag in topology_tags_map:
+                    topology_tags_map[top.tag] = list()
+                topology_tags_map[top.tag].append(top)
 
-                 # children_order = [tup[1] for tup in sorted([(index, field.edges[0]) for index, field in enumerate(top.values()) if field.edges], key = lambda x: x[0])]
+            for topologies in topology_tags_map.values():
+                gorn_topologies = tuple((top, tuple(top.gorns())) for top in topologies)
+                gorns_map = {}
+                for gorn_topology, gorns in gorn_topologies:
+                    if gorns in gorns_map:
+                        gorns_map[gorns].append(gorn_topology)
+                    else:
+                        gorns_map[gorns] = [gorn_topology]
+                for gorns, grouped_topology in gorns_map.items():
+                    ordered_children = []
+                    #fill list from first topology
+                    for field in grouped_topology[0].values():
+                        if field.edges:
+                            new_edge = copy.deepcopy(field.edges[0])
+                            new_edge.fields = set()
+                            new_edge.fields.add(field.ft)
+                            ordered_children.append(new_edge)
+                    if len(grouped_topology) > 1:
+                        # add fields to items from other topologies
+                        for index, gorn in enumerate(gorns):
+                            for top in grouped_topology[1:]:
+                                for field in top.values():
+                                    if field.edges and field.edges[0].gorn == gorn:
+                                        ordered_children[index].fields.add(field.ft)
+                                        break
 
-                for index, field in enumerate(top.values()):
-                    if field.edges:
-                        new_edge = copy.deepcopy(field.edges[0])
-                        new_edge.field = field.ft
-                        children_index.append((index,new_edge))
-                children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
-                new_self = copy.deepcopy(self)
-                list.__init__(new_self, children_order)
-                # new_self.children = children_order
-                alternatives.append(new_self)
+                    new_self = copy.deepcopy(self)
+                    new_self.topologies = [topologies[0],]
+                    list.__init__(new_self, ordered_children)
+                    # new_self.children = children_order
+                    alternatives.append(new_self)
+
+            # for top in self.topologies:
+            #     children_index = []
+            #
+            #      # children_order = [tup[1] for tup in sorted([(index, field.edges[0]) for index, field in enumerate(top.values()) if field.edges], key = lambda x: x[0])]
+            #
+            #     for index, field in enumerate(top.values()):
+            #         if field.edges:
+            #             new_edge = copy.deepcopy(field.edges[0])
+            #             new_edge.field = field.ft
+            #             children_index.append((index,new_edge))
+            #     children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
+            #     new_self = copy.deepcopy(self)
+            #     list.__init__(new_self, children_order)
+            #     # new_self.children = children_order
+            #     alternatives.append(new_self)
 
             for child in self:
                 if not child.ishead():
@@ -427,7 +468,7 @@ class FeatTree(Tree):
                             for child_alternative in child_alternatives:
                                 new_self = copy.deepcopy(self_alternative)
                                 new_alternative = copy.deepcopy(child_alternative)
-                                new_alternative.field = edge.field
+                                new_alternative.fields = edge.fields
                                 new_self[index] = new_alternative
                                 forks.append(new_self)
                             break
@@ -464,8 +505,6 @@ def find_head(root):
             if GRAM_FUNC_FEATURE in label and label[GRAM_FUNC_FEATURE] == 'hd':
                 return child
     return None
-
-
 
 # def simplify_expression(feat):
 #     # check arguments
