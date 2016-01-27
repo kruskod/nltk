@@ -822,6 +822,8 @@ class TreeWidget(CanvasWidget):
         new_treeseg.parent().manage()
 
 
+
+
 ##//////////////////////////////////////////////////////
 ##  draw_trees
 ##//////////////////////////////////////////////////////
@@ -1022,9 +1024,8 @@ class TreeTabView(TreeView):
             canvas.configure(xscrollcommand=hsb.set)
             hsb.pack(side="bottom", fill="x")
 
-            widget = TreeWidget(canvas, trees[i], #node_font=mono,
+            widget = FeatTreeWidget(canvas, trees[i], #node_font=mono,
                                 leaf_color='#008040', node_color='#004080',
-                                roof_color='#004040', roof_fill='white',
                                 line_color='#004040', draggable=0, shapeable=1,
                                 leaf_font=bold)
             self._widgets.append(widget)
@@ -1204,6 +1205,263 @@ built from tree_to_treesegment."""
 
     # Run mainloop
     cf.mainloop()
+
+
+class FeatTreeWidget(CanvasWidget):
+    """
+    A canvas widget that displays a single Tree.
+    ``TreeWidget`` manages a group of ``TreeSegmentWidgets`` that are
+    used to display a Tree.
+
+    Attributes:
+
+      - ``node_attr``: Sets the attribute ``attr`` on all of the
+        leaf widgets for this ``TreeWidget``.
+      - ``loc_attr``: Sets the attribute ``attr`` on all of the
+        location widgets for this ``TreeWidget`` (if it was built from
+        a Tree).  Note that a location widget is a ``TextWidget``.
+
+      - ``xspace``: The amount of horizontal space to leave between
+        subtrees when managing this widget.  Default value is 10.
+      - ``yspace``: The amount of space to place between the node and
+        its children when managing this widget.  Default value is 15.
+
+      - ``line_color``: The color of the lines connecting each expanded
+        node to its subtrees.
+      - ``width``
+      - ``orientation``: Determines whether the tree branches downwards
+        or rightwards.  Possible values are ``'horizontal'`` and
+        ``'vertical'``.  The default value is ``'vertical'`` (i.e.,
+        branch downwards).
+
+      - ``shapeable``: whether the subtrees can be independently
+        dragged by the user.  THIS property simply sets the
+        ``DRAGGABLE`` property on all of the ``TreeWidget``'s tree
+        segments.
+      - ``draggable``: whether the widget can be dragged by the user.
+    """
+
+    def __init__(self, canvas, t, make_node=TextWidget,
+                 make_leaf=TextWidget, **attribs):
+        # Node & leaf canvas widget constructors
+        self._make_node = make_node
+        self._make_leaf = make_leaf
+        self._tree = t
+        self._canvas = canvas
+
+        # Attributes.
+        self._nodeattribs = {}
+        self._leafattribs = {}
+        self._locattribs = {'color': '#008000'}
+        self._line_color = '#008080'
+        self._line_width = 1
+        # self._roof_color = '#008080'
+        # self._roof_fill = '#c0c0c0'
+        self._shapeable = False
+        self._xspace = 10
+        self._yspace = 10
+        self._orientation = 'vertical'
+        self._ordered = False
+
+        # Build trees.
+        self._keys = {}
+        self._expanded_trees = {}
+        self._nodes = []
+        self._leaves = []
+        # self._locs = []
+        self._treeseg = self._make_expanded_tree(canvas, t, ())
+        self._add_child_widget(self._treeseg)
+        CanvasWidget.__init__(self, canvas, **attribs)
+
+    def expanded_tree(self, *path_to_tree):
+        """
+        Return the ``TreeSegmentWidget`` for the specified subtree.
+
+        :param path_to_tree: A list of indices i1, i2, ..., in, where
+            the desired widget is the widget corresponding to
+            ``tree.children()[i1].children()[i2]....children()[in]``.
+            For the root, the path is ``()``.
+        """
+        return self._expanded_trees[path_to_tree]
+
+    def bind_click_trees(self, callback, button=1):
+        """
+        Add a binding to all tree segments.
+        """
+        for tseg in list(self._expanded_trees.values()):
+            tseg.bind_click(callback, button)
+
+    def bind_drag_trees(self, callback, button=1):
+        """
+        Add a binding to all tree segments.
+        """
+        for tseg in list(self._expanded_trees.values()):
+            tseg.bind_drag(callback, button)
+
+    def bind_click_leaves(self, callback, button=1):
+        """
+        Add a binding to all leaves.
+        """
+        for leaf in self._leaves: leaf.bind_click(callback, button)
+
+    def bind_drag_leaves(self, callback, button=1):
+        """
+        Add a binding to all leaves.
+        """
+        for leaf in self._leaves: leaf.bind_drag(callback, button)
+
+    def bind_click_nodes(self, callback, button=1):
+        """
+        Add a binding to all nodes.
+        """
+        for node in self._nodes: node.bind_click(callback, button)
+
+    def bind_drag_nodes(self, callback, button=1):
+        """
+        Add a binding to all nodes.
+        """
+        for node in self._nodes: node.bind_drag(callback, button)
+
+
+    def _make_expanded_tree(self, canvas, t, key):
+        make_node = self._make_node
+        make_leaf = self._make_leaf
+
+        if isinstance(t, Tree):
+            label = t.label()
+            prefix = ""
+            if isinstance(label, FeatStructNonterminal):
+                label = label.pprint()
+            if hasattr(t, 'fields'):
+                prefix = "{} {} ".format(t.fields if t.fields else "", t.gf if t.gf else "")
+            if t.topologies:
+                prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
+            node = make_node(canvas, prefix + label, justify='center', **self._nodeattribs)
+            self._nodes.append(node)
+            children = t
+            subtrees = [self._make_expanded_tree(canvas, children[i], key + (i,))
+                        for i in range(len(children))]
+            treeseg = TreeSegmentWidget(canvas, node, subtrees,
+                                        color=self._line_color,
+                                        width=self._line_width)
+            self._expanded_trees[key] = treeseg
+            self._keys[treeseg] = key
+            return treeseg
+        else:
+            leaf = make_leaf(canvas, t, **self._leafattribs)
+            self._leaves.append(leaf)
+            return leaf
+
+    def __setitem__(self, attr, value):
+        if attr[:5] == 'node_':
+            for node in self._nodes: node[attr[5:]] = value
+        elif attr[:5] == 'leaf_':
+            for leaf in self._leaves: leaf[attr[5:]] = value
+        elif attr == 'line_color':
+            self._line_color = value
+            for tseg in list(self._expanded_trees.values()): tseg['color'] = value
+        elif attr == 'line_width':
+            self._line_width = value
+            for tseg in list(self._expanded_trees.values()): tseg['width'] = value
+        elif attr == 'shapeable':
+            self._shapeable = value
+            for tseg in list(self._expanded_trees.values()):
+                tseg['draggable'] = value
+            for leaf in self._leaves: leaf['draggable'] = value
+        elif attr == 'xspace':
+            self._xspace = value
+            for tseg in list(self._expanded_trees.values()):
+                tseg['xspace'] = value
+            self.manage()
+        elif attr == 'yspace':
+            self._yspace = value
+            for tseg in list(self._expanded_trees.values()):
+                tseg['yspace'] = value
+            self.manage()
+        elif attr == 'orientation':
+            self._orientation = value
+            for tseg in list(self._expanded_trees.values()):
+                tseg['orientation'] = value
+                self.manage()
+        elif attr == 'ordered':
+            self._ordered = value
+            for tseg in list(self._expanded_trees.values()):
+                tseg['ordered'] = value
+        else:
+            CanvasWidget.__setitem__(self, attr, value)
+
+    def __getitem__(self, attr):
+        if attr[:5] == 'node_':
+            return self._nodeattribs.get(attr[5:], None)
+        elif attr[:5] == 'leaf_':
+            return self._leafattribs.get(attr[5:], None)
+        elif attr[:4] == 'loc_':
+            return self._locattribs.get(attr[4:], None)
+        elif attr == 'line_color':
+            return self._line_color
+        elif attr == 'line_width':
+            return self._line_width
+        elif attr == 'roof_color':
+            return self._roof_color
+        elif attr == 'roof_fill':
+            return self._roof_fill
+        elif attr == 'shapeable':
+            return self._shapeable
+        elif attr == 'xspace':
+            return self._xspace
+        elif attr == 'yspace':
+            return self._yspace
+        elif attr == 'orientation':
+            return self._orientation
+        else:
+            return CanvasWidget.__getitem__(self, attr)
+
+    def _tags(self):
+        return []
+
+    def _manage(self):
+        segs = list(self._expanded_trees.values())
+        for tseg in segs:
+            if tseg.hidden():
+                tseg.show()
+                tseg.manage()
+                tseg.hide()
+
+    def toggle_collapsed(self, treeseg):
+        """
+        Collapse/expand a tree.
+        """
+        # on click get information from Database
+        # and show it in sep
+
+        # old_treeseg = treeseg
+        # if old_treeseg['roof']:
+        #     new_treeseg = self._expanded_trees[self._keys[old_treeseg]]
+        # # else:
+        # #     new_treeseg = self._collapsed_trees[self._keys[old_treeseg]]
+        #
+        # # Replace the old tree with the new tree.
+        # if old_treeseg.parent() is self:
+        #     self._remove_child_widget(old_treeseg)
+        #     self._add_child_widget(new_treeseg)
+        #     self._treeseg = new_treeseg
+        # else:
+        #     old_treeseg.parent().replace_child(old_treeseg, new_treeseg)
+        #
+        # # Move the new tree to where the old tree was.  Show it first,
+        # # so we can find its bounding box.
+        # new_treeseg.show()
+        # (newx, newy) = new_treeseg.label().bbox()[:2]
+        # (oldx, oldy) = old_treeseg.label().bbox()[:2]
+        # new_treeseg.move(oldx - newx, oldy - newy)
+        #
+        # # Hide the old tree
+        # old_treeseg.hide()
+        #
+        # # We could do parent.manage() here instead, if we wanted.
+        # # new_treeseg.parent().update(new_treeseg)
+        # new_treeseg.parent().manage()
+
 
 
 if __name__ == '__main__':
