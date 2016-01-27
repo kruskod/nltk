@@ -37,10 +37,11 @@ class Topology(OrderedDict):
         result = field_hash ^ hash(self.ph) ^ hash(self.tag)
         return result
 
-    def __init__(self, ph=None, tag=None, features=None, fields=None, edge=None):
+    def __init__(self, ph=None, tag=None, features=None, fields=None, edge=None, parent = None):
         self.ph = ph
         self.tag = tag
         self.features = features
+        self.parent = parent
         if fields:
             OrderedDict.__init__(self,((field.ft, field) for field in fields))
         else:
@@ -291,7 +292,9 @@ def build_topologies():
         #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
         # END
 
-        Topology(PH.S, tag=TAG.main,features={'status': ('Fin', 'Infin', 'PInfin')})
+        # parentField=((None, None)) means, that topology can be only root topology
+
+        Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin')}, parent=((None, None),))
             .add_field(Field(FT.F0, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.ADVP and any(edge for edge in field.topology[FT.F1].edges if edge.gf in (GF.subj, GF.obj, GF.iobj, GF.cmp)))), )))
             .add_field(Field(FT.F1, grammatical_funcs=(
@@ -341,7 +344,7 @@ def build_topologies():
         #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
         # END
 
-         Topology(PH.S, tag=TAG.imperative, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood': 'imperative'}) # Main order: VO
+         Topology(PH.S, tag=TAG.imperative, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood': 'imperative'}, parent=((None, None),)) # Main order: VO
             .add_field(Field(FT.M1, mod='!', grammatical_funcs=(
                 GramFunc(GF.hd, PH.v), )))
             .add_field(Field(FT.M2b, grammatical_funcs=(
@@ -453,7 +456,7 @@ def build_topologies():
         #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
         # END
 
-        (Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}))
+        (Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, parent=((GF.mod, PH.NP),)))
             .add_field(Field(FT.F1, mod='!', grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.dobjrel),
@@ -621,11 +624,19 @@ def process_dominance(tree, topology_rules):
     from nltk import Tree, TYPE
     # get all topolgies for tree
     node = tree.hclabel()
-    tree_ph = node[TYPE]
     result = []
     for temp_topol in topology_rules:
         # chose a topology for the dominance structure item
-        if tree_ph == temp_topol.ph.name:
+        if tree.ph == temp_topol.ph:
+            if temp_topol.parent:
+                parent_node = tree.parent
+                if not parent_node or not isinstance(parent_node, FeatTree):
+                    parent_gf_ph = (None, None)
+                else :
+                    parent_gf_ph = (parent_node.gf, parent_node.ph)
+                if parent_gf_ph not in temp_topol.parent:
+                    continue
+
             # unify works correct only with structures of the same type
             # create FeatStructNonterminal from topology features
             if temp_topol.features and len(node) > 1:

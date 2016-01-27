@@ -29,6 +29,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         # print(alternatives)
         # print(feat_tree)
         print(80*'#')
+        # ps2pdf -dEPSCrop Monopole_tree.ps
 
 if __name__ == "__main__":
     demo()

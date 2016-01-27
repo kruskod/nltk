@@ -138,19 +138,15 @@ class Share:
 
 #Declarative sentense wh = false
 class FeatTree(Tree):
-    def __init__(self, node, children=None, parent=None):
+    def __init__(self, node, children=None, parent=None, gf = None):
         self._hcLabel = None
         if isinstance(node, Tree):
             self._label = node._label
             list.__init__(self, node)
             self.ph = PH[self._label[TYPE]]
+            self.gf = gf
+            self.parent = parent
 
-            if parent:
-                self.gf = GF[parent._label[TYPE]]
-                self.parent = parent
-            else:
-                self.gf = None
-                self.parent = None
             self.tag = None
             self.fields = None
             self.topologies = []
@@ -158,18 +154,12 @@ class FeatTree(Tree):
             if not self.ishead():
                 for index, child in enumerate(self):
                     # nodes with GF at this level
-                    if isinstance(child, Tree):
-                        feat_child = FeatTree(child[0], children=None, parent= child)
-                        if feat_child:
-                            self[index] = feat_child
-                        else:
-                            raise ValueError
-            # else: we have already children
-
-            #     leaves = []
-            #     for child in self:
-            #         leaves.append(list(child))
-            #     list.__init__(self, leaves)
+                    child_gf = GF[child._label[TYPE]]
+                    feat_child = FeatTree(child[0], children=None, parent = self, gf=child_gf)
+                    if feat_child:
+                        self[index] = feat_child
+                    else:
+                        raise ValueError
         else:
             if children is None:
                 raise TypeError("%s: Expected a node value and child list " % type(self).__name__)
@@ -194,8 +184,6 @@ class FeatTree(Tree):
                 # find hd
                 head = find_head(self)
                 if head:
-                    # get all features of the hd child
-                    self._hcLabel = copy.deepcopy(self.label())
                     # merge hd features with the node features
                     head_label = copy.deepcopy(head.label())
                     del head_label[TYPE]
@@ -330,14 +318,14 @@ class FeatTree(Tree):
         return visited
 
     def __hash__(self):
-        return hash(self.gorn)
+        return self.gorn
 
     def alternatives(self):
         result = set()
         for topology in self.topologies:
             # print("\nInitial topology: \n" + repr(topology))
             # split topology to topologies with only one item in one field
-            unified_topologies = [copy.deepcopy(topology),]
+            unified_topologies = [copy.copy(topology),]
             has_duplicate = True
             while(has_duplicate):
                 has_duplicate = False
@@ -348,7 +336,7 @@ class FeatTree(Tree):
                             has_duplicate = True
                             del unified_topologies[index]
                             for edge in field_node.edges:
-                                new_topology = copy.deepcopy(topology)
+                                new_topology = copy.copy(topology)
                                 new_topology[field_name].edges = [edge,]
                                 forks.append(new_topology)
                 if forks:
@@ -369,7 +357,7 @@ class FeatTree(Tree):
                 # if (len(places) < len(self)): # not all nodes were used for topology - topology is wrong
                 #     continue
 
-                generated_topologies = [copy.deepcopy(unified_topology),]
+                generated_topologies = [unified_topology,]
                 for field_node, fields in places.items():
                     forks = []
                     if len(fields) > 1:
@@ -420,7 +408,7 @@ class FeatTree(Tree):
                     #fill list from first topology
                     for field in grouped_topology[0].values():
                         if field.edges:
-                            new_edge = copy.deepcopy(field.edges[0])
+                            new_edge = copy.copy(field.edges[0])
                             new_edge.fields = set()
                             new_edge.fields.add(field.ft)
                             ordered_children.append(new_edge)
@@ -433,27 +421,11 @@ class FeatTree(Tree):
                                         ordered_children[index].fields.add(field.ft)
                                         break
 
-                    new_self = copy.deepcopy(self)
+                    new_self = copy.copy(self)
                     new_self.topologies = [topologies[0],]
                     list.__init__(new_self, ordered_children)
                     # new_self.children = children_order
                     alternatives.append(new_self)
-
-            # for top in self.topologies:
-            #     children_index = []
-            #
-            #      # children_order = [tup[1] for tup in sorted([(index, field.edges[0]) for index, field in enumerate(top.values()) if field.edges], key = lambda x: x[0])]
-            #
-            #     for index, field in enumerate(top.values()):
-            #         if field.edges:
-            #             new_edge = copy.deepcopy(field.edges[0])
-            #             new_edge.field = field.ft
-            #             children_index.append((index,new_edge))
-            #     children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
-            #     new_self = copy.deepcopy(self)
-            #     list.__init__(new_self, children_order)
-            #     # new_self.children = children_order
-            #     alternatives.append(new_self)
 
             for child in self:
                 if not child.ishead():
@@ -466,8 +438,8 @@ class FeatTree(Tree):
                     for index, edge in enumerate(self_alternative):
                         if isinstance(edge, FeatTree) and gorn == edge.gorn:
                             for child_alternative in child_alternatives:
-                                new_self = copy.deepcopy(self_alternative)
-                                new_alternative = copy.deepcopy(child_alternative)
+                                new_self = copy.copy(self_alternative)
+                                new_alternative = copy.copy(child_alternative)
                                 new_alternative.fields = edge.fields
                                 new_self[index] = new_alternative
                                 forks.append(new_self)
@@ -476,24 +448,6 @@ class FeatTree(Tree):
                         forks.append(self_alternative)
                 alternatives.extend(forks)
             return alternatives
-
-            # result = []
-            # for self_alternative in alternatives:
-            #     topology_alternatives=[]
-            #     for index, edge in enumerate(self_alternative):
-            #         if edge.gorn in child_alternatives:
-            #             for child_alternative in child_alternatives[edge.gorn]:
-            #                 child_alternative.field = edge.field
-            #                 new_self = copy.deepcopy(self_alternative)
-            #                 new_self[index] = child_alternative
-            #                 topology_alternatives.append(new_self)
-            #     if topology_alternatives:
-            #         result.extend(topology_alternatives)
-            #     else:
-            #         result.append(self_alternative)
-            # return result
-            # else:
-            #     return self
 
 def find_head(root):
     for child in root:
