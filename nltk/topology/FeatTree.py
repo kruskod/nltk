@@ -109,27 +109,28 @@ class GF(AutoNumber):
     cmpr = ()
     prt = ()
 
-# class STATUS(AutoNumber):
-#     Infin = ()  # Infinitive
-#     Fin = ()  # Finite verb
-#     PInfin = ()  # Pre-INFINitive
-#     PastP = ()  # Past participle
-#
+class STATUS(AutoNumber):
+    Infin = ()  # Infinitive
+    Fin = ()  # Finite verb
+    PInfin = ()  # Pre-INFINitive
+    PastP = ()  # Past participle
+
+class VCAT(AutoNumber):
+    VE = ()  # VP Extraposition
+    VR = ()  # Verb Raising
+    VT = ()  # Third Construction
+    VF = ()  # Finite Complementation
+    VS = ()  # Simple Verbs
+    VRSehen = ()
+    PastPAuxSein = ()
+    Passive = ()
+
 #
 # class MOOD(AutoNumber):
 #     indicative = ()
 #     subjunctive = ()
 #     imperative = ()
-#
-#
-# class VCAT(AutoNumber):
-#     VE = ()  # VP Extraposition
-#     VR = ()  # Verb Raising
-#     VT = ()  # Third Construction
-#     VF = ()  # Finite Complementation
-#     VS = ()  # Simple VerbsVS
-#     VRSehen = ()
-#     PastPAuxSein = ()
+
 
 class Share:
     german = {
@@ -146,7 +147,7 @@ class FeatTree(Tree):
             self.ph = PH[self._label[TYPE]]
             self.gf = gf
             self.parent = parent
-
+            self.shared = False
             self.tag = None
             self.fields = None
             self.topologies = []
@@ -319,6 +320,96 @@ class FeatTree(Tree):
 
     def __hash__(self):
         return self.gorn
+
+    def share(self):
+        """ 1. go to bottom till reach head
+            2. go up and look what you can share with a topology above
+            3. create share edges and put them in topologie above
+            4. pass control back to the stack
+
+
+        :return None
+        """
+        for child in self:
+            if not child.ishead():
+                child.share()
+
+        if GF.cmp == self.gf and PH.S == self.ph:
+            parent = self.parent
+            if parent and PH.S == parent.ph:
+                #set sharing area using status and vcat features
+                #TODO add check on interrogative and declarative sentence
+                status = get_feature(self._hcLabel, STATUS_FEATURE)
+                vcat = get_feature(self._hcLabel, VCAT_FEATURE)
+                ls = rs = ()
+                # sharing rules from the article Dutch and German verb clusters in Performance Grammar, G.Kempen & K.Harbusch 10.2002
+                if STATUS.Infin.name in status:
+                    if VCAT.VE.name in vcat:
+                        ls = (1,)
+                        rs = range(0,2)
+                    elif VCAT.VT.name in vcat or VCAT.Passive.name in vcat:
+                        ls = range(1,7)
+                        rs = range(0,2)
+                    elif VCAT.VR.name in vcat or VCAT.VRSehen.name in vcat:
+                        ls = (5,)
+                        rs = (1,)
+                elif STATUS.Fin.name in status:
+                    ls = (1,)
+
+                if ls or rs:
+
+                    # in this implementation I don't remove initial parent topology,
+                    # but just adding new sharing edges to it
+                    shared_topologies = []
+
+                    for par_top in parent.topologies:
+                        par_head_index = 0
+                        # check head index in the upper topology
+                        for index, field in enumerate(par_top.values()):
+                            #at this time wie should have maximum one edge in the field
+                            if field.edges and field.edges[0].ishead():
+                                par_head_index = index
+                                break
+
+                        for cur_top in self.topologies:
+                            head_index = 0
+                            # check head index in the current topology
+                            for index, field in enumerate(cur_top.values()):
+                                #at this time wie should have maximum one edge in the field
+                                if field.edges and field.edges[0].ishead():
+                                    head_index = index
+                                    break
+                            # share left part
+                            for span in ls:
+                                # check - there is no header in the span
+                                if span > 0 and span < head_index and span < par_head_index:
+                                    shared_topology = copy.deepcopy(par_top)
+                                    shared_fields = list(cur_top.values())[:span]
+                                    for field in shared_topology.values():
+                                        for shared_field in shared_fields:
+                                            if field.ft == shared_field.ft:
+                                                for edge in shared_field.edges:
+                                                    shared_edge = copy.copy(edge)
+                                                    shared_edge.shared = True
+                                                    field.edges.append(shared_edge)
+                                                break
+                                    shared_topologies.append(shared_topology)
+                            # share right part
+                            for span in ls:
+                                # check - there is no header in the span
+                                if span > 0 and span < head_index and span < par_head_index:
+                                    shared_topology = copy.deepcopy(par_top)
+                                    shared_fields = list(cur_top.values())[-span:]
+                                    for field in shared_topology.values():
+                                        for shared_field in shared_fields:
+                                            if field.ft == shared_field.ft:
+                                                for edge in shared_field.edges:
+                                                    shared_edge = copy.copy(edge)
+                                                    shared_edge.shared = True
+                                                    field.edges.append(shared_edge)
+                                                break
+                                    shared_topologies.append(shared_topology)
+                    parent.topologies.extend(shared_topologies)
 
     def alternatives(self):
         result = set()
@@ -782,5 +873,6 @@ from _collections_abc import Iterable
 import copy
 # from nltk.tree import Tree
 from nltk.featstruct import EXPRESSION, unify, TYPE
-from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE, BRANCH_FEATURE, INHERITED_FEATURE
+from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, SLOT_FEATURE, BRANCH_FEATURE, INHERITED_FEATURE, STATUS_FEATURE, \
+    VCAT_FEATURE
 from nltk.grammar import FeatStructNonterminal, is_nonterminal, Production

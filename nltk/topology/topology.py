@@ -303,7 +303,7 @@ def build_topologies():
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S, tag=TAG.focuscmp),
                 GramFunc(GF.mod, ph=(PH.PP, PH.ADVP)), )))
-            .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, ph=PH.v), )))
+            .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, ph=PH.v),)))
             .add_field(Field(FT.M2a, grammatical_funcs=(
                 GramFunc(GF.subj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})),)))
             .add_field(Field(FT.M2b, grammatical_funcs=(
@@ -345,8 +345,7 @@ def build_topologies():
         # END
 
          Topology(PH.S, tag=TAG.imperative, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood': 'imperative'}, parent=((None, None),)) # Main order: VO
-            .add_field(Field(FT.M1, mod='!', grammatical_funcs=(
-                GramFunc(GF.hd, PH.v), )))
+            .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, PH.v), )))
             .add_field(Field(FT.M2b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro))),)))
             .add_field(Field(FT.M2c, grammatical_funcs=(

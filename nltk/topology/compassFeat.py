@@ -8,6 +8,7 @@ SLOT_FEATURE = 'slot'
 PERSONAL_FEATURE = "personal"
 INFLECTED_FEATURE = "inflected"
 STATUS_FEATURE = 'status'
+VCAT_FEATURE = 'vcat'
 NUMBER_FEATURE = 'number'
 PERSON_FEATURE = 'person'
 LEMMA_FEATURE = 'lemma'
