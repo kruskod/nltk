@@ -9,7 +9,7 @@
 Graphically display a Tree.
 """
 # from tkinter import font
-
+import copy
 from tkinter import *
 from tkinter import font
 from tkinter.ttk import *
@@ -18,6 +18,7 @@ from nltk import TYPE
 from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
                             TextWidget, ParenWidget, OvalWidget)
 from nltk.grammar import FeatStructNonterminal
+from nltk.topology.draw.ntree import nTextWidget, nTreeSegmentWidget
 from nltk.tree import Tree
 from nltk.util import in_idle
 
@@ -75,10 +76,10 @@ class TreeSegmentWidget(CanvasWidget):
         self._ordered = False
 
         # Create canvas objects.
-        self._lines = [canvas.create_line(0, 0, 0, 0, fill='#006060')
+        self._lines = [canvas.create_line(0, 0, 0, 0, )
                        for c in subtrees]
         self._polygon = canvas.create_polygon(0, 0, fill='', state='hidden',
-                                              outline='#006060')
+                                              )
 
         # Register child widgets (label + subtrees)
         self._add_child_widget(label)
@@ -190,7 +191,7 @@ class TreeSegmentWidget(CanvasWidget):
         canvas = self.canvas()
         self._subtrees.insert(index, child)
         self._add_child_widget(child)
-        self._lines.append(canvas.create_line(0, 0, 0, 0, fill='#006060'))
+        self._lines.append(canvas.create_line(0, 0, 0, 0))
         self.update(self._label)
 
     # but.. lines???
@@ -544,6 +545,8 @@ class TreeWidget(CanvasWidget):
         self._treeseg = self._make_expanded_tree(canvas, t, ())
         self._add_child_widget(self._treeseg)
 
+
+
         CanvasWidget.__init__(self, canvas, **attribs)
 
     def expanded_tree(self, *path_to_tree):
@@ -635,38 +638,38 @@ class TreeWidget(CanvasWidget):
     #         return leaf
 
 
-    def _make_collapsed_trees(self, canvas, t, key):
-        if not isinstance(t, Tree): return
-        make_node = self._make_node
-        make_leaf = self._make_leaf
-
-        label = t.label()
-        prefix = ""
-        if isinstance(label, FeatStructNonterminal):
-            label = label[TYPE]
-        if hasattr(t, 'fields'):
-            prefix = "{} {} ".format(t.fields if t.fields else "", t.gf if t.gf else "")
-        if t.topologies:
-            prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
-        node = make_node(canvas, prefix + label, **self._nodeattribs)
-        self._nodes.append(node)
-        leaves = [make_leaf(canvas, l, **self._leafattribs)
-                  for l in t.leaves()]
-        self._leaves += leaves
-        treeseg = TreeSegmentWidget(canvas, node, leaves, roof=1,
-                                    color=self._roof_color,
-                                    fill=self._roof_fill,
-                                    width=self._line_width)
-
-        self._collapsed_trees[key] = treeseg
-        self._keys[treeseg] = key
-        # self._add_child_widget(treeseg)
-        treeseg.hide()
-
-        # Build trees for children.
-        for i in range(len(t)):
-            child = t[i]
-            self._make_collapsed_trees(canvas, child, key + (i,))
+    # def _make_collapsed_trees(self, canvas, t, key):
+    #     if not isinstance(t, Tree): return
+    #     make_node = self._make_node
+    #     make_leaf = self._make_leaf
+    #
+    #     label = t.label()
+    #     prefix = ""
+    #     if isinstance(label, FeatStructNonterminal):
+    #         label = label[TYPE]
+    #     if hasattr(t, 'fields'):
+    #         prefix = "{} {} ".format(t.fields if t.fields else "", t.gf if t.gf else "")
+    #     if t.topologies:
+    #         prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
+    #     node = make_node(canvas, prefix + label, **self._nodeattribs)
+    #     self._nodes.append(node)
+    #     leaves = [make_leaf(canvas, l, **self._leafattribs)
+    #               for l in t.leaves()]
+    #     self._leaves += leaves
+    #     treeseg = TreeSegmentWidget(canvas, node, leaves, roof=1,
+    #                                 color=self._roof_color,
+    #                                 fill=self._roof_fill,
+    #                                 width=self._line_width)
+    #
+    #     self._collapsed_trees[key] = treeseg
+    #     self._keys[treeseg] = key
+    #     # self._add_child_widget(treeseg)
+    #     treeseg.hide()
+    #
+    #     # Build trees for children.
+    #     for i in range(len(t)):
+    #         child = t[i]
+    #         self._make_collapsed_trees(canvas, child, key + (i,))
 
     def _make_expanded_tree(self, canvas, t, key):
         make_node = self._make_node
@@ -687,7 +690,7 @@ class TreeWidget(CanvasWidget):
             subtrees = [self._make_expanded_tree(canvas, children[i], key + (i,))
                         for i in range(len(children))]
             treeseg = TreeSegmentWidget(canvas, node, subtrees,
-                                        color=self._line_color,
+                                        # color=self._line_color,
                                         width=self._line_width)
             self._expanded_trees[key] = treeseg
             self._keys[treeseg] = key
@@ -698,11 +701,7 @@ class TreeWidget(CanvasWidget):
             return leaf
 
     def __setitem__(self, attr, value):
-        if attr[:5] == 'node_':
-            for node in self._nodes: node[attr[5:]] = value
-        elif attr[:5] == 'leaf_':
-            for leaf in self._leaves: leaf[attr[5:]] = value
-        elif attr == 'line_color':
+        if attr == 'line_color':
             self._line_color = value
             for tseg in list(self._expanded_trees.values()): tseg['color'] = value
         elif attr == 'line_width':
@@ -1025,13 +1024,19 @@ class TreeTabView(TreeView):
             hsb.pack(side="bottom", fill="x")
 
             widget = FeatTreeWidget(canvas, trees[i], #node_font=mono,
-                                leaf_color='#008040', node_color='#004080',
-                                line_color='#004040', draggable=0, shapeable=1,
+                                leaf_color='#008040',
+                                node_fill='#004080',
+                                line_color='#004040',
+                                draggable=0, shapeable=1,
                                 leaf_font=bold)
             self._widgets.append(widget)
+
+            # canvas.update()
+            # canvas.update()
             widget.bind_click_trees(widget.toggle_collapsed)
             nb.add(tab, text=(' '.join(trees[i].leaves())))
             canvas.pack(side='left', fill='both', expand=True)
+
         self._layout()
         self._init_menubar()
         nb.pack(expand=1, fill="both")
@@ -1241,7 +1246,7 @@ class FeatTreeWidget(CanvasWidget):
       - ``draggable``: whether the widget can be dragged by the user.
     """
 
-    def __init__(self, canvas, t, make_node=TextWidget,
+    def __init__(self, canvas, t, make_node=nTextWidget,
                  make_leaf=TextWidget, **attribs):
         # Node & leaf canvas widget constructors
         self._make_node = make_node
@@ -1252,8 +1257,8 @@ class FeatTreeWidget(CanvasWidget):
         # Attributes.
         self._nodeattribs = {}
         self._leafattribs = {}
-        self._locattribs = {'color': '#008000'}
-        self._line_color = '#008080'
+        # self._locattribs = {'color': '#008000'}
+        # self._line_color = '#008080'
         self._line_width = 1
         # self._roof_color = '#008080'
         # self._roof_fill = '#c0c0c0'
@@ -1269,7 +1274,19 @@ class FeatTreeWidget(CanvasWidget):
         self._nodes = []
         self._leaves = []
         # self._locs = []
-        self._treeseg = self._make_expanded_tree(canvas, t, ())
+
+        remove_attribs = set()
+        for attr, value in attribs.items():
+            if attr[:5] == 'node_':
+                self._nodeattribs[attr[5:]] = value
+                remove_attribs.add(attr)
+            elif attr[:5] == 'leaf_':
+                self._leafattribs[attr[5:]] = value
+                remove_attribs.add(attr)
+
+        [attribs.pop(k, None) for k in remove_attribs]
+
+        self._treeseg = self._make_expanded_tree(canvas, t, (), self._nodeattribs, self._leafattribs)
         self._add_child_widget(self._treeseg)
         CanvasWidget.__init__(self, canvas, **attribs)
 
@@ -1323,9 +1340,7 @@ class FeatTreeWidget(CanvasWidget):
         for node in self._nodes: node.bind_drag(callback, button)
 
 
-    def _make_expanded_tree(self, canvas, t, key):
-        make_node = self._make_node
-        make_leaf = self._make_leaf
+    def _make_expanded_tree(self, canvas, t, key, nodeattribs, leafattribs):
 
         if isinstance(t, Tree):
             label = t.label()
@@ -1333,33 +1348,39 @@ class FeatTreeWidget(CanvasWidget):
             if isinstance(label, FeatStructNonterminal):
                 label = label.pprint()
             if hasattr(t, 'fields'):
-                prefix = "{} {} ".format(t.fields if t.fields else "", t.gf if t.gf else "")
+                prefix = "{} {} ".format(t.fields() if t.fields() else "", t.gf if t.gf else "")
             if t.topologies:
                 prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
-            node = make_node(canvas, prefix + label, justify='center', **self._nodeattribs)
+
+            localnodeattribs = nodeattribs
+            localleafattribs = leafattribs
+
+            if t.shared:
+                # '#ccd8e5', 'red'
+                localnodeattribs = copy.copy(nodeattribs)
+                localnodeattribs['fill'] = '#BDBDBD'
+
+            node = self._make_node(canvas, prefix + label.strip(), justify='center', **localnodeattribs)
+            subtrees = [self._make_expanded_tree(canvas, t[i], key + (i,), localnodeattribs, localleafattribs)
+                for i in range(len(t))]
+
             self._nodes.append(node)
-            children = t
-            subtrees = [self._make_expanded_tree(canvas, children[i], key + (i,))
-                        for i in range(len(children))]
-            treeseg = TreeSegmentWidget(canvas, node, subtrees,
-                                        color=self._line_color,
-                                        width=self._line_width)
+
+            treeseg = nTreeSegmentWidget(canvas, node, subtrees, featTree = t)
+
             self._expanded_trees[key] = treeseg
             self._keys[treeseg] = key
+
             return treeseg
         else:
-            leaf = make_leaf(canvas, t, **self._leafattribs)
+            leaf = self._make_leaf(canvas, t, **leafattribs)
             self._leaves.append(leaf)
             return leaf
 
     def __setitem__(self, attr, value):
-        if attr[:5] == 'node_':
-            for node in self._nodes: node[attr[5:]] = value
-        elif attr[:5] == 'leaf_':
-            for leaf in self._leaves: leaf[attr[5:]] = value
-        elif attr == 'line_color':
+        if attr == 'line_color':
             self._line_color = value
-            for tseg in list(self._expanded_trees.values()): tseg['color'] = value
+            for tseg in list(self._expanded_trees.values()): tseg['fill'] = value
         elif attr == 'line_width':
             self._line_width = value
             for tseg in list(self._expanded_trees.values()): tseg['width'] = value

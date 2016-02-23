@@ -67,6 +67,7 @@ class CanvasWidget(object):
         >>> cn = TextWidget(c, 'test', color='red')
 
     Attribute values can also be changed after a canvas widget has
+    Attribute values can also be changed after a canvas widget has
     been constructed, using the ``__setitem__`` operator:
 
         >>> cn['font'] = 'times'
@@ -350,6 +351,9 @@ class CanvasWidget(object):
         :param child: The child widget that changed.
         :type child: CanvasWidget
         """
+        # if not hasattr(self, '__hidden'):
+        #     pass
+
         if self.__hidden or child.__hidden: return
         # If we're already updating, then do nothing.  This prevents
         # infinite loops when _update modifies its children.

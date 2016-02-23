@@ -131,12 +131,6 @@ class VCAT(AutoNumber):
 #     subjunctive = ()
 #     imperative = ()
 
-
-class Share:
-    german = {
-        'status': ('Fin', 'Infin', 'PInfin')
-    }
-
 #Declarative sentense wh = false
 class FeatTree(Tree):
     def __init__(self, node, children=None, parent=None, gf = None):
@@ -149,7 +143,6 @@ class FeatTree(Tree):
             self.parent = parent
             self.shared = False
             self.tag = None
-            self.fields = None
             self.topologies = []
             # make all leaves also FeatTree
             if not self.ishead():
@@ -174,6 +167,15 @@ class FeatTree(Tree):
 
     def ishead(self):
         return self.gf == GF.hd
+
+    def fields(self):
+        fields = set()
+        if self.parent:
+            for top in self.parent.topologies:
+                for field in top.values():
+                    if self.gorn in (edge.gorn for edge in field.edges):
+                        fields.add(field.ft)
+        return fields
 
     def hclabel(self):
         if self._hcLabel:
@@ -327,7 +329,6 @@ class FeatTree(Tree):
             3. create share edges and put them in topologie above
             4. pass control back to the stack
 
-
         :return None
         """
         for child in self:
@@ -380,9 +381,13 @@ class FeatTree(Tree):
                                     head_index = index
                                     break
                             # share left part
+                            span_set = set()
                             for span in ls:
                                 # check - there is no header in the span
                                 if span > 0 and span < head_index and span < par_head_index:
+                                    span_set.add(span)
+
+                            for span in span_set:
                                     shared_topology = copy.deepcopy(par_top)
                                     shared_fields = list(cur_top.values())[:span]
                                     for field in shared_topology.values():
@@ -394,8 +399,17 @@ class FeatTree(Tree):
                                                     field.edges.append(shared_edge)
                                                 break
                                     shared_topologies.append(shared_topology)
+
                             # share right part
-                            for span in ls:
+                            span_set = set()
+                            cur_len = len(cur_top.values())
+                            par_len = len(par_top.values())
+                            for span in rs:
+                                # check - there is no header in the span
+                                if span > 0 and (cur_len - span) > head_index and  (par_len - span) > par_head_index:
+                                    span_set.add(span)
+
+                            for span in span_set:
                                 # check - there is no header in the span
                                 if span > 0 and span < head_index and span < par_head_index:
                                     shared_topology = copy.deepcopy(par_top)
@@ -474,49 +488,87 @@ class FeatTree(Tree):
         # for top in result:
         #     print(repr(top))
 
+    # def split_alternatives(self):
+    #     if not self.ishead():
+    #         alternatives = []
+    #         child_alternatives = dict()
+    #
+    #         # group topologies by tag and edges order
+    #         topology_tags_map = dict()
+    #         for top in self.topologies:
+    #             if not top.tag in topology_tags_map:
+    #                 topology_tags_map[top.tag] = list()
+    #             topology_tags_map[top.tag].append(top)
+    #
+    #         for topologies in topology_tags_map.values():
+    #             gorn_topologies = tuple((top, tuple(top.gorns())) for top in topologies)
+    #             gorns_map = {}
+    #             for gorn_topology, gorns in gorn_topologies:
+    #                 if gorns in gorns_map:
+    #                     gorns_map[gorns].append(gorn_topology)
+    #                 else:
+    #                     gorns_map[gorns] = [gorn_topology]
+    #             for gorns, grouped_topology in gorns_map.items():
+    #                 ordered_children = []
+    #                 #fill list from first topology
+    #                 for field in grouped_topology[0].values():
+    #                     if field.edges:
+    #                         new_edge = copy.copy(field.edges[0])
+    #                         new_edge.fields = set()
+    #                         new_edge.fields.add(field.ft)
+    #                         ordered_children.append(new_edge)
+    #                 if len(grouped_topology) > 1:
+    #                     # add fields to items from other topologies
+    #                     for index, gorn in enumerate(gorns):
+    #                         for top in grouped_topology[1:]:
+    #                             for field in top.values():
+    #                                 if field.edges and field.edges[0].gorn == gorn:
+    #                                     ordered_children[index].fields.add(field.ft)
+    #                                     break
+    #
+    #                 new_self = copy.copy(self)
+    #                 new_self.topologies = [topologies[0],]
+    #                 list.__init__(new_self, ordered_children)
+    #                 # new_self.children = children_order
+    #                 alternatives.append(new_self)
+    #
+    #         for child in self:
+    #             if not child.ishead():
+    #                 child_alternatives[child.gorn] = child.split_alternatives()
+    #
+    #         for gorn, child_alternatives in child_alternatives.items():
+    #             forks = []
+    #             while(alternatives):
+    #                 self_alternative = alternatives.pop()
+    #                 for index, edge in enumerate(self_alternative):
+    #                     if isinstance(edge, FeatTree) and gorn == edge.gorn:
+    #                         for child_alternative in child_alternatives:
+    #                             new_self = copy.copy(self_alternative)
+    #                             new_alternative = copy.copy(child_alternative)
+    #                             new_alternative.fields = edge.fields
+    #                             new_self[index] = new_alternative
+    #                             forks.append(new_self)
+    #                         break
+    #                 else:
+    #                     forks.append(self_alternative)
+    #             alternatives.extend(forks)
+    #         return alternatives
+
     def split_alternatives(self):
         if not self.ishead():
             alternatives = []
             child_alternatives = dict()
-
-            # group topologies by tag and edges order
-            topology_tags_map = dict()
             for top in self.topologies:
-                if not top.tag in topology_tags_map:
-                    topology_tags_map[top.tag] = list()
-                topology_tags_map[top.tag].append(top)
+                children_index = []
 
-            for topologies in topology_tags_map.values():
-                gorn_topologies = tuple((top, tuple(top.gorns())) for top in topologies)
-                gorns_map = {}
-                for gorn_topology, gorns in gorn_topologies:
-                    if gorns in gorns_map:
-                        gorns_map[gorns].append(gorn_topology)
-                    else:
-                        gorns_map[gorns] = [gorn_topology]
-                for gorns, grouped_topology in gorns_map.items():
-                    ordered_children = []
-                    #fill list from first topology
-                    for field in grouped_topology[0].values():
-                        if field.edges:
-                            new_edge = copy.copy(field.edges[0])
-                            new_edge.fields = set()
-                            new_edge.fields.add(field.ft)
-                            ordered_children.append(new_edge)
-                    if len(grouped_topology) > 1:
-                        # add fields to items from other topologies
-                        for index, gorn in enumerate(gorns):
-                            for top in grouped_topology[1:]:
-                                for field in top.values():
-                                    if field.edges and field.edges[0].gorn == gorn:
-                                        ordered_children[index].fields.add(field.ft)
-                                        break
-
-                    new_self = copy.copy(self)
-                    new_self.topologies = [topologies[0],]
-                    list.__init__(new_self, ordered_children)
-                    # new_self.children = children_order
-                    alternatives.append(new_self)
+                for index, field in enumerate(top.values()):
+                    for edge in field.edges:
+                        children_index.append((index,edge))
+                children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
+                new_self = copy.copy(self)
+                list.__init__(new_self, children_order)
+                new_self.topologies = (top,)
+                alternatives.append(new_self)
 
             for child in self:
                 if not child.ishead():
@@ -530,9 +582,10 @@ class FeatTree(Tree):
                         if isinstance(edge, FeatTree) and gorn == edge.gorn:
                             for child_alternative in child_alternatives:
                                 new_self = copy.copy(self_alternative)
-                                new_alternative = copy.copy(child_alternative)
-                                new_alternative.fields = edge.fields
-                                new_self[index] = new_alternative
+                                new_child = copy.copy(child_alternative)
+                                new_child.parent = new_self
+                                new_self[index] = new_child
+                                #TODO update link on child in topologies or refactor topology structure
                                 forks.append(new_self)
                             break
                     else:

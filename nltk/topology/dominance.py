@@ -26,7 +26,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         alternatives = list(feat_tree.split_alternatives())
         print("Number alternatives: ", len(alternatives))
         if alternatives:
-            TreeTabView(*alternatives)
+            TreeTabView(*alternatives[:20])
         print(alternatives)
         print(feat_tree)
         print(80*'#')
