@@ -1,5 +1,5 @@
 import copy
-import hashlib
+# import hashlib
 import inspect
 import pickle
 from collections import OrderedDict
@@ -68,7 +68,7 @@ class Topology(OrderedDict):
                 for edge in field.edges:
                     field_val += "{:^8}|".format(str(edge))
 
-                # field_val += "{:^8}|".format(field.edges)
+            # field_val += "{:^8}|".format(field.edges)
             # for e in field.edges:
             #     for t in e.topologies:
             #         app+= str(t) + '\n'
@@ -81,7 +81,7 @@ class Topology(OrderedDict):
     def __repr__(self):
         class_name = self.__class__.__name__
         out = "{}:{}[".format(class_name,self.tag)
-        return out + ",".join([repr(field) for field in self.values()]) + ']'
+        return out + ",".join(repr(field) for field in self.values() if field.edges)
         # for type, field in self.items():
         #     if field.edges:
         #         out += "{}[".format(type)
