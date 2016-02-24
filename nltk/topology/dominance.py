@@ -22,7 +22,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         # print(feat_tree.topologies)
         feat_tree.alternatives()
         print(*feat_tree.bfs())
-        feat_tree.share()
+        # feat_tree.share()
         alternatives = list(feat_tree.split_alternatives())
         print("Number alternatives: ", len(alternatives))
         if alternatives:

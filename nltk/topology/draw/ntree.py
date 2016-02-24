@@ -234,7 +234,8 @@ class nTreeSegmentWidget(CanvasWidget):
             l = self._lines[int(attr[1])]
             canvas.itemconfig(l, fill=value)
         elif attr == 'fill':
-            print("Warning! Attribute fill is not setted")
+            pass
+            #print("Warning! Attribute fill is not setted")
             #canvas.itemconfig(self._polygon, fill=value)
         elif attr == 'width':
             canvas.itemconfig(self._polygon, {attr: value})
