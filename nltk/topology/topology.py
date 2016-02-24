@@ -17,26 +17,6 @@ __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 class Topology(OrderedDict):
 
-    def __eq__(self, other):
-        if not isinstance(other, Topology):
-            return NotImplemented
-        elif self is other:
-            return True
-        else:
-            if self.ph == other.ph and self.tag == other.tag and self.edge == other.edge:
-                for field in self.values():
-                    if (not field.ft in other) or repr(field) != repr(other[field.ft]):
-                        return False
-                return True
-        return False
-
-    def __hash__(self, *args, **kwargs):
-        field_hash = 13
-        for field in self.values():
-            field_hash ^= hash(repr(field))
-        result = field_hash ^ hash(self.ph) ^ hash(self.tag)
-        return result
-
     def __init__(self, ph=None, tag=None, features=None, fields=None, edge=None, parent = None):
         self.ph = ph
         self.tag = tag
@@ -48,6 +28,35 @@ class Topology(OrderedDict):
             OrderedDict.__init__(self)
         # self.fields = fields
         self.edge = edge
+
+    def isvalid(self):
+        """
+        :return: True if all needed fields are filled.
+        """
+        for field, field_edges in self.items():
+            if "!" == field.mod and not field_edges:
+                return False
+        return True
+
+    def __eq__(self, other):
+        if not isinstance(other, Topology):
+            return NotImplemented
+        elif self is other:
+            return True
+        else:
+            if self.ph == other.ph and self.tag == other.tag and self.edge == other.edge:
+                for field, edges in self.items():
+                    if (not field in other) or edges != other[field]:
+                        return False
+                return True
+        return False
+
+    def __hash__(self, *args, **kwargs):
+        field_hash = 13
+        for field in self.values():
+            field_hash ^= hash(repr(field))
+        result = field_hash ^ hash(self.ph) ^ hash(self.tag)
+        return result
 
     def structure_str(self):
         out = "{}: {} {}\n {} {}\n".format('TOPOLOGY', self.ph, (self.features if self.features else ''),
@@ -81,7 +90,7 @@ class Topology(OrderedDict):
     def __repr__(self):
         class_name = self.__class__.__name__
         out = "{}:{}[".format(class_name,self.tag)
-        return out + ",".join(repr(field) for field in self.values() if field.edges)
+        return out + ",".join(repr(edge) for edge in self.values())
         # for type, field in self.items():
         #     if field.edges:
         #         out += "{}[".format(type)
@@ -95,7 +104,7 @@ class Topology(OrderedDict):
 
 
     def add_field(self, field):
-        self[field.ft] = field
+        self[field] = list()
         field.topology = self
         for gram_func in field.grammatical_funcs:
             gram_func.field = field
@@ -180,6 +189,47 @@ class Topology(OrderedDict):
 class Field:
     # M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
 
+
+    def __init__(self, ft=None, mod=None, grammatical_funcs=None, topology=None, dependencies=None):
+        self.ft = ft
+        self.topology = topology
+        self.mod = mod
+        self.grammatical_funcs = grammatical_funcs
+        self.dependencies = dependencies
+
+
+    def __str__(self):
+        return " {:<5} {}: {}".format(self.ft, (self.mod if self.mod else ' '),
+                                      [str(gram_func) for gram_func in
+                                       self.grammatical_funcs] if self.grammatical_funcs else '')
+
+    def add_gramfunc(self, gram_func):
+        if not self.grammatical_funcs:
+            self.grammatical_funcs = []
+        self.grammatical_funcs.append(gram_func)
+        return self
+
+    def fit(self, edge):
+        if isinstance(edge, FeatTree):
+            if self.gf == edge.gf:
+                if self.expression:
+                    return self.expression(edge)
+                else:
+                    return self.ph == edge.ph
+        return False
+
+    def __eq__(self, other):
+        if not isinstance(other, Field):
+            return NotImplemented
+        elif self is other:
+            return True
+        else:
+            return self.ft == other.ft
+        return False
+
+    def __hash__(self, *args, **kwargs):
+        return hash(self.ft)
+
     # def __eq__(self, other):
     #     if not isinstance(other, Field):
     #         return NotImplemented
@@ -199,47 +249,16 @@ class Field:
     #     # return hash(repr(self))
     #     return hash(super(self,))
 
-    def __init__(self, ft=None, mod=None, grammatical_funcs=None, topology=None, dependencies=None):
-        self.ft = ft
-        self.topology = topology
-        self.mod = mod
-        self.grammatical_funcs = grammatical_funcs
-        self.dependencies = dependencies
-        self.edges = []
-
-    def __str__(self):
-        return " {:<5} {}: {}".format(self.ft, (self.mod if self.mod else ' '),
-                                      [str(gram_func) for gram_func in
-                                       self.grammatical_funcs] if self.grammatical_funcs else '')
-
-    def add_gramfunc(self, gram_func):
-        if not self.grammatical_funcs:
-            self.grammatical_funcs = []
-        self.grammatical_funcs.append(gram_func)
-        return self
-
-    def add_edge(self, edge):
-        self.edges.append(edge)
-
-    def fit(self, edge):
-        if isinstance(edge, FeatTree):
-            if self.gf == edge.gf:
-                if self.expression:
-                    return self.expression(edge)
-                else:
-                    return self.ph == edge.ph
-        return False
-
-    def __repr__(self):
-        count_edges = len(self.edges)
-        if count_edges:
-            out = '['
-            for index, edge in enumerate(self.edges):
-                out += "{} {}({})".format(edge.gf, edge.ph, edge.gorn)
-                if index < count_edges -1 :
-                    out += ' '
-            return '{}{}]'.format(self.ft, out)
-        return str(self.ft)
+    # def __repr__(self):
+    #     count_edges = len(self.edges)
+    #     if count_edges:
+    #         out = '['
+    #         for index, edge in enumerate(self.edges):
+    #             out += "{} {}({})".format(edge.gf, edge.ph, edge.gorn)
+    #             if index < count_edges -1 :
+    #                 out += ' '
+    #         return '{}{}]'.format(self.ft, out)
+    #     return str(self.ft)
 
 class GramFunc:
     def __init__(self, gf=None, ph=None, expression=None, field=None, tag=None):
@@ -520,7 +539,7 @@ def build_topologies():
         # END
 
          (Topology(PH.S, tag=TAG.inf, features={'status': ('PastP', 'Infin', 'PInfin')}))
-            .add_field(Field(FT.F1, mod='!', grammatical_funcs=(
+            .add_field(Field(FT.F1, grammatical_funcs=(
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not (edge.has_child(GF.hd, (PH.rel_pro,))), tag = TAG.focusdobj),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.dobjrel),
@@ -651,11 +670,12 @@ def process_dominance(tree, topology_rules):
                 # fill topology
                 for child in tree:
                     if isinstance(child, Tree):
-                        for field in topology.values():
+                        for field in topology.keys():
                             for func in field.grammatical_funcs:
                                 if func.fit(child):
                                     # add edge to topology
-                                    field.add_edge(child)
+                                    topology[field].append(child)
+                                    #field.add_edge(child)
                                     if not child.topologies and not child.ishead():
                                         child.topologies.extend(process_dominance(child, topology_rules))
                                     break
