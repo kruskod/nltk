@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter.ttk import *
 
 from nltk.draw.util import CanvasWidget
+from nltk.topology import FeatTree
 
 
 class Application(Frame):
@@ -197,7 +198,7 @@ class nTreeSegmentWidget(CanvasWidget):
                        for c in subtrees]
 
         self._rect = canvas.create_rectangle(0,0,0,0)
-        canvas.itemconfig(self._rect, dash=(3,5))
+
 
         # Register child widgets (label + subtrees)
         self._add_child_widget(label)
@@ -341,6 +342,17 @@ class nTreeSegmentWidget(CanvasWidget):
             return ((bbox[0] + bbox[2]) / 2.0, bbox[3])
 
     def _border(self):
+        for edge in self._featTree:
+            if not isinstance(edge, FeatTree.FeatTree):
+                return
+
+        if self._featTree.parent:
+            for topology in self._featTree.parent.topologies:
+                for field in topology.keys():
+                    if field.shared:
+                        self.canvas().itemconfig(self._rect, dash=(3,5))
+                        break
+
         xmin = ymin = sys.maxsize
         xmax = ymax = 0
         for subtree in self._subtrees:

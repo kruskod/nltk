@@ -28,6 +28,7 @@ class Topology(OrderedDict):
             OrderedDict.__init__(self)
         # self.fields = fields
         self.edge = edge
+        self.shared_trace = ''
 
     def isvalid(self):
         """
@@ -196,6 +197,7 @@ class Field:
         self.mod = mod
         self.grammatical_funcs = grammatical_funcs
         self.dependencies = dependencies
+        self.shared = False
 
 
     def __str__(self):
