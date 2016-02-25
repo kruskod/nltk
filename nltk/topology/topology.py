@@ -58,40 +58,27 @@ class Topology(OrderedDict):
             field_hash ^= hash(repr(field))
         result = field_hash ^ hash(self.ph) ^ hash(self.tag)
         return result
-
-    def structure_str(self):
-        out = "{}: {} {}\n {} {}\n".format('TOPOLOGY', self.ph, (self.features if self.features else ''),
-                                           'TAG', self.tag if self.tag else '')
-        fields_str = ''
-        for field in self.values():
-                fields_str += str(field) + '\n'
-        return out + fields_str
+    #
+    # def structure_str(self):
+    #     out = "{}: {} {}\n {} {}\n".format('TOPOLOGY', self.ph, (self.features if self.features else ''),
+    #                                        'TAG', self.tag if self.tag else '')
+    #     fields_str = ''
+    #     for field in self.values():
+    #             fields_str += str(field) + '\n'
+    #     return out + fields_str
 
     def __str__(self):
-        out = repr(self.edge.hclabel())
-        field_val = field_type = '|'
-        #app = ''
-        for type, field in self.items():
-            field_type += "{:^8}|".format(str(type) + (str(field.mod) if field.mod else ''))
-            # field_val += "{:^8}|".format(*field.edges)
-            if field.edges:
-                for edge in field.edges:
-                    field_val += "{:^8}|".format(str(edge))
-
-            # field_val += "{:^8}|".format(field.edges)
-            # for e in field.edges:
-            #     for t in e.topologies:
-            #         app+= str(t) + '\n'
-
-        field_type += '\n'
-        field_val += '\n'
-        border = '-' * (len(field_type) - 1) + '\n'
-        return out + '\n' + border + field_type + border + field_val + border # + app
+        out = self.edge.short_str()
+        field_type = '{'
+        for field, field_edges in self.items():
+            if field_edges:
+                field_type += field.short_str() + '[' + ','.join(edge.short_str() for edge in field_edges) + ']|'
+        return out + field_type[:-1] + '}'
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        out = "{}:{}[".format(class_name,self.tag)
-        return out + ",".join(repr(edge) for edge in self.values())
+        out = "{}:{} {}".format(class_name,self.tag, str(self))
+        return out
         # for type, field in self.items():
         #     if field.edges:
         #         out += "{}[".format(type)
@@ -192,6 +179,7 @@ class Field:
 
 
     def __init__(self, ft=None, mod=None, grammatical_funcs=None, topology=None, dependencies=None):
+
         self.ft = ft
         self.topology = topology
         self.mod = mod
@@ -199,11 +187,13 @@ class Field:
         self.dependencies = dependencies
         self.shared = False
 
+    def short_str(self):
+        return str(self.ft) + (self.mod if self.mod else '')
 
     def __str__(self):
         return " {:<5} {}: {}".format(self.ft, (self.mod if self.mod else ' '),
-                                      [str(gram_func) for gram_func in
-                                       self.grammatical_funcs] if self.grammatical_funcs else '')
+                  [str(gram_func) for gram_func in
+                   self.grammatical_funcs] if self.grammatical_funcs else '')
 
     def add_gramfunc(self, gram_func):
         if not self.grammatical_funcs:
@@ -231,6 +221,9 @@ class Field:
 
     def __hash__(self, *args, **kwargs):
         return hash(self.ft)
+
+    def __repr__(self):
+        return self.__str__()
 
     # def __eq__(self, other):
     #     if not isinstance(other, Field):

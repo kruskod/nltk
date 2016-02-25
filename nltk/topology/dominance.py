@@ -26,9 +26,10 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         # for alternative in alternatives:
         #     alternative.share()
 
-        for i, alternative in enumerate(alternatives):
-            print("Alternative: ", i)
-            print(*alternative.bfs())
+        # for i, alternative in enumerate(alternatives):
+        #     print("Alternative: ", i)
+        #     #print(*alternative.bfs())
+        #     print(repr(alternative.topologies[0]))
 
         print("Number alternatives: ", len(alternatives))
         if alternatives:
