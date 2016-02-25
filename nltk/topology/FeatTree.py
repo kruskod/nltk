@@ -240,6 +240,9 @@ class FeatTree(Tree):
                     return True
         return False
 
+    def short_str(self):
+        return ((str(self.gf) + " ") if self.gf else "") + "{}({})".format(self.ph, self.gorn)
+
     def __str__(self):
         out = "\r\n({}) {} ".format(self.gorn, self.gf if self.gf else '') +  repr(self.label())
         # print leaves
