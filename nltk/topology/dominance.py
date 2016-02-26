@@ -23,13 +23,15 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         feat_tree.alternatives()
 #        print(*feat_tree.bfs())
         alternatives = feat_tree.split_alternatives()
-        # for alternative in alternatives:
-        #     alternative.share()
+        for alternative in alternatives:
+            alternative.share()
+
+        print(alternatives[0].topologies)
+
 
         # for i, alternative in enumerate(alternatives):
         #     print("Alternative: ", i)
-        #     #print(*alternative.bfs())
-        #     print(repr(alternative.topologies[0]))
+        #     print(*alternative.bfs())
 
         print("Number alternatives: ", len(alternatives))
         if alternatives:

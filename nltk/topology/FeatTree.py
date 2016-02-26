@@ -136,8 +136,8 @@ class FeatTree(Tree):
     def __init__(self, node, children=None, parent=None, gf = None):
         self._hcLabel = None
         if isinstance(node, Tree):
-            self._label = node._label
-            list.__init__(self, node)
+            Tree.__init__(self, node._label, children = node)
+            # list.__init__(self, node)
             self.ph = PH[self._label[TYPE]]
             self.gf = gf
             self.parent = parent
@@ -340,6 +340,7 @@ class FeatTree(Tree):
 
         # 1 step
         for child in self:
+            child.parent = self
             if not child.ishead():
                 child.share()
 
@@ -381,7 +382,7 @@ class FeatTree(Tree):
                             last_number_left_shared_fields = -1
 
                             for left_span in ls:
-                                left_shared_topology = copy.deepcopy(topology)
+                                left_shared_topology = copy.copy(topology)
                                 fields = list(left_shared_topology.keys())
                                 # We must share left_span, right_span edges
                                 left_span_fields = fields[:left_span] if left_span > 0 else tuple()
@@ -390,7 +391,7 @@ class FeatTree(Tree):
                                 if last_number_left_shared_fields < number_left_shared_fields:
                                     last_number_left_shared_fields = number_left_shared_fields
 
-                                    left_shared_parent_topologies = copy.deepcopy(parent.topologies)
+                                    left_shared_parent_topologies = copy.copy(parent.topologies)
 
                                     # promote shared fields from the left periphery to the parent topology
                                     share_edges(left_span_fields, left_shared_topology, left_shared_parent_topologies)
@@ -404,8 +405,8 @@ class FeatTree(Tree):
                                         if last_number_right_shared_fields < number_right_shared_fields:
                                             last_number_right_shared_fields = number_right_shared_fields
 
-                                            right_shared_topology = copy.deepcopy(left_shared_topology)
-                                            right_shared_parent_topologies = copy.deepcopy(left_shared_parent_topologies)
+                                            right_shared_topology = copy.copy(left_shared_topology)
+                                            right_shared_parent_topologies = copy.copy(left_shared_parent_topologies)
 
                                             # share right_span_fields with the parent topologies
                                             share_edges(right_span_fields, right_shared_topology, right_shared_parent_topologies)
@@ -422,7 +423,7 @@ class FeatTree(Tree):
 
                             for left_span in ls:
                                 if left_span > 0:
-                                    left_shared_topology = copy.deepcopy(topology)
+                                    left_shared_topology = copy.copy(topology)
                                     fields = list(left_shared_topology.keys())
                                     # We must share left_span edges
                                     left_span_fields = fields[:left_span]
@@ -432,7 +433,7 @@ class FeatTree(Tree):
                                     if last_number_left_shared_fields < number_left_shared_fields:
                                         last_number_left_shared_fields = number_left_shared_fields
 
-                                        left_shared_parent_topologies = copy.deepcopy(parent.topologies)
+                                        left_shared_parent_topologies = copy.copy(parent.topologies)
 
                                         # promote shared fields from the left periphery to the parent topology
                                         share_edges(left_span_fields, left_shared_topology, left_shared_parent_topologies)
@@ -452,7 +453,7 @@ class FeatTree(Tree):
 
                             for right_span in rs:
                                 if right_span > 0:
-                                    right_shared_topology = copy.deepcopy(topology)
+                                    right_shared_topology = copy.copy(topology)
                                     fields = list(right_shared_topology.keys())
                                     right_span_fields = fields[-right_span:]
                                     number_right_shared_fields = number_shared_fields(right_span_fields, right_shared_topology)
@@ -460,7 +461,7 @@ class FeatTree(Tree):
                                     if last_number_right_shared_fields < number_right_shared_fields:
                                         last_number_right_shared_fields = number_right_shared_fields
 
-                                        right_shared_parent_topologies = copy.deepcopy(parent.topologies)
+                                        right_shared_parent_topologies = copy.copy(parent.topologies)
 
                                         # share right_span_fields with the parent topologies
                                         share_edges(right_span_fields, right_shared_topology, right_shared_parent_topologies)
@@ -675,7 +676,8 @@ def share_edges(share_fields, base_topology, parent_topologies):
                         if edge.ishead():
                             break
                     else:
-                        parent_field_edges.extend(field_edges)
+                        parent_topology[field] = list(parent_field_edges + field_edges)
+    pass
 
 def find_head(root):
     for child in root:
