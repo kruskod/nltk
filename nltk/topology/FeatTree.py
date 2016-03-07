@@ -635,6 +635,61 @@ class FeatTree(Tree):
             #     alternatives.extend(forks)
             #return alternatives
 
+    def split_shared_topologies(self):
+        """
+        split shared topologies to separate trees
+        :return:
+        """
+        if not self.ishead():
+            alternatives = []
+
+            for top in self.topologies:
+                new_self = copy.copy(self)
+                top.edge = new_self
+                new_self.topologies = [copy.copy(top),]
+                alternatives.append(new_self)
+
+            child_alternatives = []
+            for child in self:
+                if not child.ishead():
+                    child_alternatives.append(child.split_shared_topologies())
+
+            if child_alternatives:
+                return alternatives
+
+            forks = []
+            for alternative in alternatives:
+                for variation in itertools.product(*child_alternatives):
+                    new_self = copy.copy(alternative)
+                    allowed_variation = True
+                    for child in variation:
+
+                        # check that variation is connected with parent topology
+                        # update this algorithm if needed
+
+                        if not child.topologies[0].shared_trace in alternative.topologies[0].shared_trace:
+                            allowed_variation = False
+                            break
+
+                        new_child = copy.copy(child)
+                        new_child.parent = new_self
+                        for index, altern_child in enumerate(new_self):
+                            if altern_child.gorn == new_child.gorn:
+                                new_self[index] = new_child
+                                # update topology edges
+                                for topology in new_self.topologies:
+                                    for edge_list in topology.values():
+                                        if altern_child in edge_list:
+                                            edge_list.remove(altern_child)
+                                            edge_list.append(new_child)
+                                            break
+                                break
+                        else:
+                            raise Exception("Child not found", new_child)
+                    if allowed_variation:
+                        forks.append(new_self)
+            return forks
+
 def number_shared_fields(share_fields, base_topology):
     """
     set shared property for fields
@@ -668,6 +723,8 @@ def share_edges(share_fields, base_topology, parent_topologies):
         if field.shared:
             field_edges = base_topology[field]
             if field_edges:
+                for edge in field_edges:
+                    edge.shared = True
                 base_topology[field] = list()
                 for parent_topology in parent_topologies:
                     parent_field_edges = parent_topology[field]
@@ -677,7 +734,6 @@ def share_edges(share_fields, base_topology, parent_topologies):
                             break
                     else:
                         parent_topology[field] = list(parent_field_edges + field_edges)
-    pass
 
 def find_head(root):
     for child in root:

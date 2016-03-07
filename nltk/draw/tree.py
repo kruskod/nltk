@@ -10,6 +10,7 @@ Graphically display a Tree.
 """
 # from tkinter import font
 import copy
+import io
 from tkinter import *
 from tkinter import font
 from tkinter.ttk import *
@@ -19,8 +20,10 @@ from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
                             TextWidget, ParenWidget, OvalWidget)
 from nltk.grammar import FeatStructNonterminal
 from nltk.topology.draw.ntree import nTextWidget, nTreeSegmentWidget
+from nltk.topology.pygraphviz.graph import draw_graph
 from nltk.tree import Tree
 from nltk.util import in_idle
+from PIL import Image, ImageTk
 
 ##//////////////////////////////////////////////////////
 ##  Tree Segment
@@ -1110,6 +1113,112 @@ class TreeTabView(TreeView):
                                 pagewidth=w+2, # points = 1/72 inch
                                 pageheight=h+2, # points = 1/72 inch
                                 pagex=0, pagey=0)
+
+class Graphview(TreeTabView):
+    def __init__(self, *trees, label='Dominance structures'):
+
+        self._trees = trees
+        self._top = Tk()
+        self._top.style = Style()
+        #('clam', 'alt', 'default', 'classic')
+        # print(self._top.style.theme_names())
+        # print(self._top.style.theme_use())
+        self._top.style.theme_use("clam")
+        # print(self._top.style.theme_use())
+
+        self._top.title(label)
+        self._top.bind('<Control-x>', self.destroy)
+        self._top.bind('<Control-q>', self.destroy)
+        # self._top.bind('<Control-p>', self._cframe.print_to_file)
+
+        self._cframe = nb = Notebook(self._top)
+        nb.pack(fill=BOTH, expand=1)
+
+
+
+        # Size is variable.
+        self._size = IntVar(self._top)
+        self._size.set(12)
+        # helvetica
+        bold = ('monospace', -self._size.get(), 'bold')
+        mono = ('monospace', -self._size.get())
+        self.font = font.nametofont("TkDefaultFont")
+        # self.font = Font(family='Helvetica', size=10)
+
+        self._widgets = []
+        for tree in trees:
+            tab = Frame(nb)
+
+            # im = Image.open(io.BytesIO(ps.encode('utf-8')))
+
+            # filename = 'graph.ps'
+            # f = open(filename, "rt", encoding="UTF8")
+            # ps = f.read()
+
+
+
+            tab._canvas = canvas = Canvas(tab, borderwidth=0, bg='white')
+
+
+
+            image_data = draw_graph(tree)
+            #image = Image.open(io.BytesIO(image_data))
+            #photo = Image.open('/home/kunz/Pictures/boo.gif')
+            #photo = PhotoImage(file='/home/kunz/Pictures/boo.gif')
+            #photo = ImageTk.PhotoImage(Image.open('/home/kunz/Pictures/boo.gif'))
+            image = Image.open(io.BytesIO(image_data))
+            imageSizeWidth, imageSizeHeight = image.size
+
+            menuSizeY = 100
+            screenSizeX = 1680
+            screenSizeY = 1050 - menuSizeY
+
+            # scale image if needed
+            if imageSizeWidth > screenSizeX:
+                n = screenSizeX / imageSizeWidth
+                imageSizeWidth = screenSizeX
+                imageSizeHeight = n * imageSizeHeight
+                image = image.resize((int(imageSizeWidth), int(imageSizeHeight)), Image.ANTIALIAS)
+            elif imageSizeHeight > screenSizeY:
+                n = screenSizeY / imageSizeHeight
+                imageSizeHeight = screenSizeY
+                imageSizeWidth = n * imageSizeWidth
+                image = image.resize((int(imageSizeWidth), int(imageSizeHeight)), Image.ANTIALIAS)
+
+            photo = ImageTk.PhotoImage(image)
+
+
+            # photo = PhotoImage(data = image_data)
+
+            # #canvas.image = PhotoImage(image)
+            canvas.create_image(0,0, image=photo)
+            canvas.photo = photo
+            # label = Label(canvas, image=photo)
+            #label.photo=photo
+            # label.pack(fill=BOTH, expand=YES)
+
+
+            vsb = Scrollbar(tab, orient="vertical", command=canvas.yview)
+            canvas.configure(yscrollcommand=vsb.set)
+            vsb.pack(side="right", fill="y")
+
+            hsb = Scrollbar(tab, orient="horizontal", command=canvas.xview)
+            canvas.configure(xscrollcommand=hsb.set)
+            hsb.pack(side="bottom", fill="x")
+
+            canvas.config(width = imageSizeWidth, height = imageSizeHeight + menuSizeY)
+            canvas.config(scrollregion=canvas.bbox(ALL))
+            canvas.pack(side="top", fill=BOTH, expand=1)
+            tab.pack(side='top', fill=BOTH, expand=1)
+
+            nb.add(tab, text=(' '.join(tree.leaves())))
+
+        self._init_menubar()
+
+        # self._top.update_idletasks()
+        # self._cframe.update_idletasks()
+        self._top.focus_set()
+        self._top.mainloop()
 
 ##//////////////////////////////////////////////////////
 ##  Demo Code
