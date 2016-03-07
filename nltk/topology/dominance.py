@@ -1,8 +1,8 @@
-import copy
 import pickle
 
-from nltk.draw.tree import TreeTabView
+from nltk.draw.tree import TreeTabView, Graphview
 from nltk.topology.FeatTree import FeatTree
+from nltk.topology.pygraphviz.graph import draw_graph
 from nltk.topology.topology import process_dominance, build_topologies
 
 
@@ -21,21 +21,32 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
         # print(feat_tree.topologies)
         feat_tree.alternatives()
-#        print(*feat_tree.bfs())
+        # print(*feat_tree.bfs())
         alternatives = feat_tree.split_alternatives()
+        result = []
+
         for alternative in alternatives:
             alternative.share()
+            result.extend(alternative.split_shared_topologies())
 
-        print(alternatives[0].topologies)
+        alternatives = result
 
+        # testee = alternatives[0]
+        # testee.share()
+        #
+        # for edge in testee.bfs():
+        #     for top in edge.topologies:
+        #         print(top.shared_trace + '-' + str(top))
 
         # for i, alternative in enumerate(alternatives):
         #     print("Alternative: ", i)
         #     print(*alternative.bfs())
 
         print("Number alternatives: ", len(alternatives))
+        #draw_graph(alternatives[0])
         if alternatives:
-            TreeTabView(*alternatives[:20])
+            Graphview(alternatives[0])
+            #TreeTabView(*alternatives[:20])
         # print(alternatives)
         # print(feat_tree)
         print(80*'#')
