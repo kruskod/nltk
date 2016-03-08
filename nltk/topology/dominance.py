@@ -23,13 +23,33 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         feat_tree.alternatives()
         # print(*feat_tree.bfs())
         alternatives = feat_tree.split_alternatives()
-        result = []
 
-        for alternative in alternatives:
-            alternative.share()
-            result.extend(alternative.split_shared_topologies())
+        # alternatives = [alternatives[6],]
+        #
+        # result = []
+        #
+        # for alternative in alternatives:
+        #     alternative.share()
+        #     result.extend(alternative.split_shared_topologies())
+        #
+        # alternatives = result
 
-        alternatives = result
+        print("Alternatives validaton:")
+        for index, alternative in enumerate(alternatives):
+            print("Alternative {} {}: {}".format(index, repr(alternative.topologies), validate_alternative(alternative)))
+
+
+
+        # result = alternatives[2]
+        # result.share()
+        # alternatives = []
+        # alternatives.extend(result.split_shared_topologies())
+
+
+
+
+
+        #result=alternatives
 
         # testee = alternatives[0]
         # testee.share()
@@ -45,12 +65,23 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         print("Number alternatives: ", len(alternatives))
         #draw_graph(alternatives[0])
         if alternatives:
-            Graphview(alternatives[0])
+            Graphview(*alternatives[:1])
             #TreeTabView(*alternatives[:20])
         # print(alternatives)
         # print(feat_tree)
         print(80*'#')
         # ps2pdf -dEPSCrop Monopole_tree.ps
+
+def validate_alternative(alternative):
+    if not alternative.topologies:
+        return False
+
+    for edge in alternative:
+        if not edge.ishead():
+            if not validate_alternative(edge):
+                return False
+    return True
+
 
 if __name__ == "__main__":
     demo()

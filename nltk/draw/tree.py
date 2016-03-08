@@ -1167,23 +1167,24 @@ class Graphview(TreeTabView):
             #photo = PhotoImage(file='/home/kunz/Pictures/boo.gif')
             #photo = ImageTk.PhotoImage(Image.open('/home/kunz/Pictures/boo.gif'))
             image = Image.open(io.BytesIO(image_data))
+            #image = Image.open(io.StringIO(image_data))
             imageSizeWidth, imageSizeHeight = image.size
 
-            menuSizeY = 100
-            screenSizeX = 1680
-            screenSizeY = 1050 - menuSizeY
-
-            # scale image if needed
-            if imageSizeWidth > screenSizeX:
-                n = screenSizeX / imageSizeWidth
-                imageSizeWidth = screenSizeX
-                imageSizeHeight = n * imageSizeHeight
-                image = image.resize((int(imageSizeWidth), int(imageSizeHeight)), Image.ANTIALIAS)
-            elif imageSizeHeight > screenSizeY:
-                n = screenSizeY / imageSizeHeight
-                imageSizeHeight = screenSizeY
-                imageSizeWidth = n * imageSizeWidth
-                image = image.resize((int(imageSizeWidth), int(imageSizeHeight)), Image.ANTIALIAS)
+            # menuSizeY = 100
+            # screenSizeX = 1680
+            # screenSizeY = 1050 - menuSizeY
+            #
+            # # scale image if needed
+            # if imageSizeWidth > screenSizeX:
+            #     n = screenSizeX / imageSizeWidth
+            #     imageSizeWidth = screenSizeX
+            #     imageSizeHeight = n * imageSizeHeight
+            #     image = image.resize((int(imageSizeWidth), int(imageSizeHeight)), Image.ANTIALIAS)
+            # elif imageSizeHeight > screenSizeY:
+            #     n = screenSizeY / imageSizeHeight
+            #     imageSizeHeight = screenSizeY
+            #     imageSizeWidth = n * imageSizeWidth
+            #     image = image.resize((int(imageSizeWidth), int(imageSizeHeight)), Image.ANTIALIAS)
 
             photo = ImageTk.PhotoImage(image)
 
@@ -1206,7 +1207,7 @@ class Graphview(TreeTabView):
             canvas.configure(xscrollcommand=hsb.set)
             hsb.pack(side="bottom", fill="x")
 
-            canvas.config(width = imageSizeWidth, height = imageSizeHeight + menuSizeY)
+            canvas.config(width = imageSizeWidth, height = imageSizeHeight)
             canvas.config(scrollregion=canvas.bbox(ALL))
             canvas.pack(side="top", fill=BOTH, expand=1)
             tab.pack(side='top', fill=BOTH, expand=1)
