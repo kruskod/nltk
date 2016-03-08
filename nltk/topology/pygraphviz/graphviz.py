@@ -10,7 +10,7 @@ import pygraphviz as pgv
 # strict (no parallel edges)
 # digraph
 # with attribute rankdir set to 'LR'
-A=pgv.AGraph(directed=False,strict=True,rankdir='TD', shape='none', splines='spline',smoothing=True)
+A=pgv.AGraph(directed=False,strict=True,rankdir='TD', shape='none', splines='spline',smoothing=True, outputMode='edgesfirst')
 # add node 1 with color red
 A.add_node(0,color='red')
 #A.add_node(5,color='blue')
