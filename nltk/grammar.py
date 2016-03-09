@@ -216,7 +216,7 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
     def symbol(self):
         return self
 
-    def pprint(self):
+    def pprint(self, delim = '\n', printVariables = False):
         head = feat = ''
         exp = []
         sorted_keys = sorted(self.keys())
@@ -236,9 +236,12 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                 #         maxLenght = len(line)
                 #     exp.append(line)
             else:
-                line = '{}:{}\n'.format(key, self[key])
+                value = self[key]
+                if not printVariables and isinstance(value, Variable):
+                    continue
+                line = '{}:{}{}'.format(key, value, delim)
                 feat += line
-        return head + '\n' + '\n'.join(line for line in exp) + feat
+        return head + delim + delim.join(line for line in exp) + feat
 
     def has_feature(self, features_map):
         """make new FeatStructNonTerminal and try to unify"""
