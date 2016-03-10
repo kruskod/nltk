@@ -13,7 +13,6 @@ from pygraphviz import *
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 def add_cluster(Graph, parent_index, root, topologies):
-    index =  10 * len(str(root.gorn)) + root.gorn
 
     if topologies:
         topology = topologies[0]
@@ -48,11 +47,11 @@ def add_cluster(Graph, parent_index, root, topologies):
                     edge = root.find_edge(gorn)
                     cluster_labels.append('<TD>{}</TD>'.format(field_label))
                     cluster_edges.append('<TD {} PORT="{}">{}</TD>'.format('STYLE="dashed"' if shared else '', gorn, edge_label(edge, delim='<br />')))
-                    add_cluster(Graph, index, edge, edge.topologies)
+                    add_cluster(Graph, root.gorn, edge, edge.topologies)
                     # draw topology 'inheritance' line
                     if edge.topologies:
-                        child_index = 10 * len(str(edge.gorn)) + edge.gorn
-                        Graph.add_edge(index, child_index, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open'
+                        #child_index = 10 * len(str(edge.gorn)) + edge.gorn
+                        Graph.add_edge(root.gorn, gorn, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open'
                     # find shared edge
                     if gorn not in non_shared_cluster_gorns:
                         pass
@@ -70,7 +69,7 @@ def add_cluster(Graph, parent_index, root, topologies):
         html_label = '< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><tr><td COLSPAN="{}">{}</td></tr><tr>{}</tr><tr>{}</tr></TABLE>>'.format(len(cluster_edges), cluster_title, ''.join(cluster_labels), ''.join(cluster_edges))
 
 
-        Graph.add_node(str(index),label=html_label, shape='plaintext')
+        Graph.add_node(root.gorn,label=html_label, shape='plaintext')
 
         # if parent_index:
         #     Graph.add_edge(parent_index, index, color="black:invis:black", dir='back')
@@ -110,7 +109,7 @@ def add_cluster(Graph, parent_index, root, topologies):
             # else:
             #     parent_gorn = 0
             # parent_index = 'n' +  str(10 * len(str(parent_gorn)) + parent_gorn)
-            Graph.add_edge(parent_index, edge, tailport=root.gorn)
+            Graph.add_edge(parent_index, edge, tailport=root.gorn, arrowhead='none')
 
 
 def edge_label(edge, delim = '\n'):
