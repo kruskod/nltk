@@ -45,7 +45,7 @@ class Topology(OrderedDict):
         elif self is other:
             return True
         else:
-            if self.ph == other.ph and self.tag == other.tag and self.edge == other.edge:
+            if self.ph == other.ph and self.tag == other.tag:
                 for field, field_gorns in self.items():
                     if (not field in other) or field_gorns != other[field]:
                         return False
@@ -59,18 +59,19 @@ class Topology(OrderedDict):
         result = field_hash ^ hash(self.ph) ^ hash(self.tag)
         return result
 
+    def short_str(self):
+        return "{}({})".format(self.ph, self.tag)
+
     def __str__(self):
-        out = self.edge.short_str()
+        out = self.short_str()
         field_type = '{'
-        for field, field_edges in self.items():
-            if field_edges:
-                field_type += field.short_str() + str(field_edges) + '|'
+        for field, field_gorns in self.items():
+            if field_gorns:
+                field_type += field.short_str() + str(field_gorns) + '|'
         return out + field_type[:-1] + '}'
 
     def __repr__(self):
-        class_name = self.__class__.__name__
-        out = "{}:{} {}".format(class_name,self.tag, str(self))
-        return out
+        return "{}:{}".format(self.__class__.__name__, str(self))
 
     def add_field(self, field):
         self[field] = ()
@@ -169,10 +170,7 @@ class Field:
     def short_str(self):
         return str(self.ft) + (self.mod if self.mod else '')
 
-    def __str__(self):
-        return " {:<5} {}: {}".format(self.ft, (self.mod if self.mod else ' '),
-                  [str(gram_func) for gram_func in
-                   self.grammatical_funcs] if self.grammatical_funcs else '')
+
 
     def add_gramfunc(self, gram_func):
         if not self.grammatical_funcs:
@@ -200,6 +198,11 @@ class Field:
 
     def __hash__(self, *args, **kwargs):
         return hash(self.ft)
+
+    def __str__(self):
+        return " {}:{}".format(self.short_str(),
+                  [str(gram_func) for gram_func in
+                   self.grammatical_funcs] if self.grammatical_funcs else '')
 
     def __repr__(self):
         return self.__str__()
@@ -612,7 +615,7 @@ def build_topologies():
     )
 
 
-def process_dominance(tree, topology_rules):
+def process_dominance(tree, topology_rules, parent_tree=None):
     from nltk import Tree
     # build all possible topologies for tree
     node = tree.hclabel()
@@ -621,11 +624,11 @@ def process_dominance(tree, topology_rules):
         # chose a topology for the dominance structure item
         if tree.ph == temp_topol.ph:
             if temp_topol.parent_restriction:
-                parent_node = tree.parent
-                if not parent_node or not isinstance(parent_node, FeatTree):
+
+                if not parent_tree or not isinstance(parent_tree, FeatTree):
                     parent_gf_ph = (None, None)
                 else :
-                    parent_gf_ph = (parent_node.gf, parent_node.ph)
+                    parent_gf_ph = (parent_tree.gf, parent_tree.ph)
                 if parent_gf_ph not in temp_topol.parent_restriction:
                     continue
 
@@ -650,7 +653,7 @@ def process_dominance(tree, topology_rules):
                                     topology[field] = topology[field] + (child.gorn,)
 
                                     if not child.topologies and not child.ishead():
-                                        child.topologies.extend(process_dominance(child, topology_rules))
+                                        child.topologies.extend(process_dominance(child, topology_rules, parent_tree=tree))
                                     break
                 result.append(topology)
     return result
