@@ -28,22 +28,42 @@ def add_cluster(Graph, parent_index, root, topologies):
         #
         # Graph.add_node(root.gorn,label =  '{{ {} |{{ {} }} }}'.format(cluster_title, '|'.join(cluster_edges)))
 
+        left_shared_area = topology.ls
+        right_shared_area = topology.rs
+        count_fields = len(topology.keys())
+        n = 0
+
+        non_shared_cluster_gorns = (edge.gorn for edge in root )
+
         for field, field_gorns in topology.items():
-            for gorn in field_gorns:
-                field_label = field.short_str()
-                cluster_labels.append('<TD>{}</TD>'.format(field_label))
-                edge = root.find_edge(gorn)
-                if edge:
-                    cluster_edges.append('<TD {} PORT="{}">{}</TD>'.format('STYLE="dashed"' if field.shared else '', gorn, edge_label(edge, delim='<br />')))
+
+            shared = False
+            if n < left_shared_area or n >= count_fields - right_shared_area:
+                shared = True
+
+            field_label = field.short_str()
+
+            if field_gorns:
+                for gorn in field_gorns:
+                    edge = root.find_edge(gorn)
+                    cluster_labels.append('<TD>{}</TD>'.format(field_label))
+                    cluster_edges.append('<TD {} PORT="{}">{}</TD>'.format('STYLE="dashed"' if shared else '', gorn, edge_label(edge, delim='<br />')))
                     add_cluster(Graph, index, edge, edge.topologies)
                     # draw topology 'inheritance' line
                     if edge.topologies:
                         child_index = 10 * len(str(edge.gorn)) + edge.gorn
-                        Graph.add_edge(index, child_index, tailport=gorn, dir='back', color="black:invis:black")
+                        Graph.add_edge(index, child_index, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open'
+                    # find shared edge
+                    if gorn not in non_shared_cluster_gorns:
+                        pass
 
-                # else:
-                #     # find and add a link to this edge
-                #     pass
+            # draw empty fields of the panel
+            else:
+                cluster_labels.append('<TD>{}</TD>'.format(field_label))
+                cluster_edges.append('<TD {}></TD>'.format('STYLE="dashed"' if shared else ''))
+            n += 1
+
+
 
 
 
@@ -104,13 +124,13 @@ def edge_label(edge, delim = '\n'):
 
 def draw_graph(graph):
 
-    G = AGraph(directed=False, strict=False, rankdir='TB', smoothing=True,
+    G = AGraph(directed=True, strict=False, rankdir='TB', smoothing=True,
     # clusterrank='local',
     # splines='line',
     # compound = True,
     # concentrate= True, # enables an edging merge technique
     #ratio='compress', # ratio=1
-    size='7.5,10'
+    #size='7.5,10'
     )
 
     #clusterrank = 'global'

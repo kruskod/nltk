@@ -34,7 +34,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
 
 
         alternatives = []
-        print("Alternatives validaton:")
+        print("\nAlternatives validaton:")
         for index, alternative in enumerate(result):
             isvalid = validate_alternative(alternative)
             print("Alternative {} {}: {}".format(index, repr(alternative.topologies), isvalid))
