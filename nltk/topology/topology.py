@@ -29,6 +29,7 @@ class Topology(OrderedDict):
             OrderedDict.__init__(self)
         # inner variable to control alternatives generation by sharing
         self.shared_trace = ''
+        self.ls = self.rs = 0
 
     def isvalid(self):
         """

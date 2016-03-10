@@ -28,14 +28,13 @@ def add_cluster(Graph, parent_index, root, topologies):
         #
         # Graph.add_node(root.gorn,label =  '{{ {} |{{ {} }} }}'.format(cluster_title, '|'.join(cluster_edges)))
 
-
         for field, field_gorns in topology.items():
             for gorn in field_gorns:
                 field_label = field.short_str()
                 cluster_labels.append('<TD>{}</TD>'.format(field_label))
                 edge = root.find_edge(gorn)
                 if edge:
-                    cluster_edges.append('<TD PORT="{}">{}</TD>'.format(gorn, edge_label(edge, delim='<br />')))
+                    cluster_edges.append('<TD {} PORT="{}">{}</TD>'.format('STYLE="dashed"' if field.shared else '', gorn, edge_label(edge, delim='<br />')))
                     add_cluster(Graph, index, edge, edge.topologies)
                     # draw topology 'inheritance' line
                     if edge.topologies:
