@@ -22,26 +22,30 @@ def add_cluster(Graph, parent_index, root, topologies):
         cluster_labels = []
         cluster_edges = []
 
-
-        # for field, field_edges in topology.items():
-        #     for edge in field_edges:
+        # for field, field_gorns in topology.items():
+        #     for edge in field_gorns:
         #         cluster_edges.append("{{{}{} | <{}> {}}}".format(field.ft , str(field.mod) if field.mod else '', str(field.ft)+ (field.mod if field.mod else ''), edge_label(edge)))
         #
         # Graph.add_node(root.gorn,label =  '{{ {} |{{ {} }} }}'.format(cluster_title, '|'.join(cluster_edges)))
 
 
-        for field, field_edges in topology.items():
-            for edge in field_edges:
+        for field, field_gorns in topology.items():
+            for gorn in field_gorns:
                 field_label = field.short_str()
                 cluster_labels.append('<TD>{}</TD>'.format(field_label))
-                cluster_edges.append('<TD PORT="{}">{}</TD>'.format(edge.gorn, edge_label(edge, delim='<br />')))
+                edge = root.find_edge(gorn)
+                if edge:
+                    cluster_edges.append('<TD PORT="{}">{}</TD>'.format(gorn, edge_label(edge, delim='<br />')))
+                    add_cluster(Graph, index, edge, edge.topologies)
+                    # draw topology 'inheritance' line
+                    if edge.topologies:
+                        child_index = 10 * len(str(edge.gorn)) + edge.gorn
+                        Graph.add_edge(index, child_index, tailport=gorn, dir='back', color="black:invis:black")
 
-                add_cluster(Graph, index, edge, edge.topologies)
-                if edge in root:
-                    Graph.add_edge(parent_index, index, headport=edge.gorn, tailport=(root.gorn if root.gorn else 's'))
-                else:
-                    # find and add a link to this edge
-                    pass
+                # else:
+                #     # find and add a link to this edge
+                #     pass
+
 
 
         html_label = '< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><tr><td COLSPAN="{}">{}</td></tr><tr>{}</tr><tr>{}</tr></TABLE>>'.format(len(cluster_edges), cluster_title, ''.join(cluster_labels), ''.join(cluster_edges))
@@ -49,6 +53,10 @@ def add_cluster(Graph, parent_index, root, topologies):
 
         Graph.add_node(str(index),label=html_label, shape='plaintext')
 
+        # if parent_index:
+        #     Graph.add_edge(parent_index, index, color="black:invis:black", dir='back')
+        #     Graph.add_edge(parent_index, index, headport=gorn, tailport=(root.gorn if root.gorn else 's'))
+        #     color="black:invis:black"]
 
         # sg = Graph.add_subgraph( name="cluster" + str(index),
         #                 #style='filled',
@@ -61,8 +69,8 @@ def add_cluster(Graph, parent_index, root, topologies):
         #                 )
         #
         # prevEdge = None
-        # for field, field_edges in topology.items():
-        #     for edge in field_edges:
+        # for field, field_gorns in topology.items():
+        #     for edge in field_gorns:
         #         if edge.shared:
         #             sg.add_node(edge.gorn,label = "{{{}{} | {}}}".format(field.ft , str(field.mod) if field.mod else '', edge_label(edge)), color='red', rank='same', group=index)
         #         else:
@@ -86,7 +94,6 @@ def add_cluster(Graph, parent_index, root, topologies):
             Graph.add_edge(parent_index, edge, tailport=root.gorn)
 
 
-
 def edge_label(edge, delim = '\n'):
     if isinstance(edge, FeatTree.FeatTree):
         label = edge.label()
@@ -98,7 +105,7 @@ def edge_label(edge, delim = '\n'):
 
 def draw_graph(graph):
 
-    G = AGraph(directed=True, strict=False, rankdir='TB', smoothing=True,
+    G = AGraph(directed=False, strict=False, rankdir='TB', smoothing=True,
     # clusterrank='local',
     # splines='line',
     # compound = True,
@@ -125,7 +132,7 @@ def draw_graph(graph):
 
     # shape=record
 
-    G.add_node(graph.gorn, label = edge_label(graph))
+    #G.add_node(graph.gorn, label = edge_label(graph))
 
     add_cluster(G, 0, graph, graph.topologies)
 

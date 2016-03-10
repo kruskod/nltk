@@ -24,15 +24,15 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         # print(*feat_tree.bfs())
         alternatives = feat_tree.split_alternatives()
 
-        alternatives = [alternatives[0],]
+        #alternatives = [alternatives[0],]
 
-        result = []
-
-        for alternative in alternatives:
-            alternative.share()
-            result.extend(alternative.split_shared_topologies())
-
-        alternatives = result
+        # result = []
+        #
+        # for alternative in alternatives:
+        #     alternative.share()
+        #     result.extend(alternative.split_shared_topologies())
+        #
+        # alternatives = result
 
         print("Alternatives validaton:")
         for index, alternative in enumerate(alternatives):
@@ -65,7 +65,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         print("Number alternatives: ", len(alternatives))
         #draw_graph(alternatives[0])
         if alternatives:
-            Graphview(*alternatives[:1])
+            Graphview(*alternatives[:20])
             #TreeTabView(*alternatives[:20])
         # print(alternatives)
         # print(feat_tree)

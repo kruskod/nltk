@@ -20,12 +20,10 @@ class AutoNumber(Enum):
     def __repr__(self):
         return self.__str__()
 
-
 class OP(AutoNumber):
     OR = ()
     AND = ()
     # ANDNOT = ()
-
 
 class TAG(AutoNumber):
     dobjrel = ()
@@ -133,14 +131,12 @@ class VCAT(AutoNumber):
 
 #Declarative sentense wh = false
 class FeatTree(Tree):
-    def __init__(self, node, children=None, parent=None, gf = None):
+    def __init__(self, node, children=None, gf=None):
         self._hcLabel = None
         if isinstance(node, Tree):
             Tree.__init__(self, node._label, children = node)
-            # list.__init__(self, node)
             self.ph = PH[self._label[TYPE]]
             self.gf = gf
-            self.parent = parent
             self.shared = False
             self.tag = None
             self.topologies = []
@@ -149,7 +145,7 @@ class FeatTree(Tree):
                 for index, child in enumerate(self):
                     # nodes with GF at this level
                     child_gf = GF[child._label[TYPE]]
-                    feat_child = FeatTree(child[0], children=None, parent = self, gf=child_gf)
+                    feat_child = FeatTree(child[0], children=None, gf=child_gf)
                     if feat_child:
                         self[index] = feat_child
                     else:
@@ -193,6 +189,15 @@ class FeatTree(Tree):
                     self._hcLabel = unify(self.label(), head_label, rename_vars=False)
             return self._hcLabel
         return None
+
+    def find_edge(self, gorn):
+        if self.gorn == gorn:
+            return self
+        for edge in self:
+            if isinstance(edge, FeatTree):
+                edge = edge.find_edge(gorn)
+                if edge:
+                    return edge
 
     def numerate(self, gorn=0):
         self.gorn = gorn
@@ -486,23 +491,29 @@ class FeatTree(Tree):
 
 
     def alternatives(self):
+        """
+        split topologies with several possible word order on different topologies with only possible word order
+        :return: None
+        """
+
         result = set()
+
         for topology in self.topologies:
             # print("\nInitial topology: \n" + repr(topology))
-            # split topology to topologies with only one item in one field
-            unified_topologies = [copy.copy(topology),]
+            # split topology to topologies with only one item in an one field
+            unified_topologies = [copy.deepcopy(topology),]
             has_duplicate = True
             while(has_duplicate):
                 has_duplicate = False
                 forks = []
                 for index, top in enumerate(unified_topologies):
-                    for field, field_edges in top.items():
-                        if len(field_edges) > 1:
+                    for field, field_gorns in top.items():
+                        if len(field_gorns) > 1:
                             has_duplicate = True
                             del unified_topologies[index]
-                            for edge in field_edges:
+                            for edge in field_gorns:
                                 new_topology = copy.copy(topology)
-                                new_topology[field] = [edge,]
+                                new_topology[field] = (edge,)
                                 forks.append(new_topology)
                 if forks:
                      unified_topologies.extend(forks)
@@ -514,17 +525,17 @@ class FeatTree(Tree):
             for unified_topology in unified_topologies:
                 places = dict()
                 # fill places for node . f.e. NP -> F1, F2
-                for field, field_edges in unified_topology.items():
-                    for field_node in field_edges:
-                        if field_node not in places:
-                            places[field_node] = set()
-                        places[field_node].add(field)
+                for field, field_gorns in unified_topology.items():
+                    for gorn in field_gorns:
+                        if gorn not in places:
+                            places[gorn] = set()
+                        places[gorn].add(field)
 
                 if (len(places) < len(self)): # not all nodes were used for topology - topology is wrong
                     continue
 
                 generated_topologies = [unified_topology,]
-                for field_node, fields in places.items():
+                for gorn, fields in places.items():
                     forks = []
                     if len(fields) > 1:
                         while generated_topologies:
@@ -533,7 +544,7 @@ class FeatTree(Tree):
                                 new_topology = copy.deepcopy(top)
                                 for field_to_free in fields:
                                     if field_to_free != field:
-                                        new_topology[field_to_free].remove(field_node)
+                                        new_topology[field_to_free] = tuple(field_gorn for field_gorn in new_topology[field_to_free] if field_gorn != gorn)
                                 forks.append(new_topology)
                     generated_topologies.extend(forks)
                 result.update(generated_topologies)
@@ -544,15 +555,12 @@ class FeatTree(Tree):
             if topology.isvalid():
                 self.topologies.append(topology)
 
-        # self.topologies = result
         if not self.ishead():
             for child in self:
                 # nodes with GF at this level
                 if isinstance(child, FeatTree):
                     child.alternatives()
-        # print("\nAfter generation:")
-        # for top in result:
-        #     print(repr(top))
+
 
     def split_alternatives(self):
         """
@@ -565,22 +573,19 @@ class FeatTree(Tree):
             for top in self.topologies:
                 children_index = []
 
-                # update edges in topology
-                for edge in self:
-                    for top_edges in top.values():
-                        for index, top_edge in enumerate(top_edges):
-                            if top_edge.gorn == edge.gorn:
-                                del top_edges[index]
-                                top_edges.append(edge)
-
-                for index, field_edges in enumerate(top.values()):
-                    for edge in field_edges:
-                        children_index.append((index,edge))
+                for index, field_gorns in enumerate(top.values()):
+                    for gorn in field_gorns:
+                        for edge in self:
+                            if edge.gorn == gorn:
+                                children_index.append((index, edge))
+                                break
+                        else:
+                            raise AssertionError("Gorn numbers:{} should must correspond edges: {}".format(field_gorns, self))
                 children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
-                new_self = copy.copy(self)
+                new_self = copy.deepcopy(self)
                 list.__init__(new_self, children_order)
                 top.edge = new_self
-                new_self.topologies = [copy.copy(top),]
+                new_self.topologies = [copy.deepcopy(top),]
                 alternatives.append(new_self)
 
             child_alternatives = []
@@ -594,46 +599,17 @@ class FeatTree(Tree):
             forks = []
             for alternative in alternatives:
                 for variation in itertools.product(*child_alternatives):
-                    new_self = copy.copy(alternative)
+                    new_self = copy.deepcopy(alternative)
                     for child in variation:
-                        new_child = copy.copy(child)
-                        new_child.parent = new_self
+                        new_child = copy.deepcopy(child)
                         for index, altern_child in enumerate(new_self):
                             if altern_child.gorn == new_child.gorn:
                                 new_self[index] = new_child
-                                # update topology edges
-                                for topology in new_self.topologies:
-                                    for edge_list in topology.values():
-                                        if altern_child in edge_list:
-                                            edge_list.remove(altern_child)
-                                            edge_list.append(new_child)
-                                            break
-                                    else:
-                                        raise Exception("Edge in topology not found:", altern_child)
                                 break
                         else:
                             raise Exception("Child not found", new_child)
                     forks.append(new_self)
             return forks
-
-            # for gorn, child_alternative in child_alternatives.items():
-            #     forks = []
-            #     while(alternatives):
-            #         self_alternative = alternatives.pop()
-            #         for index, edge in enumerate(self_alternative):
-            #             if isinstance(edge, FeatTree) and gorn == edge.gorn:
-            #                 for child_alternative in child_alternative:
-            #                     new_self = copy.copy(self_alternative)
-            #                     new_child = copy.copy(child_alternative)
-            #                     new_child.parent = new_self
-            #                     new_self[index] = new_child
-            #                     #TODO update link on child in topologies or refactor topology structure
-            #                     forks.append(new_self)
-            #                 break
-            #         else:
-            #             forks.append(self_alternative)
-            #     alternatives.extend(forks)
-            #return alternatives
 
     def split_shared_topologies(self):
         """
