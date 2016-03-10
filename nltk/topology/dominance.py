@@ -26,17 +26,20 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
 
         #alternatives = [alternatives[0],]
 
-        # result = []
-        #
-        # for alternative in alternatives:
-        #     alternative.share()
-        #     result.extend(alternative.split_shared_topologies())
-        #
-        # alternatives = result
+        result = []
 
+        for alternative in alternatives:
+            alternative.share()
+            result.extend(alternative.split_shared_topologies())
+
+
+        alternatives = []
         print("Alternatives validaton:")
-        for index, alternative in enumerate(alternatives):
-            print("Alternative {} {}: {}".format(index, repr(alternative.topologies), validate_alternative(alternative)))
+        for index, alternative in enumerate(result):
+            isvalid = validate_alternative(alternative)
+            print("Alternative {} {}: {}".format(index, repr(alternative.topologies), isvalid))
+            if isvalid:
+                alternatives.append(alternative)
 
 
 
