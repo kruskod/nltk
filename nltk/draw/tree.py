@@ -19,6 +19,7 @@ from nltk import TYPE
 from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
                             TextWidget, ParenWidget, OvalWidget)
 from nltk.grammar import FeatStructNonterminal
+from nltk.topology import FeatTree
 from nltk.topology.draw.ntree import nTextWidget, nTreeSegmentWidget
 from nltk.topology.pygraphviz.graph import draw_graph
 from nltk.tree import Tree
@@ -1457,18 +1458,21 @@ class FeatTreeWidget(CanvasWidget):
             prefix = ""
             if isinstance(label, FeatStructNonterminal):
                 label = label.pprint()
-            if hasattr(t, 'fields'):
-                prefix = "{} {} ".format(t.fields() if t.fields() else "", t.gf if t.gf else "")
-            if t.topologies:
-                prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
+            # if hasattr(t, 'fields'):
+            #     prefix = "{} {} ".format(t.fields() if t.fields() else "", t.gf if t.gf else "")
+
 
             localnodeattribs = nodeattribs
             localleafattribs = leafattribs
 
-            if t.shared:
-                # '#ccd8e5', 'red'
-                localnodeattribs = copy.copy(nodeattribs)
-                localnodeattribs['fill'] = '#BDBDBD'
+            if isinstance(t, FeatTree.FeatTree):
+                if t.topologies:
+                    prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
+
+                if t.shared:
+                    # '#ccd8e5', 'red'
+                    localnodeattribs = copy.copy(nodeattribs)
+                    localnodeattribs['fill'] = '#BDBDBD'
 
             node = self._make_node(canvas, prefix + label.strip(), justify='center', **localnodeattribs)
             subtrees = [self._make_expanded_tree(canvas, t[i], key + (i,), localnodeattribs, localleafattribs)
