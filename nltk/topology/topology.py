@@ -1,5 +1,5 @@
 import copy
-# import hashlib
+
 import inspect
 import pickle
 from collections import OrderedDict
@@ -17,25 +17,25 @@ __author__ = 'Denis Krusko: kruskod@gmail.com'
 
 class Topology(OrderedDict):
 
-    def __init__(self, ph=None, tag=None, features=None, fields=None, edge=None, parent = None):
+    def __init__(self, ph=None, tag=None, features=None, fields=None, parent_restriction = None):
         self.ph = ph
         self.tag = tag
         self.features = features
-        self.parent = parent
+        # parent_restriction=((None, None)) "((some GF, some PH))" means, that topology can be only root topology
+        self.parent_restriction = parent_restriction
         if fields:
             OrderedDict.__init__(self,((field.ft, field) for field in fields))
         else:
             OrderedDict.__init__(self)
-        # self.fields = fields
-        self.edge = edge
+        # inner variable to control alternatives generation by sharing
         self.shared_trace = ''
 
     def isvalid(self):
         """
         :return: True if all needed fields are filled.
         """
-        for field, field_edges in self.items():
-            if "!" == field.mod and not field_edges:
+        for field, field_gorns in self.items():
+            if "!" == field.mod and not field_gorns:
                 return False
         return True
 
@@ -46,8 +46,8 @@ class Topology(OrderedDict):
             return True
         else:
             if self.ph == other.ph and self.tag == other.tag and self.edge == other.edge:
-                for field, edges in self.items():
-                    if (not field in other) or edges != other[field]:
+                for field, field_gorns in self.items():
+                    if (not field in other) or field_gorns != other[field]:
                         return False
                 return True
         return False
@@ -55,109 +55,89 @@ class Topology(OrderedDict):
     def __hash__(self, *args, **kwargs):
         field_hash = 13
         for field in self.values():
-            field_hash ^= hash(repr(field))
+            field_hash ^= hash(field)
         result = field_hash ^ hash(self.ph) ^ hash(self.tag)
         return result
-    #
-    # def structure_str(self):
-    #     out = "{}: {} {}\n {} {}\n".format('TOPOLOGY', self.ph, (self.features if self.features else ''),
-    #                                        'TAG', self.tag if self.tag else '')
-    #     fields_str = ''
-    #     for field in self.values():
-    #             fields_str += str(field) + '\n'
-    #     return out + fields_str
 
     def __str__(self):
         out = self.edge.short_str()
         field_type = '{'
         for field, field_edges in self.items():
             if field_edges:
-                field_type += field.short_str() + '[' + ','.join(edge.short_str() for edge in field_edges) + ']|'
+                field_type += field.short_str() + str(field_edges) + '|'
         return out + field_type[:-1] + '}'
 
     def __repr__(self):
         class_name = self.__class__.__name__
         out = "{}:{} {}".format(class_name,self.tag, str(self))
         return out
-        # for type, field in self.items():
-        #     if field.edges:
-        #         out += "{}[".format(type)
-        #         for edge in field.edges:
-        #             out += "{} {}({})".format(edge.gf, edge.ph, edge.gorn)
-        #         out += '],'
-        # if out[-1] == ',':
-        #     return out[:-1] + ']'
-        # else:
-        #     return out + ']'
-
 
     def add_field(self, field):
-        self[field] = list()
-        field.topology = self
+        self[field] = ()
         for gram_func in field.grammatical_funcs:
             gram_func.field = field
         return self
 
-    def read_out(self, tokens, count_in_root = 0):
-        leaves = []
-        if tokens:
-            for field in self.values():
-                for id, edge in enumerate(field.edges):
-                    if edge.topologies:
-                        for top in edge.topologies:
-                            if leaves and not isinstance(leaves[0], str):
-                                for l in leaves:
-                                    count = len(set(l))
-                                    if count > 0:
-                                        sub_fields = top.read_out(tokens[count - 1:], count)
-                                    else:
-                                        sub_fields = top.read_out(tokens, count)
-                                    leaves.extend(sub_fields)
-                                    if sub_fields:
-                                        if isinstance(str, sub_fields[0]):
-                                            l.extend(sub_fields)
-                                        else:
-                                            new_leaves = []
-                                            for sub_field in sub_fields:
-                                                new_leaves.append(leaves + sub_field)
-                                            l = new_leaves
-                            else:
-                                count = len(set(leaves))
-                                if count > 0:
-                                    sub_fields = top.read_out(tokens[count - 1:], count)
-                                else:
-                                    sub_fields = top.read_out(tokens, count)
-                                leaves.extend(sub_fields)
-                    else:
-                        edge_content = None
-                        for ast in edge:
-                                edge_content = ast.leaves()
-                                for leaf in edge_content:
-                                    if leaves and not isinstance(leaves[0], str):
-                                        for l in leaves:
-                                            count = len(set(leaves))
-                                            if (len(tokens) > count and tokens[count] == leaf):
-                                                l.append(leaf)
-                                            elif (count_in_root > 0 and len(tokens) > count + 1 and tokens[count + 1] == leaf):
-                                                l.append(leaf)
-                                            else:
-                                                #remove everything
-                                                pass
-                                    else:
-                                        count = len(set(leaves))
-                                        if (len(tokens) > count and tokens[count] == leaf):
-                                            leaves.append(leaf)
-                                        elif (count_in_root > 0 and len(tokens) > count + 1 and tokens[count + 1] == leaf):
-                                            leaves.append(leaf)
-                                        else:
-                                            #remove everything
-                                            pass
-        return leaves
-
     def gorns(self):
-        for field in self.values():
-            if field.edges:
-                yield from (e.gorn for e in field.edges)
+        for gorns in self.values():
+            if gorns:
+                yield from (gorn for gorn in gorns)
+
+    # def read_out(self, tokens, count_in_root = 0):
+    #     leaves = []
+    #     if tokens:
+    #         for field in self.values():
+    #             for id, edge in enumerate(field.edges):
+    #                 if edge.topologies:
+    #                     for top in edge.topologies:
+    #                         if leaves and not isinstance(leaves[0], str):
+    #                             for l in leaves:
+    #                                 count = len(set(l))
+    #                                 if count > 0:
+    #                                     sub_fields = top.read_out(tokens[count - 1:], count)
+    #                                 else:
+    #                                     sub_fields = top.read_out(tokens, count)
+    #                                 leaves.extend(sub_fields)
+    #                                 if sub_fields:
+    #                                     if isinstance(str, sub_fields[0]):
+    #                                         l.extend(sub_fields)
+    #                                     else:
+    #                                         new_leaves = []
+    #                                         for sub_field in sub_fields:
+    #                                             new_leaves.append(leaves + sub_field)
+    #                                         l = new_leaves
+    #                         else:
+    #                             count = len(set(leaves))
+    #                             if count > 0:
+    #                                 sub_fields = top.read_out(tokens[count - 1:], count)
+    #                             else:
+    #                                 sub_fields = top.read_out(tokens, count)
+    #                             leaves.extend(sub_fields)
+    #                 else:
+    #                     edge_content = None
+    #                     for ast in edge:
+    #                             edge_content = ast.leaves()
+    #                             for leaf in edge_content:
+    #                                 if leaves and not isinstance(leaves[0], str):
+    #                                     for l in leaves:
+    #                                         count = len(set(leaves))
+    #                                         if (len(tokens) > count and tokens[count] == leaf):
+    #                                             l.append(leaf)
+    #                                         elif (count_in_root > 0 and len(tokens) > count + 1 and tokens[count + 1] == leaf):
+    #                                             l.append(leaf)
+    #                                         else:
+    #                                             #remove everything
+    #                                             pass
+    #                                 else:
+    #                                     count = len(set(leaves))
+    #                                     if (len(tokens) > count and tokens[count] == leaf):
+    #                                         leaves.append(leaf)
+    #                                     elif (count_in_root > 0 and len(tokens) > count + 1 and tokens[count + 1] == leaf):
+    #                                         leaves.append(leaf)
+    #                                     else:
+    #                                         #remove everything
+    #                                         pass
+    #     return leaves
 
     # def read_out(self):
     #     #check obligatory fields
@@ -178,10 +158,9 @@ class Field:
     # M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
 
 
-    def __init__(self, ft=None, mod=None, grammatical_funcs=None, topology=None, dependencies=None):
+    def __init__(self, ft=None, mod=None, grammatical_funcs=None, dependencies=None):
 
         self.ft = ft
-        self.topology = topology
         self.mod = mod
         self.grammatical_funcs = grammatical_funcs
         self.dependencies = dependencies
@@ -306,9 +285,9 @@ def build_topologies():
         #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
         # END
 
-        # parentField=((None, None)) means, that topology can be only root topology
 
-        Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin')}, parent=((None, None),))
+
+        Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((None, None),))
             .add_field(Field(FT.F0, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.ADVP and any(edge for edge in field.topology[FT.F1].edges if edge.gf in (GF.subj, GF.obj, GF.iobj, GF.cmp)))), )))
             .add_field(Field(FT.F1, grammatical_funcs=(
@@ -358,7 +337,7 @@ def build_topologies():
         #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
         # END
 
-         Topology(PH.S, tag=TAG.imperative, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood': 'imperative'}, parent=((None, None),)) # Main order: VO
+         Topology(PH.S, tag=TAG.imperative, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood': 'imperative'}, parent_restriction=((None, None),)) # Main order: VO
             .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, PH.v), )))
             .add_field(Field(FT.M2b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro))),)))
@@ -469,7 +448,7 @@ def build_topologies():
         #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
         # END
 
-        (Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, parent=((GF.mod, PH.NP),)))
+        (Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((GF.mod, PH.NP),)))
             .add_field(Field(FT.F1, mod='!', grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.dobjrel),
@@ -634,20 +613,20 @@ def build_topologies():
 
 
 def process_dominance(tree, topology_rules):
-    from nltk import Tree, TYPE
-    # get all topolgies for tree
+    from nltk import Tree
+    # build all possible topologies for tree
     node = tree.hclabel()
     result = []
     for temp_topol in topology_rules:
         # chose a topology for the dominance structure item
         if tree.ph == temp_topol.ph:
-            if temp_topol.parent:
+            if temp_topol.parent_restriction:
                 parent_node = tree.parent
                 if not parent_node or not isinstance(parent_node, FeatTree):
                     parent_gf_ph = (None, None)
                 else :
                     parent_gf_ph = (parent_node.gf, parent_node.ph)
-                if parent_gf_ph not in temp_topol.parent:
+                if parent_gf_ph not in temp_topol.parent_restriction:
                     continue
 
             # unify works correct only with structures of the same type
@@ -660,7 +639,6 @@ def process_dominance(tree, topology_rules):
                 unif = True
             if unif:
                 topology = copy.deepcopy(temp_topol)
-                topology.edge = tree
                 # tree.topologies.append(topology)
                 # fill topology
                 for child in tree:
@@ -669,8 +647,8 @@ def process_dominance(tree, topology_rules):
                             for func in field.grammatical_funcs:
                                 if func.fit(child):
                                     # add edge to topology
-                                    topology[field].append(child)
-                                    #field.add_edge(child)
+                                    topology[field] = topology[field] + (child.gorn,)
+
                                     if not child.topologies and not child.ishead():
                                         child.topologies.extend(process_dominance(child, topology_rules))
                                     break
