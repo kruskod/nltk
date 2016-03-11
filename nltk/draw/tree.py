@@ -931,16 +931,16 @@ class TreeView(object):
         xspace = self._size.get()
         yspace = self._size.get()
         for widget in self._widgets:
-            widget['node_font'] = bold
-            widget['leaf_font'] = helv
+            widget._nodeattribs[font] = bold
+            widget._leafattribs[font] = helv
             widget['xspace'] = xspace
             widget['yspace'] = yspace
             if self._size.get() < 20:
-                widget['line_width'] = 1
+                widget._line_width = 1
             elif self._size.get() < 30:
-                widget['line_width'] = 2
+                widget._line_width = 2
             else:
-                widget['line_width'] = 3
+                widget._line_width = 3
         self._layout()
 
     def destroy(self, *e):
@@ -1067,7 +1067,7 @@ class TreeTabView(TreeView):
         # menubar.config(font = self.font)
         filemenu = Menu(menubar, tearoff=0)
         # filemenu.config(font = self.font)
-        filemenu.add_command(label='Print to Postscript', underline=0,
+        filemenu.add_command(label='Save', underline=0,
                              command=self.save,
                              accelerator='Ctrl-p')
         filemenu.add_command(label='Exit', underline=1,
@@ -1130,9 +1130,10 @@ class Graphview(TreeTabView):
         self._top.title(label)
         self._top.bind('<Control-x>', self.destroy)
         self._top.bind('<Control-q>', self.destroy)
-        # self._top.bind('<Control-p>', self._cframe.print_to_file)
+
 
         self._cframe = nb = Notebook(self._top)
+
         nb.pack(fill=BOTH, expand=1)
 
 
@@ -1149,18 +1150,12 @@ class Graphview(TreeTabView):
         self._widgets = []
         for tree in trees:
             tab = Frame(nb)
-
             # im = Image.open(io.BytesIO(ps.encode('utf-8')))
 
             # filename = 'graph.ps'
             # f = open(filename, "rt", encoding="UTF8")
             # ps = f.read()
-
-
-
             tab._canvas = canvas = Canvas(tab, borderwidth=0, bg='white')
-
-
 
             image_data = draw_graph(tree)
             #image = Image.open(io.BytesIO(image_data))
@@ -1193,8 +1188,11 @@ class Graphview(TreeTabView):
             # photo = PhotoImage(data = image_data)
 
             # #canvas.image = PhotoImage(image)
-            canvas.create_image(0,0, image=photo)
+            canvas.create_image(0,0, image=photo, tag="image")
+            canvas.image = image
             canvas.photo = photo
+            canvas.scale = 1
+
             # label = Label(canvas, image=photo)
             #label.photo=photo
             # label.pack(fill=BOTH, expand=YES)
@@ -1213,14 +1211,119 @@ class Graphview(TreeTabView):
             canvas.pack(side="top", fill=BOTH, expand=1)
             tab.pack(side='top', fill=BOTH, expand=1)
 
-            nb.add(tab, text=(' '.join(tree.leaves())))
+            #Tab name and popup
+            leaves = list(tree.leaves())
+            if leaves:
+                leaves[0] = leaves[0].title()
+                readout_str = ' '.join(leaves)
+                print(readout_str)
+                nb.add(tab, text=readout_str)
+                CreateToolTip(tab, readout_str)
 
+        self._layout()
         self._init_menubar()
+        nb.pack(expand=1, fill="both")
 
         # self._top.update_idletasks()
         # self._cframe.update_idletasks()
         self._top.focus_set()
         self._top.mainloop()
+
+    def _init_menubar(self):
+        menubar = Menu(self._top)
+
+        filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label='Save', underline=0,
+                             command=self.save,
+                             accelerator='Ctrl-s')
+        self._top.bind('<Control-s>', lambda x: self.save(filename=None))
+        filemenu.add_command(label='Exit', underline=1,
+                             command=self.destroy, accelerator='Ctrl-x' )
+        menubar.add_cascade(label='File', underline=0, menu=filemenu )
+
+        zoommenu = Menu(menubar, tearoff=0)
+
+        zoommenu.add_radiobutton(label='Zoom in', command=lambda: self.resize(0.2), accelerator='Ctrl-+')
+        zoommenu.add_radiobutton(label='Zomm out', command=lambda: self.resize(-0.2), accelerator='Ctrl--')
+        menubar.add_cascade(label='Zoom', underline=0, menu=zoommenu)
+        self._top.bind('<Control-KP_Add>', lambda x: self.resize(0.2))
+        self._top.bind('<Control-KP_Subtract>', lambda x: self.resize(-0.2))
+        self._top.bind('<Control-plus>', lambda x: self.resize(0.2))
+        self._top.bind('<Control-minus>', lambda x: self.resize(-0.2))
+
+        self._top.config(menu=menubar)
+
+    def resize(self, scalediff):
+
+        canvas = self._top.nametowidget(self._cframe.select())._canvas
+        canvas.scale += scalediff
+        image = canvas.image
+        width, height = image.size
+        width = int(width * canvas.scale)
+        height = int(height * canvas.scale)
+
+        canvas.delete("image")
+        canvas.photo = ImageTk.PhotoImage(image.resize((width,height), Image.ANTIALIAS))
+
+        canvas.create_image(0, 0,
+            image=canvas.photo,
+            #anchor=NW,
+            tag="image"
+            )
+        canvas.config(width = width, height = height)
+        canvas.config(scrollregion=canvas.bbox(ALL))
+        canvas.pack(side="top", fill=BOTH, expand=1)
+        canvas.update()
+        #self._layout()
+
+    def save(self, filename=None):
+
+        """
+        Print the contents of this ``CanvasFrame`` to a postscript
+        file.  If no filename is given, then prompt the user for one.
+
+        :param filename: The name of the file to print the tree to.
+        :type filename: str
+        :rtype: None
+        """
+        if filename is None:
+            from tkinter.filedialog import asksaveasfilename
+            ftypes = [('PNG', '.png'),
+                      ('All files', '*')]
+
+            filename = asksaveasfilename(filetypes=ftypes, initialdir = '~',
+                                         defaultextension='.png')
+            if not filename: return
+        image = self._top.nametowidget(self._cframe.select())._canvas.image
+        image.save(filename)
+
+class CreateToolTip(object):
+    '''
+    create a tooltip for a given widget
+    '''
+    def __init__(self, widget, text='widget info'):
+        self.widget = widget
+        self.text = text
+        self.widget.bind("<Enter>", self.enter)
+        self.widget.bind("<Leave>", self.close)
+    def enter(self, event=None):
+        x = y = 0
+        x, y, cx, cy = self.widget.bbox("insert")
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 20
+        # creates a toplevel window
+        self.tw = Toplevel(self.widget)
+        # Leaves only the label and removes the app window
+        self.tw.wm_overrideredirect(True)
+        self.tw.wm_geometry("+%d+%d" % (x, y))
+        label = Label(self.tw, text=self.text, justify='left',
+                       background='yellow', relief='solid', borderwidth=1,
+                       #font=("times", "8", "normal")
+                       )
+        label.pack(ipadx=1)
+    def close(self, event=None):
+        if self.tw:
+            self.tw.destroy()
 
 ##//////////////////////////////////////////////////////
 ##  Demo Code

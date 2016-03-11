@@ -30,10 +30,13 @@ def add_cluster(Graph, parent_index, root, topologies):
         left_shared_area = topology.ls
         right_shared_area = topology.rs
         count_fields = len(topology.keys())
+
+        non_shared_cluster_gorns = set(edge.gorn for edge in root )
+        cluster_gorns = set(topology.gorns())
+
+        shared_edges = non_shared_cluster_gorns - cluster_gorns
+
         n = 0
-
-        non_shared_cluster_gorns = (edge.gorn for edge in root )
-
         for field, field_gorns in topology.items():
 
             shared = False
@@ -46,15 +49,18 @@ def add_cluster(Graph, parent_index, root, topologies):
                 for gorn in field_gorns:
                     edge = root.find_edge(gorn)
                     cluster_labels.append('<TD>{}</TD>'.format(field_label))
-                    cluster_edges.append('<TD {} PORT="{}">{}</TD>'.format('STYLE="dashed"' if shared else '', gorn, edge_label(edge, delim='<br />')))
-                    add_cluster(Graph, root.gorn, edge, edge.topologies)
-                    # draw topology 'inheritance' line
-                    if edge.topologies:
-                        #child_index = 10 * len(str(edge.gorn)) + edge.gorn
-                        Graph.add_edge(root.gorn, gorn, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open'
-                    # find shared edge
                     if gorn not in non_shared_cluster_gorns:
-                        pass
+                        Graph.add_edge(root.gorn, str(gorn)[:-1], dir='back', tailport=gorn, headport='{}:nw'.format(gorn), style='bold',  color='blue')
+                        cluster_edges.append('<TD {} PORT="{}"><FONT POINT-SIZE="80">.</FONT></TD>'.format('STYLE="dashed"' if shared else '', gorn))
+                    else:
+                        cluster_edges.append('<TD {} PORT="{}">{}</TD>'.format('STYLE="dashed"' if shared else '', gorn, edge_label(edge, delim='<br />')))
+                        add_cluster(Graph, root.gorn, edge, edge.topologies)
+                        if edge.topologies:
+                            #child_index = 10 * len(str(edge.gorn)) + edge.gorn
+                            Graph.add_edge(root.gorn, gorn, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open'
+
+                    # draw topology 'inheritance' line
+
 
             # draw empty fields of the panel
             else:
@@ -66,8 +72,8 @@ def add_cluster(Graph, parent_index, root, topologies):
 
 
 
-        html_label = '< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><tr><td COLSPAN="{}">{}</td></tr><tr>{}</tr><tr>{}</tr></TABLE>>'.format(len(cluster_edges), cluster_title, ''.join(cluster_labels), ''.join(cluster_edges))
-
+        html_label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><tr><td COLSPAN="{}">{}</td></tr><tr>{}</tr><tr>{}</tr></TABLE>>'.format(len(cluster_edges), cluster_title, ''.join(cluster_labels), ''.join(cluster_edges))
+        #  STYLE="rounded" - doesn't work for table
 
         Graph.add_node(root.gorn,label=html_label, shape='plaintext')
 
@@ -154,14 +160,13 @@ def draw_graph(graph):
 
     add_cluster(G, 0, graph, graph.topologies)
 
-    print(G.string()) # print dot file to standard output
+    #print(G.string()) # print dot file to standard output
     # 'unflatten -l 3 | dot
     # use console to provide better layout for a dot file $:cat graph.dot | unflatten -l 1 | dot -Tpdf > graph.pdf
     G.layout(prog='dot') # layout with dot
 
     # G.layout('neato') # layout with dot
     return G.draw(format='png')
-
 
 if __name__ == "__main__":
     pass
