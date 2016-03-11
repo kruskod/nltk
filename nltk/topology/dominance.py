@@ -68,7 +68,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         print("Number alternatives: ", len(alternatives))
         #draw_graph(alternatives[0])
         if alternatives:
-            Graphview(*alternatives[:20])
+            Graphview(*sorted(alternatives[:20], key=FeatTree.leaves))
             #TreeTabView(*alternatives[:20])
         # print(alternatives)
         # print(feat_tree)
