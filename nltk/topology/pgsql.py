@@ -187,6 +187,41 @@ def get_rules(tokens, dump=True):
         cnx.close()
     return rules
 
+def get_word_inf(word):
+    cnx = connect()
+    if cnx:
+        cursor = cnx.cursor()
+
+        query = (
+        'SELECT '
+        ' l.lemmaId as Lemma_Id, '
+        ' f.lexFrameKey as WordFrame_lexFrameKey, '
+        ' l.lemma as Lemma_lemma, l.feature as Lemma_feature, '
+        ' w.word as WordForm_word, w.pronuncation as WordForm_pronuncation, '
+        ' c.pos as WordCategory_pos, c.feature as WordCategory_feature,	c.description as WordCategory_description, c.example as WordCategory_example,	'
+        ' i.feature as InflectionalForm_feature, i.description as InflectionalForm_description, '
+        ' c.feature as WordCategory_feature,    c.description as WordCategory_description,	c.example as WordCategory_example'
+        ' FROM    WordForm w'
+        '   inner join    WordFrame f ON w.lemmaId = f.lemmaId'
+        '   inner join    WordCategory c ON c.lexFrameKey = f.lexFrameKey'
+        '   inner join    InflectionalForm i ON i.inflFormKey = w.inflFormKey'
+        '   inner join    PartOfSpeech p ON p.pos = c.pos'
+        '   inner join    Lemma l ON l.lemmaId = w.lemmaId'
+        ' where w.word =%s order by LENGTH(f.lexFrameKey), f.lexFrameKey;')
+
+        cursor.execute(query, (word,))
+
+        frames = []
+
+        if cursor:
+            frames.append(cursor.column_names)
+            for rule in cursor:
+                frames.append(tuple(item if isinstance(item, (str,int)) else '' if not item else item.decode("utf-8") for item in rule))
+            cursor.close()
+        cnx.close()
+    return frames
+
+
 def get_frame_extensions(dump = True):
     cnx = connect()
     extensions = []
@@ -226,5 +261,7 @@ if __name__ == "__main__":
     # get_rules('Monopole sollen geknackt werden'.split())
     # get_frame_extensions()
     # print(read_extensions())
-    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    build_rules('ich sehe'.split(), fstruct_reader)
+    # fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    # print(build_rules('Kurier'.split(), fstruct_reader))
+    frames = get_word_inf('werden')
+    print(frames)

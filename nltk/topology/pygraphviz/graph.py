@@ -57,20 +57,13 @@ def add_cluster(Graph, parent_index, root, topologies):
                         add_cluster(Graph, root.gorn, edge, edge.topologies)
                         if edge.topologies:
                             #child_index = 10 * len(str(edge.gorn)) + edge.gorn
-                            Graph.add_edge(root.gorn, gorn, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open'
-
-                    # draw topology 'inheritance' line
-
+                            Graph.add_edge(root.gorn, gorn, tailport=gorn, dir='back', color="invis:black:invis:black:invis", ) #arrowtail='open' arrowtail='vee'
 
             # draw empty fields of the panel
             else:
                 cluster_labels.append('<TD>{}</TD>'.format(field_label))
                 cluster_edges.append('<TD {}></TD>'.format('STYLE="dashed"' if shared else ''))
             n += 1
-
-
-
-
 
         html_label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><tr><td COLSPAN="{}">{}</td></tr><tr>{}</tr><tr>{}</tr></TABLE>>'.format(len(cluster_edges), cluster_title, ''.join(cluster_labels), ''.join(cluster_edges))
         #  STYLE="rounded" - doesn't work for table
