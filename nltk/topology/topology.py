@@ -661,11 +661,12 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='Monopole sollen geknackt werden', numparses=0):
+         sent='ich bin', numparses=0):
     """
     Monopole sollen geknackt werden
 
     sent examples:
+    'der Kurier sollte nachher einem Spion den Brief stecken'
         wen habe ich gesehen
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
         Monopole sollen geknackt und Märkte getrennt werden.

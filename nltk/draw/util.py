@@ -204,12 +204,16 @@ class CanvasWidget(object):
 
         # Register any new bindings
         for tag in self._tags():
+            # self.__canvas.tag_bind(tag, '<Double-1>',
+            #                        self.__press_cb)
             self.__canvas.tag_bind(tag, '<ButtonPress-1>',
                                    self.__press_cb)
             self.__canvas.tag_bind(tag, '<ButtonPress-2>',
                                    self.__press_cb)
             self.__canvas.tag_bind(tag, '<ButtonPress-3>',
                                    self.__press_cb)
+
+
 
     ##//////////////////////////////////////////////////////
     ##  Inherited methods.
@@ -488,7 +492,7 @@ class CanvasWidget(object):
         self.__callbacks['drag'] = callback
 
     def unbind_click(self, button=1):
-        """
+        """self.__click
         Remove a callback that was registered with ``bind_click``.
 
         :type button: int

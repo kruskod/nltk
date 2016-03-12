@@ -257,6 +257,7 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             return True
 
     def add_feature(self, feature_map):
+        self._frozen = False
         if EXPRESSION in self:
             simpl_expres = simplify_expression(self[EXPRESSION])
             if isinstance(simpl_expres, dict):
@@ -268,7 +269,6 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
                     ex.update(feature_map)
                 self[EXPRESSION] = combine_expression(simpl_expres)
         else:
-            self._frozen = False
             self.update(feature_map)
 
 
