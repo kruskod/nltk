@@ -15,6 +15,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
     # top_dict = dict()
     # for topology in topologies:
     #     top_dict[topology.tag] = copy.copy(topology)
+
     for tree in dumped_trees:
         print(tree)
         feat_tree = FeatTree(tree)
@@ -28,7 +29,10 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
 
         result = []
 
+        #alternatives = (alternatives[2],)
+
         for alternative in alternatives:
+            print(" ".join(alternative.leaves()))
             alternative.share()
             result.extend(alternative.split_shared_topologies())
 
@@ -73,7 +77,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         # print(alternatives)
         # print(feat_tree)
         print(80*'#')
-        # ps2pdf -dEPSCrop Monopole_tree.ps
+    # ps2pdf -dEPSCrop Monopole_tree.ps
 
 def validate_alternative(alternative):
     if not alternative.topologies:

@@ -75,6 +75,7 @@ class Topology(OrderedDict):
         return "{}:{}".format(self.__class__.__name__, str(self))
 
     def add_field(self, field):
+        field.topology = self
         self[field] = ()
         for gram_func in field.grammatical_funcs:
             gram_func.field = field
@@ -398,8 +399,10 @@ def build_topologies():
             .add_field(Field(FT.M2c, grammatical_funcs=(
                 GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro))),)))
             .add_field(Field(FT.M3, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (any(edge for edge in field.topology[FT.M2b].edges if edge.gf == GF.dobj and edge.ph == PH.NP))
-                    or (any(edge for edge in field.topology[FT.M2c].edges if edge.gf == GF.iobj and edge.ph == PH.NP))), )))
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})
+                   # and (any(gorn for gorn in field.topology[FT.M2b] if gorn.gf == GF.dobj and gorn.ph == PH.NP))
+                   # or (any(edge for edge in field.topology[FT.M2c].edges if edge.gf == GF.iobj and edge.ph == PH.NP))
+                         ), )))
             .add_field(Field(FT.M4a, grammatical_funcs=(
                 GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.DEM_PRO, PH.rel_pro, PH.pers_pro))),
                   GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
@@ -533,7 +536,9 @@ def build_topologies():
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.DEM_PRO, PH.pers_pro)))),)))
 
             .add_field(Field(FT.M3, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (any(edge for edge in field.topology[FT.M2b].edges if edge.fit(GF.dobj, PH.NP)) or any(edge for edge in field.topology[FT.M2c].edges if edge.fit(GF.iobj, PH.NP)))),), dependencies = (FT.M2b, FT.M2c), ))
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})
+                    #and (any(edge for edge in field.topology[FT.M2b].edges if edge.fit(GF.dobj, PH.NP)) or any(edge for edge in field.topology[FT.M2c].edges if edge.fit(GF.iobj, PH.NP)))
+                         ),), dependencies = (FT.M2b, FT.M2c), ))
 
             .add_field(Field(FT.M4a, grammatical_funcs=(
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.DEM_PRO, PH.pers_pro))),)))
@@ -661,11 +666,13 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='ich bin', numparses=0):
+         sent='ich darf Kaffee trinken', numparses=0):
     """
+    Kaffee darf ich jeden Tag trinken
     Monopole sollen geknackt werden
 
     sent examples:
+    den Kaffee darf ich an dem Tag trinken
     'der Kurier sollte nachher einem Spion den Brief stecken'
         wen habe ich gesehen
         Monopole sollen geknackt werden und Märkte sollen getrennt werden.
@@ -725,17 +732,21 @@ def demo(print_times=True, print_grammar=False,
     verifier = wordPresenceVerifier(tokens)
     for tree in parses:
         count_trees += 1
-        ver_result = verifier(tree)
-        has_subj = False
-        for sub_tree in tree:
-            if sub_tree._label[TYPE] == 'subj':
-                has_subj = True
-                break
-        if ver_result and has_subj and tree._label.has_feature({'status': 'Fin'}):
+        if verifier(tree):
             try:
                 dominance_structures.append(tree)
             except ValueError:
                 pass
+        # has_subj = False
+        # for sub_tree in tree:
+        #     if sub_tree._label[TYPE] == 'subj':
+        #         has_subj = True
+        #         break
+        # if ver_result and has_subj and tree._label.has_feature({'status': 'Fin'}):
+        #     try:
+        #         dominance_structures.append(tree)
+        #     except ValueError:
+        #         pass
         #print(tree)
         #print("Word presence verification result: {}".format(ver_result))
     # topologies = build_topologies()

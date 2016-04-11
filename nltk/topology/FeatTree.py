@@ -83,6 +83,7 @@ class PH(AutoNumber):
     DEM_PRO = ()
     pers_pro = ()
     poss_pro = ()
+    indef_pro = ()
     PP = ()
     ADJP = ()
     ADVP = ()
@@ -382,7 +383,7 @@ class FeatTree(Tree):
                 ls = rs = ()
                 # sharing rules from the article Dutch and German verb clusters in Performance Grammar, G.Kempen & K.Harbusch 10.2002
                 if STATUS.Infin.name in status:
-                    if VCAT.VE.name in vcat:
+                    if VCAT.VE.name in vcat or VCAT.VS.name in vcat:
                         ls = (1,)
                         rs = range(0,2)
                     elif VCAT.VT.name in vcat or VCAT.Passive.name in vcat:
@@ -583,6 +584,8 @@ class FeatTree(Tree):
         for topology in sorted(result, key=repr):
             if topology.isvalid():
                 self.topologies.append(topology)
+            else:
+                print("invalid topology:", topology)
 
         if not self.ishead():
             for child in self:
