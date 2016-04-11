@@ -156,7 +156,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         cursor.close()
         frameCursor.close()
         cnx.close()
-    return FeatureGrammar(FeatStructNonterminal('S'), productions)
+    return FeatureGrammar(FeatStructNonterminal("S[status='Fin']"),  productions)
 
 
 def get_rules(tokens, dump=True):

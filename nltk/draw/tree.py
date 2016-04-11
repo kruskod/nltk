@@ -20,6 +20,8 @@ from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
                             TextWidget, ParenWidget, OvalWidget)
 from nltk.grammar import FeatStructNonterminal
 from nltk.topology import FeatTree
+from nltk.topology.FeatTree import get_feature
+from nltk.topology.compassFeat import PRODUCTION_ID_FEATURE
 from nltk.topology.draw.ntree import nTextWidget, nTreeSegmentWidget
 from nltk.topology.pgsql import get_word_inf
 from nltk.topology.pygraphviz.graph import draw_graph
@@ -1043,7 +1045,7 @@ class TreeTabView(TreeView):
             # canvas.update()
             # canvas.update()
             widget.bind_click_leaves(widget.toggle_leave)
-            widget.bind_click_trees(widget.toggle_collapsed)
+            widget.bind_click_trees(widget.toggle_frame)
             nb.add(tab, text=(' '.join(trees[i].leaves())))
             canvas.pack(side='left', fill='both', expand=True)
 
@@ -1688,8 +1690,6 @@ class FeatTreeWidget(CanvasWidget):
 
         tree = Treeview(top, columns=headings_gen)
 
-
-
         # Style().configure( '.',
 			# 			relief = 'flat',
 			# 			borderwidth = 1,
@@ -1735,65 +1735,6 @@ class FeatTreeWidget(CanvasWidget):
         text = tree.text = Text(top, height=5, wrap='word')
         text.pack(expand=YES, fill=BOTH)
 
-        # canvas.config(width = imageSizeWidth, height = imageSizeHeight)
-        # tree.config(scrollregion=top.bbox(ALL))
-        #tree.update()
-        #top.config(size=tree.bbox())
-        #top.pack(fill=BOTH, expand=YES)
-
-
-
-
-         ## Link scrollbars activation to top-level object
-        #tree.configure( yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        # top.update()
-
-
-
-        # # Inserted at the root, program chooses id:
-        # tree.insert('', 'end', 'widgets', text='Widget Tour')
-        #
-        # # Same thing, but inserted as first child:
-        # tree.insert('', 0, 'gallery', text='Applications')
-        #
-        # # Treeview chooses the id:
-        # id = tree.insert('', 'end', text='Tutorial')
-        #
-        # # Inserted underneath an existing node:
-        # tree.insert('widgets', 'end', text='Canvas')
-        # tree.insert(id, 'end', text='Tree')
-
-
-
-
-
-        # old_treeseg = treeseg
-        # if old_treeseg['roof']:
-        #     new_treeseg = self._expanded_trees[self._keys[old_treeseg]]
-        # else:
-        #     new_treeseg = self._collapsed_trees[self._keys[old_treeseg]]
-        #
-        # # Replace the old tree with the new tree.
-        # if old_treeseg.parent() is self:
-        #     self._remove_child_widget(old_treeseg)
-        #     self._add_child_widget(new_treeseg)
-        #     self._treeseg = new_treeseg
-        # else:
-        #     old_treeseg.parent().replace_child(old_treeseg, new_treeseg)
-        #
-        # # Move the new tree to where the old tree was.  Show it first,
-        # # so we can find its bounding box.
-        # new_treeseg.show()
-        # (newx, newy) = new_treeseg.label().bbox()[:2]
-        # (oldx, oldy) = old_treeseg.label().bbox()[:2]
-        # new_treeseg.move(oldx - newx, oldy - newy)
-        #
-        # # Hide the old tree
-        # old_treeseg.hide()
-        #
-        # # We could do parent.manage() here instead, if we wanted.
-        # # new_treeseg.parent().update(new_treeseg)
-        # new_treeseg.parent().manage()
 
     def treeclick(self, event):
         tree = event.widget
@@ -1807,40 +1748,70 @@ class FeatTreeWidget(CanvasWidget):
 
 
 
-    def toggle_collapsed(self, treeseg):
-        """
-        Collapse/expand a tree.
-        """
-        # on click get information from Database
-        # and show it in sep
+    def toggle_frame(self, treeseg):
+        tree = treeseg._featTree
+        #rint("Hello toggle!")
+        prodId = get_feature(tree.label(), PRODUCTION_ID_FEATURE)
+        if not prodId:
+            return
+        prodId = prodId.pop()
+        top = Toplevel()
+        top.title(prodId)
+        top.wm_geometry(newGeometry=('800x600'))
 
-        # old_treeseg = treeseg
-        # if old_treeseg['roof']:
-        #     new_treeseg = self._expanded_trees[self._keys[old_treeseg]]
-        # # else:
-        # #     new_treeseg = self._collapsed_trees[self._keys[old_treeseg]]
+        # frames = get_word_inf(label)
         #
-        # # Replace the old tree with the new tree.
-        # if old_treeseg.parent() is self:
-        #     self._remove_child_widget(old_treeseg)
-        #     self._add_child_widget(new_treeseg)
-        #     self._treeseg = new_treeseg
-        # else:
-        #     old_treeseg.parent().replace_child(old_treeseg, new_treeseg)
+        # headings = tuple(head.replace('_',' ') for head in frames[0][1:])
+        # headings_gen = tuple(range(len(headings)))
         #
-        # # Move the new tree to where the old tree was.  Show it first,
-        # # so we can find its bounding box.
-        # new_treeseg.show()
-        # (newx, newy) = new_treeseg.label().bbox()[:2]
-        # (oldx, oldy) = old_treeseg.label().bbox()[:2]
-        # new_treeseg.move(oldx - newx, oldy - newy)
+        # tree = Treeview(top, columns=headings_gen)
         #
-        # # Hide the old tree
-        # old_treeseg.hide()
+        # # Style().configure( '.',
+			# # 			relief = 'flat',
+			# # 			borderwidth = 1,
+			# # 		)
         #
-        # # We could do parent.manage() here instead, if we wanted.
-        # # new_treeseg.parent().update(new_treeseg)
-        # new_treeseg.parent().manage()
+        # vsb = Scrollbar(tree,
+        #                 orient="vertical",
+        #                 command = tree.yview
+        #                 )
+        #
+        # hsb = Scrollbar(tree,
+        #                 orient="horizontal",
+        #                 command = tree.xview
+        #                 )
+        # tree.configure(yscroll=vsb.set, xscroll=hsb.set)
+        #
+        #
+        # ## Link scrollbar also to every columns
+        # map ( lambda col : col.configure(yscrollcommand=vsb.set,xscrollcommand=hsb.set), headings_gen )
+        #
+        #
+        #
+        # for cid, head in enumerate(headings):
+        #     tree.column(cid, width=len(head)*10, stretch=YES)
+        #     tree.heading(cid, text=head)
+        #
+        # for frame in frames[1:]:
+        #     tree.insert('', 'end', values=frame)
+        #
+        # # tree.tag_bind('ttk', '<1>', itemClicked)  # the item clicked can be found via tree.focus()
+        #
+        #
+        # tree.column('#0', minwidth=0, width=0, stretch=NO)
+        # #tree['displaycolumns'] = headings_gen
+        #
+        #
+        #
+        # tree.pack(expand=YES, fill=BOTH)
+        # tree.bind("<Double-1>", self.treeclick)
+        # vsb.pack(side="right",  fill="y")
+        # hsb.pack(side="bottom", fill="x")
+        #
+        # text = tree.text = Text(top, height=5, wrap='word')
+        # text.pack(expand=YES, fill=BOTH)
+
+
 
 
 
