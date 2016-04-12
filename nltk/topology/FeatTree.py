@@ -80,7 +80,7 @@ class PH(AutoNumber):
     QP = ()
     n = ()
     rel_pro = ()
-    DEM_PRO = ()
+    dem_pro = ()
     pers_pro = ()
     poss_pro = ()
     indef_pro = ()
@@ -91,6 +91,7 @@ class PH(AutoNumber):
     v = ()
     adj = ()
     co_conj = ()
+    art = ()
     # leaves
     # S0 = ()
 
@@ -537,14 +538,17 @@ class FeatTree(Tree):
                 has_duplicate = False
                 forks = []
                 for index, top in enumerate(unified_topologies):
+                    alternatives = False
                     for field, field_gorns in top.items():
                         if len(field_gorns) > 1:
                             has_duplicate = True
-                            del unified_topologies[index]
                             for edge in field_gorns:
                                 new_topology = copy.deepcopy(topology)
                                 new_topology[field] = (edge,)
                                 forks.append(new_topology)
+                            del unified_topologies[index]
+                            break
+
                 if forks:
                      unified_topologies.extend(forks)
 

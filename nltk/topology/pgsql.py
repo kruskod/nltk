@@ -214,7 +214,7 @@ def get_word_inf(word):
         frames = []
 
         if cursor:
-            frames.append(cursor.column_names)
+            frames.append(('',) +  cursor.column_names)
             for rule in cursor:
                 frames.append(tuple(item if isinstance(item, (str,int)) else '' if not item else item.decode("utf-8") for item in rule))
             cursor.close()
