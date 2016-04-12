@@ -1496,6 +1496,8 @@ class FeatTreeWidget(CanvasWidget):
         self._nodes = []
         self._leaves = []
         # self._locs = []
+        self.toggle_leave_widget = None
+        self.toggle_leave_text = None
 
         remove_attribs = set()
         for attr, value in attribs.items():
@@ -1679,7 +1681,20 @@ class FeatTreeWidget(CanvasWidget):
         """
         label = treeseg._text
         #rint("Hello toggle!")
-        top = Toplevel()
+
+        if not  self.toggle_leave_widget:
+            self.toggle_leave_widget = top = Toplevel()
+        else:
+            top = self.toggle_leave_widget
+
+        if label == self.toggle_leave_text:
+            top.tkraise()
+            return
+        else:
+            self.toggle_leave_text = label
+            for child in top.children.copy():
+                top.nametowidget(child).destroy()
+
         top.title(label)
         top.wm_geometry(newGeometry=('800x600'))
 
