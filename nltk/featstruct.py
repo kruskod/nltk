@@ -1262,7 +1262,7 @@ UnificationFailure = _UnificationFailure()
 #   3. Apply forward pointers, to preserve reentrance.
 #   4. Replace bound variables with their values.
 def unify(fstruct1, fstruct2, bindings=None, trace=False,
-          fail=None, rename_vars=True, fs_class='default', treatBool = True):
+          fail=None, rename_vars=True, fs_class='default', treatBool = False):
     """
     Unify ``fstruct1`` with ``fstruct2``, and return the resulting feature
     structure.  This unified feature structure is the minimal
@@ -1415,7 +1415,8 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
         try:
             result = _destructively_unify(fstruct1copy, fstruct2copy, bindings,
                                            forward, trace, fail, fs_class, (), treatBool)
-        except _UnificationFailureError: return None
+        except _UnificationFailureError:
+            return None
 
     # _destructively_unify might return UnificationFailure, e.g. if we
     # tried to unify a mapping with a sequence.
