@@ -23,7 +23,7 @@ from nltk.topology import FeatTree
 from nltk.topology.FeatTree import get_feature
 from nltk.topology.compassFeat import PRODUCTION_ID_FEATURE
 from nltk.topology.draw.ntree import nTextWidget, nTreeSegmentWidget
-from nltk.topology.pgsql import get_word_inf
+from nltk.topology.pgsql import get_word_inf, get_frame_segments, get_frame_features, get_frame_examples
 from nltk.topology.pygraphviz.graph import draw_graph
 from nltk.tree import Tree
 from nltk.util import in_idle
@@ -1230,7 +1230,6 @@ class Graphview(TreeTabView):
 
         self._layout()
         self._init_menubar()
-        nb.pack(expand=1, fill="both")
 
         # self._top.update_idletasks()
         # self._cframe.update_idletasks()
@@ -1499,6 +1498,9 @@ class FeatTreeWidget(CanvasWidget):
         self.toggle_leave_widget = None
         self.toggle_leave_text = None
 
+        self.toggle_frame_widget = None
+        self.toggle_frame_text = None
+
         remove_attribs = set()
         for attr, value in attribs.items():
             if attr[:5] == 'node_':
@@ -1682,10 +1684,11 @@ class FeatTreeWidget(CanvasWidget):
         label = treeseg._text
         #rint("Hello toggle!")
 
-        if not  self.toggle_leave_widget:
-            self.toggle_leave_widget = top = Toplevel()
-        else:
-            top = self.toggle_leave_widget
+        if not  self.toggle_leave_widget or not self.toggle_leave_widget.winfo_exists():
+            self.toggle_leave_widget = Toplevel()
+            self.toggle_leave_text = None
+
+        top = self.toggle_leave_widget
 
         if label == self.toggle_leave_text:
             top.tkraise()
@@ -1700,56 +1703,7 @@ class FeatTreeWidget(CanvasWidget):
 
         frames = get_word_inf(label)
 
-        headings = tuple(head.replace('_',' ') for head in frames[0][1:])
-        headings_gen = tuple(range(len(headings)))
-
-        tree = Treeview(top, columns=headings_gen)
-
-        # Style().configure( '.',
-			# 			relief = 'flat',
-			# 			borderwidth = 1,
-			# 		)
-
-        vsb = Scrollbar(tree,
-                        orient="vertical",
-                        command = tree.yview
-                        )
-
-        hsb = Scrollbar(tree,
-                        orient="horizontal",
-                        command = tree.xview
-                        )
-        tree.configure(yscroll=vsb.set, xscroll=hsb.set)
-
-
-        ## Link scrollbar also to every columns
-        map ( lambda col : col.configure(yscrollcommand=vsb.set,xscrollcommand=hsb.set), headings_gen )
-
-
-
-        for cid, head in enumerate(headings):
-            tree.column(cid, width=len(head)*10, stretch=YES)
-            tree.heading(cid, text=head)
-
-        for frame in frames[1:]:
-            tree.insert('', 'end', values=frame)
-
-        # tree.tag_bind('ttk', '<1>', itemClicked)  # the item clicked can be found via tree.focus()
-
-
-        tree.column('#0', minwidth=0, width=0, stretch=NO)
-        #tree['displaycolumns'] = headings_gen
-
-
-
-        tree.pack(expand=YES, fill=BOTH)
-        tree.bind("<Double-1>", self.treeclick)
-        vsb.pack(side="right",  fill="y")
-        hsb.pack(side="bottom", fill="x")
-
-        text = tree.text = Text(top, height=5, wrap='word')
-        text.pack(expand=YES, fill=BOTH)
-
+        self.create_panel(top, frames)
 
     def treeclick(self, event):
         tree = event.widget
@@ -1757,6 +1711,8 @@ class FeatTreeWidget(CanvasWidget):
         item = tree.identify('item',event.x,event.y)
         column = tree.identify('column',event.x,event.y)
         value = tree.item(item,"value")
+        if not value:
+            return;
 
         tree.text.delete(1.0, END)
         tree.text.insert(END, value[int(column[1:]) - 1])
@@ -1767,65 +1723,87 @@ class FeatTreeWidget(CanvasWidget):
         prodId = get_feature(tree.label(), PRODUCTION_ID_FEATURE)
         if not prodId:
             return
+
         prodId = prodId.pop()
-        top = Toplevel()
+        if not self.toggle_frame_widget or not self.toggle_frame_widget.winfo_exists():
+            self.toggle_frame_widget = Toplevel()
+            self.toggle_frame_text = None
+
+        top = self.toggle_frame_widget
+
+        if prodId == self.toggle_frame_text:
+            top.tkraise()
+            return
+        else:
+            self.toggle_frame_text = prodId
+            for child in top.children.copy():
+                top.nametowidget(child).destroy()
+
         top.title(prodId)
         top.wm_geometry(newGeometry=('800x600'))
 
-        # frames = get_word_inf(label)
-        #
-        # headings = tuple(head.replace('_',' ') for head in frames[0][1:])
-        # headings_gen = tuple(range(len(headings)))
-        #
-        # tree = Treeview(top, columns=headings_gen)
-        #
-        # # Style().configure( '.',
-			# # 			relief = 'flat',
-			# # 			borderwidth = 1,
-			# # 		)
-        #
-        # vsb = Scrollbar(tree,
-        #                 orient="vertical",
-        #                 command = tree.yview
-        #                 )
-        #
-        # hsb = Scrollbar(tree,
-        #                 orient="horizontal",
-        #                 command = tree.xview
-        #                 )
-        # tree.configure(yscroll=vsb.set, xscroll=hsb.set)
-        #
-        #
-        # ## Link scrollbar also to every columns
-        # map ( lambda col : col.configure(yscrollcommand=vsb.set,xscrollcommand=hsb.set), headings_gen )
-        #
-        #
-        #
-        # for cid, head in enumerate(headings):
-        #     tree.column(cid, width=len(head)*10, stretch=YES)
-        #     tree.heading(cid, text=head)
-        #
-        # for frame in frames[1:]:
-        #     tree.insert('', 'end', values=frame)
-        #
-        # # tree.tag_bind('ttk', '<1>', itemClicked)  # the item clicked can be found via tree.focus()
-        #
-        #
-        # tree.column('#0', minwidth=0, width=0, stretch=NO)
-        # #tree['displaycolumns'] = headings_gen
-        #
-        #
-        #
-        # tree.pack(expand=YES, fill=BOTH)
-        # tree.bind("<Double-1>", self.treeclick)
-        # vsb.pack(side="right",  fill="y")
-        # hsb.pack(side="bottom", fill="x")
-        #
-        # text = tree.text = Text(top, height=5, wrap='word')
-        # text.pack(expand=YES, fill=BOTH)
+        nb = Notebook(top)
 
+        tab1 = Frame(nb)
+        nb.add(tab1, text='Segments')
 
+        self.create_panel(tab1, get_frame_segments(prodId))
 
+        tab2 = Frame(nb)
+        nb.add(tab2, text='Features')
+        self.create_panel(tab2, get_frame_features(prodId))
+
+        tab3 = Frame(nb)
+        nb.add(tab3, text='Examples')
+        self.create_panel(tab3, get_frame_examples(prodId))
+
+        nb.pack(fill=BOTH, expand=1)
+
+    def create_panel(self, parent_widget, frames):
+
+        headings = tuple(head.replace('_', ' ') for head in frames[0][1:])
+        headings_gen = tuple(range(len(headings)))
+
+        tree = Treeview(parent_widget, columns=headings_gen)
+
+        # Style().configure( '.',
+        # 			relief = 'flat',
+        # 			borderwidth = 1,
+        # 		)
+
+        vsb = Scrollbar(tree,
+                        orient="vertical",
+                        command=tree.yview
+                        )
+
+        hsb = Scrollbar(tree,
+                        orient="horizontal",
+                        command=tree.xview
+                        )
+        tree.configure(yscroll=vsb.set, xscroll=hsb.set)
+
+        ## Link scrollbar also to every columns
+        map(lambda col: col.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set), headings_gen)
+
+        for cid, head in enumerate(headings):
+            tree.column(cid, width=len(head) * 10, stretch=YES)
+            tree.heading(cid, text=head)
+
+        for frame in frames[1:]:
+            tree.insert('', 'end', values=frame)
+
+        # tree.tag_bind('ttk', '<1>', itemClicked)  # the item clicked can be found via tree.focus()
+
+        tree.column('#0', minwidth=0, width=0, stretch=NO)
+        # tree['displaycolumns'] = headings_gen
+
+        tree.pack(expand=YES, fill=BOTH)
+        tree.bind("<Double-1>", self.treeclick)
+        vsb.pack(side="right", fill="y")
+        hsb.pack(side="bottom", fill="x")
+
+        text = tree.text = Text(parent_widget, height=5, wrap='word')
+        text.pack(expand=YES, fill=BOTH)
 
 
 if __name__ == '__main__':

@@ -218,7 +218,7 @@ def get_word_inf(word):
         ' w.word as WordForm_word, w.pronuncation as WordForm_pronuncation, '
         ' c.pos as WordCategory_pos, c.feature as WordCategory_feature,	c.description as WordCategory_description, c.example as WordCategory_example,	'
         ' i.feature as InflectionalForm_feature, i.description as InflectionalForm_description, '
-        ' c.feature as WordCategory_feature,    c.description as WordCategory_description,	c.example as WordCategory_example'
+        ' p.feature as PartOfSpeech_feature,    p.description as PartOfSpeech_description,	p.example as PartOfSpeech_example'
         ' FROM    WordForm w'
         '   inner join    WordFrame f ON w.lemmaId = f.lemmaId'
         '   inner join    WordCategory c ON c.lexFrameKey = f.lexFrameKey'
@@ -228,15 +228,93 @@ def get_word_inf(word):
         ' where w.word =%s order by LENGTH(f.lexFrameKey), f.lexFrameKey;')
 
         cursor.execute(query, (word,))
-
-        frames = []
-
-        if cursor:
-            frames.append(('',) +  cursor.column_names)
-            for rule in cursor:
-                frames.append(tuple(item if isinstance(item, (str,int)) else '' if not item else item.decode("utf-8") for item in rule))
-            cursor.close()
         cnx.close()
+        return form_frames(cursor)
+
+def get_frame_segments(lexFrameKey):
+    cnx = connect()
+    if cnx:
+        cursor = cnx.cursor()
+        query = (
+            'select '
+            ' w.lexFrameKey as WordCategorySegment_lexFrameKey,'
+            ' w.position as WordCategorySegment_position,'
+            ' w.facultative as WordCategorySegment_facultative,'
+            ' s.pos1 as Segment_pos1,'
+            ' s.pos2 as Segment_pos2,'
+            ' s.pos3 as Segment_pos2,'
+            ' s.example as Segment_example,'
+            ' u.cond as UnificationFeatures_condition,'
+            ' u.feature as UnificationFeatures_feature,'
+            ' u.example as UnificationFeatures_example'
+        ' from WordCategorySegment w'
+        ' inner join Segment s on s.position = w.position'
+        ' left join UnificationFeatures u on u.position = w.position'
+        ' where w.lexFrameKey=%s'
+        ' order by w.facultative, w.position;')
+
+        cursor.execute(query, (lexFrameKey,))
+        cnx.close()
+        return form_frames(cursor)
+
+def get_frame_features(lexFrameKey):
+    cnx = connect()
+    if cnx:
+        cursor = cnx.cursor()
+
+        query = (
+            ' select'
+            ' c.lexFrameKey as WordCategory_lexFrameKey,'
+            ' c.lexFrame as WordCategory_lexFrame,'
+            ' c.pos as WordCategory_pos,'
+            ' c.description as WordCategory_description,'
+            ' c.feature as WordCategory_feature,'
+            ' c.example as WordCategory_example,'
+            ' p.description as PartOfSpeech_description,'
+            ' p.feature as PartOfSpeech_feature,'
+            ' p.example as PartOfSpeech_example'
+        ' from WordCategory c'
+        ' inner join PartOfSpeech p ON p.pos = c.pos where c.lexFrameKey=%s')
+
+        cursor.execute(query, (lexFrameKey,))
+        cnx.close()
+        return form_frames(cursor)
+
+def get_frame_examples(lexFrameKey):
+    cnx = connect()
+    if cnx:
+        cursor = cnx.cursor()
+
+        query = (
+             ' select f.lemmaId as WordFrame_lemmaId,'
+             ' f.lexFrameKey as WordFrame_lexFrameKey,'
+             ' f.inflParadigmKey as WordFrame_inflParadigmKey,'
+             ' l.lemma as Lemma_lemma,'
+             ' l.feature as Lemma_feature,'
+             ' w.word as WordForm_word,'
+             ' w.pronuncation as WordForm_pronuncation,'
+             ' w.inflFormKey as WordForm_inflFormKey,'
+             ' i.description as InflectionalForm_description,'
+             ' i.feature as InflectionalForm_feature'
+             ' from WordFrame f'
+             ' inner join Lemma l on l.lemmaId = f.lemmaId'
+             ' inner join WordForm w on f.lemmaId = w.lemmaId'
+             ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey'
+             ' where f.lexFrameKey =%s order by l.lemma, w.word limit 1000;')
+
+        cursor.execute(query, (lexFrameKey,))
+        cnx.close()
+        return form_frames(cursor)
+
+def form_frames(cursor):
+    frames = []
+    if cursor:
+        frames.append(('',) + cursor.column_names)
+        for rule in cursor:
+            frames.append(tuple(
+                item if isinstance(item, (str, int)) else '' if not item else item.decode("utf-8") for item in
+                rule))
+        cursor.close()
     return frames
 
 
