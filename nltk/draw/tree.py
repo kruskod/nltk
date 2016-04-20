@@ -1761,8 +1761,6 @@ class FeatTreeWidget(CanvasWidget):
         tree.text.delete(1.0, END)
         tree.text.insert(END, value[int(column[1:]) - 1])
 
-
-
     def toggle_frame(self, treeseg):
         tree = treeseg._featTree
         #rint("Hello toggle!")

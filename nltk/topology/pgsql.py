@@ -1,10 +1,12 @@
 import copy
 
+
+
 from nltk.featstruct import CelexFeatStructReader, unify, TYPE, EXPRESSION, _unify_feature_values
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
-from nltk.topology.FeatTree import minimize_nonterm, open_disjunction, simplify_expression
+from nltk.topology.FeatTree import minimize_nonterm, open_disjunction, simplify_expression, GF, STATUS
 from nltk.topology.compassFeat import GRAM_FUNC_FEATURE, LEMMA_FEATURE, PRODUCTION_ID_FEATURE, BRANCH_FEATURE, \
-    INHERITED_FEATURE, SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE
+    INHERITED_FEATURE, SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE, STATUS_FEATURE
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -44,7 +46,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         frameQuery = ( 'select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
         ' inner join Segment s on s.position = w.position' +
         ' left join PartOfSpeech p on p.pos = s.pos3' +
-        ' where w.lexFrameKey = %s ' + #  and pos2 !="mod"
+        ' where w.lexFrameKey = %s  and pos2 !="mod" ' +
         ' order by w.facultative, w.position;')
 
         unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
@@ -62,34 +64,50 @@ def build_rules(tokens, fstruct_reader, dump = True):
             cursor.execute(query, (token,))
             for (pos, formFeature, categoryFeature, lemmaFeature, lemma, lexFrameKey, word) in cursor:
                 word = word.decode('utf8')
+                nt = formNT = catNT = None
                 if formFeature:
                     formNT = fstruct_reader.fromstring(formFeature)
-                    formNT = formNT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE,)
+                    formNT = formNT.filter_feature(SLOT_FEATURE,  )
                     formNT[TYPE] = pos
                     nt = formNT
-                else:
-                    formNT = None
+
                 if categoryFeature:
                     catNT = fstruct_reader.fromstring(categoryFeature)
-                    catNT = catNT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE,)
+                    catNT = catNT.filter_feature(SLOT_FEATURE,  )
                     catNT[TYPE] = pos
                     nt = catNT
-                else:
-                    catNT = None
+
                 if formNT and catNT:
-                    nt = unify(formNT, catNT, treatBool=False)
+                    nt = unify(formNT, catNT)
                 if lemmaFeature:
                     nt = unify(nt, fstruct_reader.fromstring(lemmaFeature))
-                nt.add_feature({LEMMA_FEATURE:lemma})
-                nt[TYPE] = pos
+
+                if nt:
+                    nt.add_feature({LEMMA_FEATURE:lemma})
+                    nt[TYPE] = pos
+                else:
+                    nt = fstruct_reader.fromstring(pos)
+
                 #nt = minimize_nonterm(nt)
                 frameCursor.execute(frameQuery, (lexFrameKey,))
                 gf = set()
                 rhs = []
                 #hd = (None, None)
+                personal = nt.get_feature(PERSONAL_FEATURE)
+                if personal:
+                    if not isinstance(personal, bool):
+                        personal = personal[0]
+
+                    if personal:    # weak status rule, discuss with the expert
+                        status = nt.get_feature(STATUS_FEATURE)
+                        if isinstance(status, str):
+                            status = (status,)
+                        if STATUS.Infin.name in status:
+                            personal = False
+
                 for (position, pos1, pos2, pos3, feature, facultative) in frameCursor:
                     pos2NT = FeatStructNonterminal(pos2)
-                    if facultative:
+                    if facultative and not (personal and GF.subj.name == pos2):
                         pos2NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey, BRANCH_FEATURE:'facultative'})
                     else:
                         pos2NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
@@ -105,10 +123,10 @@ def build_rules(tokens, fstruct_reader, dump = True):
                                 continue
                         unNT = fstruct_reader.fromstring(un_feature)
                         # It is actually not unification, but features merging
-                        un_pos3NT = unify(pos3NT, unNT, treatBool=False)
+                        un_pos3NT = unify(pos3NT, unNT)
                         pos3NT = un_pos3NT#.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
 
-                        pos2NT = unify(pos2NT, unNT, treatBool=False)
+                        pos2NT = unify(pos2NT, unNT)
                         pos2NT = pos2NT#.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
 
 
