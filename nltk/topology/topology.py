@@ -666,7 +666,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=2,
-         sent='ich kann lesen', numparses=0):
+         sent='ich bin', numparses=0):
     """
     ich darf Kaffee trinken - works
     Kaffee darf ich jeden Tag trinken
