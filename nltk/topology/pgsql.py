@@ -67,13 +67,13 @@ def build_rules(tokens, fstruct_reader, dump = True):
                 nt = formNT = catNT = None
                 if formFeature:
                     formNT = fstruct_reader.fromstring(formFeature)
-                    formNT = formNT.filter_feature(SLOT_FEATURE,  )
+                    formNT = formNT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE)
                     formNT[TYPE] = pos
                     nt = formNT
 
                 if categoryFeature:
                     catNT = fstruct_reader.fromstring(categoryFeature)
-                    catNT = catNT.filter_feature(SLOT_FEATURE,  )
+                    catNT = catNT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE)
                     catNT[TYPE] = pos
                     nt = catNT
 
@@ -167,6 +167,8 @@ def build_rules(tokens, fstruct_reader, dump = True):
 
                 # productions.append(Production(lhs, rhs).process_inherited_features())
         if dump:
+            productions.append(Production(FeatStructNonterminal("S[]"), (
+                FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
             with open('../../fsa/query.fcfg', "w") as f:
                 for rule in productions:
                     f.write(repr(rule) + '\n\n')
@@ -174,6 +176,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         cursor.close()
         frameCursor.close()
         cnx.close()
+
     return FeatureGrammar(FeatStructNonterminal("S[status='Fin']"),  productions)
 
 

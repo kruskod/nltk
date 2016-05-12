@@ -41,20 +41,14 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         print("\nAlternatives validaton:")
         for index, alternative in enumerate(result):
             isvalid = validate_alternative(alternative)
-            print("Alternative {} {}: {}".format(index, repr(alternative.topologies), isvalid))
+            print("Alternative {} {}: {} \n Word order: {}".format(index, repr(alternative.topologies), isvalid, " ".join(alternative.leaves())))
             if isvalid:
                 alternatives.append(alternative)
-
-
 
         # result = alternatives[2]
         # result.share()
         # alternatives = []
         # alternatives.extend(result.split_shared_topologies())
-
-
-
-
 
         #result=alternatives
 
@@ -69,9 +63,12 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         #     print("Alternative: ", i)
         #     print(*alternative.bfs())
 
+
+
         print("Number alternatives: ", len(alternatives))
         #draw_graph(alternatives[0])
         if alternatives:
+            # alternatives = (alternatives[4],)
             Graphview(*sorted(alternatives[:20], key=FeatTree.leaves))
             #TreeTabView(*alternatives[:20])
         # print(alternatives)
@@ -88,7 +85,6 @@ def validate_alternative(alternative):
             if not validate_alternative(edge):
                 return False
     return True
-
 
 if __name__ == "__main__":
     demo()

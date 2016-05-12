@@ -139,7 +139,6 @@ class FeatTree(Tree):
             Tree.__init__(self, node._label, children = node)
             self.ph = PH[self._label[TYPE]]
             self.gf = gf
-            self.shared = False
             self.tag = None
             self.topologies = []
             # make all leaves also FeatTree
@@ -725,8 +724,14 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
     :param parent_topologies: where to share
     :return: None
     """
-    for field in share_fields:
-        field_gorns = base_topology[field]
+    for shared_field in share_fields:
+        field = None
+        for field, field_gorns in base_topology.items():
+            if field == shared_field:
+                break
+        if not field:
+            continue
+        # = base_topology[field]
         if field_gorns:
             for gorn in field_gorns:
                 edge = parent_edge.find_edge(gorn)
@@ -753,7 +758,7 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
                             else:
                                 field.shared = True
                                 parent_topology[field] = parent_field_gorns + field_gorns
-                                continue
+                            continue
                         field.shared = True
                         parent_topology[field] = parent_field_gorns + field_gorns
 

@@ -8,8 +8,8 @@ from timeit import default_timer as timer
 from nltk import featstruct
 from nltk.draw.tree import TreeTabView
 from nltk.featstruct import CelexFeatStructReader, TYPE, unify
-from nltk.grammar import FeatStructNonterminal
-from nltk.parse.featurechart import FeatureTopDownChartParser
+from nltk.grammar import FeatStructNonterminal, FeatureGrammar
+from nltk.parse.featurechart import FeatureTopDownChartParser, celex_preprocessing
 from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF
 from nltk.topology.pgsql import build_rules
 
@@ -665,12 +665,13 @@ def process_dominance(tree, topology_rules, parent_tree=None):
     return result
 
 def demo(print_times=True, print_grammar=False,
-         print_trees=True, trace=2,
-         sent='ich bin', numparses=0):
+         print_trees=True, trace=1,
+         sent='Monopole sollen geknackt werden', numparses=0):
     """
     ich darf Kaffee trinken - works
     Kaffee darf ich jeden Tag trinken
     Monopole sollen geknackt werden
+    die Länder legen fest daß die nördlichen Inseln zu Rußland und die südliche Inseln zu Japan gehören sollten
 
     sent examples:
     Peter wird das Buch finden können
@@ -725,7 +726,13 @@ def demo(print_times=True, print_grammar=False,
     #
     # productions = FeatureGrammar(str_prod.start(), minimized_productions)
     # print(productions.productions()[0].rhs()[0])
-    cp = FeatureTopDownChartParser(build_rules(tokens, fstruct_reader), use_agenda=True, trace=1)
+    # with open('../../fsa/query.fcfg', "r") as f:
+    #     productions = FeatureGrammar.fromstring(f.read(), logic_parser=None,
+    #                                             fstruct_reader=fstruct_reader, encoding=None)
+
+    # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/query.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
+    # cp = FeatureTopDownChartParser(productions, use_agenda=True, trace=trace)
+    cp = FeatureTopDownChartParser(build_rules(tokens, fstruct_reader), use_agenda=True, trace=trace)
 
     dominance_structures = []
     count_trees = 0

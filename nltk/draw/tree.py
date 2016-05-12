@@ -828,10 +828,6 @@ class TreeWidget(CanvasWidget):
         new_treeseg.parent().manage()
 
 
-
-
-
-
 ##//////////////////////////////////////////////////////
 ##  draw_trees
 ##//////////////////////////////////////////////////////
@@ -1584,10 +1580,10 @@ class FeatTreeWidget(CanvasWidget):
                 if t.topologies:
                     prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
 
-                if t.shared:
-                    # '#ccd8e5', 'red'
-                    localnodeattribs = copy.copy(nodeattribs)
-                    localnodeattribs['fill'] = '#BDBDBD'
+                # if t.shared:
+                #     # '#ccd8e5', 'red'
+                #     localnodeattribs = copy.copy(nodeattribs)
+                #     localnodeattribs['fill'] = '#BDBDBD'
 
             node = self._make_node(canvas, prefix + label.strip(), justify='center', **localnodeattribs)
             subtrees = [self._make_expanded_tree(canvas, t[i], key + (i,), localnodeattribs, localleafattribs)
