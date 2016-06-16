@@ -36,7 +36,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
         frameCursor = cnx.cursor(buffered = True)
         unificationCursor = cnx.cursor(buffered = True)
         query = (
-        ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.feature, l.lemma, f.lexFrameKey, w.word from WordForm w' +
+        ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.lemma, f.lexFrameKey, w.word from WordForm w' +
         ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey' +
         ' inner join Lemma l on l.lemmaId = w.lemmaId' +
         ' inner join WordFrame f on f.lemmaId = w.lemmaId' +
@@ -62,7 +62,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
 
         for token in tokens:
             cursor.execute(query, (token,))
-            for (pos, formFeature, categoryFeature, lemmaFeature, lemma, lexFrameKey, word) in cursor:
+            for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in cursor:
                 word = word.decode('utf8')
                 nt = formNT = catNT = None
                 if formFeature:
@@ -79,8 +79,6 @@ def build_rules(tokens, fstruct_reader, dump = True):
 
                 if formNT and catNT:
                     nt = unify(formNT, catNT)
-                if lemmaFeature:
-                    nt = unify(nt, fstruct_reader.fromstring(lemmaFeature))
 
                 if nt:
                     nt.add_feature({LEMMA_FEATURE:lemma})
@@ -217,7 +215,7 @@ def get_word_inf(word):
         'SELECT '
         ' l.lemmaId as Lemma_Id, '
         ' f.lexFrameKey as WordFrame_lexFrameKey, '
-        ' l.lemma as Lemma_lemma, l.feature as Lemma_feature, '
+        ' l.lemma as Lemma_lemma, '
         ' w.word as WordForm_word, w.pronuncation as WordForm_pronuncation, '
         ' c.pos as WordCategory_pos, c.feature as WordCategory_feature,	c.description as WordCategory_description, c.example as WordCategory_example,	'
         ' i.feature as InflectionalForm_feature, i.description as InflectionalForm_description, '
@@ -293,7 +291,6 @@ def get_frame_examples(lexFrameKey):
              ' f.lexFrameKey as WordFrame_lexFrameKey,'
              ' f.inflParadigmKey as WordFrame_inflParadigmKey,'
              ' l.lemma as Lemma_lemma,'
-             ' l.feature as Lemma_feature,'
              ' w.word as WordForm_word,'
              ' w.pronuncation as WordForm_pronuncation,'
              ' w.inflFormKey as WordForm_inflFormKey,'
