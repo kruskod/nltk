@@ -666,7 +666,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=1,
-         sent=' Monopole sollen geknackt werden', numparses=0):
+         sent='Monopole sollen geknackt werden', numparses=0):
     """
     er tritt in die Verwaltung ein und er wird Aktionär
     Für die Bürger schafft das die einzige Möglichkeit , zu kontrollieren und nachzuvollzuehen , was die Politik Frage will
@@ -674,7 +674,8 @@ def demo(print_times=True, print_grammar=False,
 
     ich darf Kaffee trinken - works
     Kaffee darf ich jeden Tag trinken
-    Monopole sollen geknackt werden
+    Bücher liest Mari und Bücher schreibt Jüri
+    Monopole sollen geknackt werden und Märkte sollen getrennt werden
     die Länder legen fest daß die nördlichen Inseln zu Rußland und die südliche Inseln zu Japan gehören sollten
 
     sent examples:

@@ -317,6 +317,13 @@ class FeatTree(Tree):
             out += '\n'
         return out
 
+    def major_constituents(self):
+        for child in self:
+            if self.ph == PH.S:
+                yield child
+            if not isinstance(child, str):
+                yield from child.major_constituents()
+
     def bfs(self, visited=OrderedSet()):
         queue = [self]
         while queue:

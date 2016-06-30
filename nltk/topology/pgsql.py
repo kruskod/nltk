@@ -33,8 +33,7 @@ def build_rules(tokens, fstruct_reader, dump = True):
     productions = []
     if cnx:
         cursor = cnx.cursor(buffered = True)
-        frameCursor = cnx.cursor(buffered = True)
-        unificationCursor = cnx.cursor(buffered = True)
+
         query = (
         ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.lemma, f.lexFrameKey, w.word from WordForm w' +
         ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey' +
@@ -43,140 +42,218 @@ def build_rules(tokens, fstruct_reader, dump = True):
         ' inner join WordCategory c on c.lexFrameKey = f.lexFrameKey' +
         ' where w.word=%s;')
 
-        frameQuery = ( 'select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
-        ' inner join Segment s on s.position = w.position' +
-        ' left join PartOfSpeech p on p.pos = s.pos3' +
-        ' where w.lexFrameKey = %s  and pos2 !="mod" ' +
-        ' order by w.facultative, w.position;')
-
-        unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
-
-        # lhs = minimize_nonterm(prod.lhs())
-        # select_extensions = [ext for ext in extensions if ext['lhs'] == lhs[TYPE]]
-        # rhs = list(prod.rhs())
-        # for i, nt in enumerate(rhs):
-        #     for ext in select_extensions:
-        #         if ext['rhs'] == nt[TYPE] and nt.has_feature({GRAM_FUNC_FEATURE:ext[GRAM_FUNC_FEATURE]}):
-        #             if 'cond' in ext:
-        #                 feat = fstruct_reader.fromstring('[' + ext['cond'] + ']')
-
         for token in tokens:
             cursor.execute(query, (token,))
-            for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in cursor:
-                word = word.decode('utf8')
-                nt = formNT = catNT = None
-                if formFeature:
-                    formNT = fstruct_reader.fromstring(formFeature)
-                    formNT = formNT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE)
-                    formNT[TYPE] = pos
-                    nt = formNT
+            productions.extend(productions_extractor(cnx, cursor, fstruct_reader))
 
-                if categoryFeature:
-                    catNT = fstruct_reader.fromstring(categoryFeature)
-                    catNT = catNT.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE)
-                    catNT[TYPE] = pos
-                    nt = catNT
-
-                if formNT and catNT:
-                    nt = unify(formNT, catNT)
-
-                if nt:
-                    nt.add_feature({LEMMA_FEATURE:lemma})
-                    nt[TYPE] = pos
-                else:
-                    nt = fstruct_reader.fromstring(pos)
-
-                #nt = minimize_nonterm(nt)
-                frameCursor.execute(frameQuery, (lexFrameKey,))
-                gf = set()
-                rhs = []
-                #hd = (None, None)
-                personal = nt.get_feature(PERSONAL_FEATURE)
-                if personal:
-                    if not isinstance(personal, bool):
-                        personal = personal[0]
-
-                    if personal:    # weak status rule, discuss with the expert
-                        status = nt.get_feature(STATUS_FEATURE)
-                        if isinstance(status, str):
-                            status = (status,)
-                        if STATUS.Infin.name in status:
-                            personal = False
-
-                for (position, pos1, pos2, pos3, feature, facultative) in frameCursor:
-                    pos2NT = FeatStructNonterminal(pos2)
-                    if facultative and not (personal and GF.subj.name == pos2):
-                        pos2NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey, BRANCH_FEATURE:'facultative'})
-                    else:
-                        pos2NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
-                    # pos2NT[TYPE] = pos2
-                    pos3NT = FeatStructNonterminal(pos3)
-
-                    #After this point inherited features will be added
-                    unificationCursor.execute(unificationQuery, (position,))
-                    for (cond, un_feature) in unificationCursor:
-                        if cond:
-                            condNT = fstruct_reader.fromstring('[' + cond + ']')
-                            if not unify(nt, condNT):
-                                continue
-                        unNT = fstruct_reader.fromstring(un_feature)
-                        # It is actually not unification, but features merging
-                        un_pos3NT = unify(pos3NT, unNT)
-                        pos3NT = un_pos3NT#.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
-
-                        pos2NT = unify(pos2NT, unNT)
-                        pos2NT = pos2NT#.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
-
-
-                    if pos2 not in gf:
-                        gf.add(pos2)
-                        if pos2 == 'hd':
-                            if feature:
-                                headNT = fstruct_reader.fromstring(feature)
-                                nt = unify(nt, headNT)
-
-                            keys = set(nt.keys())
-                            keys.remove(TYPE)
-
-                            if EXPRESSION in nt:
-                                keys.remove(EXPRESSION)
-                                for exp in simplify_expression(nt[EXPRESSION]):
-                                    keys.update(exp.keys())
-                            keys=tuple(keys)
-                            pos2NT.add_feature({INHERITED_FEATURE:keys})
-                            pos3NT.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey,INHERITED_FEATURE:keys})
-
-                        rhs.append(pos2NT)
-                    # simplify disjunction to separate rules
-                    #map(process_inherited_features,openDisjunction(Production(pos2NT, pos3NT)))
-                    productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(pos2NT, (pos3NT,))))))
-                # simplify lhs here
-                lhs = copy.deepcopy(nt)#.filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
-                lhs[TYPE] = pos1
-                nt.add_feature({PRODUCTION_ID_FEATURE:lexFrameKey})
-                productions.extend(open_disjunction(Production(nt, (word,))))
-                # productions.append(Production(nt, (word,)))
-                productions.extend(sorted(map(lambda production: production.process_inherited_features(), open_disjunction(Production(lhs, rhs)))))
-                # Add productions simplifier
-        # simplified_prodiuctions = list()
-        # for production in productions:
-        #     simplified_prodiuctions.extend([production.simplify()])
-        # productions = simplified_prodiuctions
-
-                # productions.append(Production(lhs, rhs).process_inherited_features())
         if dump:
             productions.append(Production(FeatStructNonterminal("S[]"), (
                 FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
             with open('../../fsa/query.fcfg', "w") as f:
                 for rule in productions:
                     f.write(repr(rule) + '\n\n')
-        unificationCursor.close()
         cursor.close()
-        frameCursor.close()
         cnx.close()
-
     return FeatureGrammar(FeatStructNonterminal("S[status='Fin']"),  productions)
 
+
+def productions_extractor(cnx, cursor, fstruct_reader):
+    productions = set()
+
+    frameCursor = cnx.cursor(buffered=True)
+    unificationCursor = cnx.cursor(buffered=True)
+
+    frameQuery = ('select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
+                  ' inner join Segment s on s.position = w.position' +
+                  ' left join PartOfSpeech p on p.pos = s.pos3' +
+                  ' where w.lexFrameKey = %s  and pos2 !="mod" ' +
+                  ' order by w.facultative, w.position;')
+
+    unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
+
+    for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in cursor:
+        word = word.decode('utf8')
+        nt = formNT = catNT = None
+        if formFeature:
+            formNT = fstruct_reader.fromstring(formFeature)
+            formNT = formNT.filter_feature(SLOT_FEATURE, )  # , PERSONAL_FEATURE
+            formNT[TYPE] = pos
+            nt = formNT
+
+        if categoryFeature:
+            catNT = fstruct_reader.fromstring(categoryFeature)
+            catNT = catNT.filter_feature(SLOT_FEATURE, )  # PERSONAL_FEATURE
+            catNT[TYPE] = pos
+            nt = catNT
+
+        if formNT and catNT:
+            nt = unify(formNT, catNT)
+
+        if nt:
+            nt.add_feature({LEMMA_FEATURE: lemma})
+            nt[TYPE] = pos
+        else:
+            nt = fstruct_reader.fromstring(pos)
+
+        # nt = minimize_nonterm(nt)
+        frameCursor.execute(frameQuery, (lexFrameKey,))
+        gf = set()
+        rhs = []
+        # hd = (None, None)
+        # personal = nt.get_feature(PERSONAL_FEATURE)
+        # if personal:
+        #     if not isinstance(personal, bool):
+        #         personal = personal[0]
+        #
+        #     if personal:    # weak status rule, discuss with the expert
+        #         status = nt.get_feature(STATUS_FEATURE)
+        #         if isinstance(status, str):
+        #             status = (status,)
+        #         if STATUS.Infin.name in status:
+        #             personal = False
+
+        for (position, pos1, pos2, pos3, feature, facultative) in frameCursor:
+            pos2NT = FeatStructNonterminal(pos2)
+
+            pos2NT.add_feature({PRODUCTION_ID_FEATURE: lexFrameKey})
+            # pos2NT[TYPE] = pos2
+            pos3NT = FeatStructNonterminal(pos3)
+
+            # After this point inherited features will be added
+            unificationCursor.execute(unificationQuery, (position,))
+            for (cond, un_feature) in unificationCursor:
+                if cond:
+                    condNT = fstruct_reader.fromstring('[' + cond + ']')
+                    if not unify(nt, condNT):
+                        continue
+                unNT = fstruct_reader.fromstring(un_feature)
+                # It is actually not unification, but features merging
+                un_pos3NT = unify(pos3NT, unNT)
+                pos3NT = un_pos3NT  # .filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
+
+                pos2NT = unify(pos2NT, unNT)
+                pos2NT = pos2NT  # .filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
+
+            if facultative:
+                if pos2NT.has_feature({BRANCH_FEATURE: 'obligatory'}):
+                    pos2NT = pos2NT.filter_feature(BRANCH_FEATURE)
+                else:
+                    # if pos2 == 'subj':
+                    #     status = nt.get_feature(STATUS_FEATURE)
+                    #     if status:
+                    #         if isinstance(status, str):
+                    #             status = (status,)
+                    #         if STATUS.Infin.name not in status:
+                    #             facultative = False
+
+                    if facultative:
+                        pos2NT.add_feature({BRANCH_FEATURE: 'facultative',})
+
+            if pos2 not in gf:
+                gf.add(pos2)
+                if pos2 == 'hd':
+                    if feature:
+                        headNT = fstruct_reader.fromstring(feature)
+                        nt = unify(nt, headNT)
+
+                    keys = set(nt.keys())
+                    keys.remove(TYPE)
+
+                    if EXPRESSION in nt:
+                        keys.remove(EXPRESSION)
+                        for exp in simplify_expression(nt[EXPRESSION]):
+                            keys.update(exp.keys())
+                    keys = tuple(keys)
+                    pos2NT.add_feature({INHERITED_FEATURE: keys})
+                    pos3NT.add_feature({PRODUCTION_ID_FEATURE: lexFrameKey, INHERITED_FEATURE: keys})
+
+                rhs.append(pos2NT)
+            # simplify disjunction to separate rules
+            # map(process_inherited_features,openDisjunction(Production(pos2NT, pos3NT)))
+            productions.update(map(lambda production: production.process_inherited_features(),
+                                          open_disjunction(Production(pos2NT, (pos3NT,)))))
+        # simplify lhs here
+        lhs = copy.deepcopy(nt)  # .filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
+        lhs[TYPE] = pos1
+        nt.add_feature({PRODUCTION_ID_FEATURE: lexFrameKey})
+        productions.update(open_disjunction(Production(nt, (word,))))
+        # productions.append(Production(nt, (word,)))
+        productions.update(
+            map(lambda production: production.process_inherited_features(), open_disjunction(Production(lhs, rhs))))
+
+    unificationCursor.close()
+    frameCursor.close()
+    return productions
+
+def wordforms_extractor(cnx, cursor, fstruct_reader):
+    productions = set()
+
+    for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in cursor:
+        word = word.decode('utf8')
+        nt = None
+        if formFeature:
+            formNT = fstruct_reader.fromstring(formFeature)
+            formNT = formNT.filter_feature(SLOT_FEATURE, )  # , PERSONAL_FEATURE
+            nt = formNT
+
+        if not nt:
+            nt = fstruct_reader.fromstring(pos)
+
+        lhs = nt  # .filter_feature(SLOT_FEATURE, PERSONAL_FEATURE, INFLECTED_FEATURE)
+        lhs[TYPE] = pos
+        nt.add_feature({PRODUCTION_ID_FEATURE: lexFrameKey,LEMMA_FEATURE: lemma})
+        productions.update(open_disjunction(Production(nt, (word,))))
+
+    return productions
+
+def build_wordform_productions(lemma, lexFrameKey, fstruct_reader):
+    cnx = connect()
+    productions = []
+    if cnx:
+        cursor = cnx.cursor(buffered = True)
+
+        query = (
+            ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.lemma, f.lexFrameKey, w.word ' +
+            ' from Lemma l inner join WordForm w on w.lemmaId =l.lemmaId ' +
+            ' inner join WordFrame f on f.lemmaId = w.lemmaId ' +
+            ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey' +
+            ' inner join WordCategory c on c.lexFrameKey = f.lexFrameKey ' +
+            ' where l.lemma=%s and f.lexFrameKey=%s;')
+
+        cursor.execute(query, (lemma, lexFrameKey))
+        query_results = cursor.fetchall()
+        productions = wordforms_extractor(cnx, query_results, fstruct_reader)
+        word_forms = set()
+        for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in query_results:
+            word_forms.add(word.decode("utf-8"))
+        cnx.close()
+
+    return word_forms, productions
+
+
+def build_productions(lemma, lexFrameKey, fstruct_reader):
+    cnx = connect()
+    productions = []
+    if cnx:
+        cursor = cnx.cursor(buffered = True)
+
+        query = (
+            ' select pos, i.feature as formFeature, c.feature as categoryFeature, l.lemma, f.lexFrameKey, w.word ' +
+            ' from Lemma l inner join WordForm w on w.lemmaId =l.lemmaId ' +
+            ' inner join WordFrame f on f.lemmaId = w.lemmaId ' +
+            ' inner join InflectionalForm i on i.inflFormKey = w.inflFormKey' +
+            ' inner join WordCategory c on c.lexFrameKey = f.lexFrameKey ' +
+            ' where l.lemma=%s and f.lexFrameKey=%s;')
+
+        cursor.execute(query, (lemma, lexFrameKey))
+        query_results = cursor.fetchall()
+        productions = productions_extractor(cnx, query_results, fstruct_reader)
+        word_forms = set()
+        for (pos, formFeature, categoryFeature, lemma, lexFrameKey, word) in query_results:
+            word_forms.add(word.decode("utf-8"))
+        cnx.close()
+
+    return word_forms, productions
 
 def get_rules(tokens, dump=True):
     cnx = connect()
