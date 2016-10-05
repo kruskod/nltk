@@ -291,7 +291,6 @@ def build_topologies():
         # END
 
 
-
         Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((None, None),))
             .add_field(Field(FT.F0, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.ADVP and any(edge for edge in field.topology[FT.F1].edges if edge.gf in (GF.subj, GF.obj, GF.iobj, GF.cmp)))), )))
@@ -666,7 +665,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=1,
-         sent='Monopole sollen geknackt werden', numparses=0):
+         sent='das Auto fährt', numparses=0):
     """
     er tritt in die Verwaltung ein und er wird Aktionär
     Für die Bürger schafft das die einzige Möglichkeit , zu kontrollieren und nachzuvollzuehen , was die Politik Frage will

@@ -92,6 +92,7 @@ class PH(AutoNumber):
     adj = ()
     co_conj = ()
     art = ()
+    crd = ()
     # leaves
     # S0 = ()
 
@@ -108,6 +109,7 @@ class GF(AutoNumber):
     cmp = ()
     cmpr = ()
     prt = ()
+    q = () # ein - numbers?
 
 class STATUS(AutoNumber):
     Infin = ()  # Infinitive

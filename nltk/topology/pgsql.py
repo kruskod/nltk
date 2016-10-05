@@ -46,9 +46,10 @@ def build_rules(tokens, fstruct_reader, dump = True):
             cursor.execute(query, (token,))
             productions.extend(productions_extractor(cnx, cursor, fstruct_reader))
 
+        productions.append(Production(FeatStructNonterminal("S[]"), (
+            FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
+
         if dump:
-            productions.append(Production(FeatStructNonterminal("S[]"), (
-                FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
             with open('../../fsa/query.fcfg', "w") as f:
                 for rule in productions:
                     f.write(repr(rule) + '\n\n')
@@ -138,13 +139,13 @@ def productions_extractor(cnx, cursor, fstruct_reader):
                 if pos2NT.has_feature({BRANCH_FEATURE: 'obligatory'}):
                     pos2NT = pos2NT.filter_feature(BRANCH_FEATURE)
                 else:
-                    # if pos2 == 'subj':
-                    #     status = nt.get_feature(STATUS_FEATURE)
-                    #     if status:
-                    #         if isinstance(status, str):
-                    #             status = (status,)
-                    #         if STATUS.Infin.name not in status:
-                    #             facultative = False
+                    if pos2 == 'subj':
+                        status = nt.get_feature(STATUS_FEATURE)
+                        if status:
+                            if isinstance(status, str):
+                                status = (status,)
+                            if STATUS.Infin.name not in status:
+                                facultative = False
 
                     if facultative:
                         pos2NT.add_feature({BRANCH_FEATURE: 'facultative',})
