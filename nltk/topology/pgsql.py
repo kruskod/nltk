@@ -16,8 +16,8 @@ from mysql.connector import errorcode
 
 def connect():
     try:
-        cnx = mysql.connector.connect(host="localhost", port=3306, user='root', password='total', database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
-        # cnx = mysql.connector.connect(unix_socket="", database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
+        # cnx = mysql.connector.connect(host="localhost", port=3306, user='root', password='total', database='pgc', use_unicode = True, charset='utf8', collation='utf8_bin')
+        cnx = mysql.connector.connect(unix_socket="/var/run/mysqld/mysqld.sock", database='pgc', password='total', user='root', use_unicode = True, charset='utf8', collation='utf8_bin')
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")
