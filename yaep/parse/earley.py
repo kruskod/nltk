@@ -31,6 +31,12 @@ class Term:
     def term(self):
         return self._term
 
+    def is_nonterminal(self):
+        return self._is_nonterminal
+
+    def is_terminal(self):
+        return not self._is_nonterminal
+
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -41,12 +47,6 @@ class Term:
             return True
         else:
             return self._nullable == other._nullable and self._term == other._term
-
-    def is_nonterminal(self):
-        return self._is_nonterminal
-
-    def is_terminal(self):
-        return not self._is_nonterminal
 
     def __hash__(self):
         return hash((type(self), self._term, self._nullable))

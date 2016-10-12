@@ -71,13 +71,13 @@ class TestEarleyParser(unittest.TestCase):
     def parse(self, tokens):
 
         chartManager = self.parser.parse(tokens, self.start_nonterminal)
-        print(chartManager.pretty_print(" ".join(tokens)))
-        print("Final states:")
-        final_states = tuple(chartManager.final_states())
-        if final_states:
-            for state in final_states:
-                print(state.str(state.dot() - 1))
-        print()
+        # print(chartManager.pretty_print(" ".join(tokens)))
+        # print("Final states:")
+        # final_states = tuple(chartManager.final_states())
+        # if final_states:
+        #     for state in final_states:
+        #         print(state.str(state.dot() - 1))
+        # print()
 
         self.assertEqual(len(chartManager.charts()), len(tokens) + 1)
         self.assertEqual(len(tuple(chartManager.initial_states())), 1)
