@@ -3,6 +3,8 @@
 *.DS_Store
 .tox
 
+fsa
+
 *.class
 *.jar
 
