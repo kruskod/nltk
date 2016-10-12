@@ -2,7 +2,8 @@
 import unittest
 # Unit tests
 from nltk import CFG
-from yaep.parse.earley import Rule
+from yaep.parse.earley import Rule, Grammar, EarleyParser, Grammar, EarleyParser, \
+    nonterminal_to_term
 from nltk.grammar import Nonterminal
 
 class TestRule(unittest.TestCase):
@@ -47,10 +48,15 @@ class TestEarleyParser(unittest.TestCase):
         # Perform set up actions (if any)
         self.tokens1 = ["Mary", "called", "Jan"]
         self.tokens2 = ["Mary", "called", "Jan", "from", "Frankfurt"]
-        self.grammar = None
+        grammar = None
         with open("grammar.txt") as f:
-            self.grammar = CFG.fromstring(f.readlines())
-        print(self.grammar)
+            grammar = CFG.fromstring(f.readlines())
+        self.start_nonterminal = nonterminal_to_term(grammar.start())
+
+        earley_grammar = Grammar((Rule(nonterminal_to_term(production.lhs()),
+                                       (nonterminal_to_term(fs) for fs in production.rhs())) for production
+                                  in grammar.productions()), None)
+        self.parser = EarleyParser(earley_grammar)
 
 
     def tearDown(self):
@@ -59,19 +65,23 @@ class TestEarleyParser(unittest.TestCase):
         self.rule = None
 
     def testparse(self):
-        self.assertTrue(True)
+        self.parse(self.tokens1)
+        self.parse(self.tokens2)
 
-    def parse(self):
+    def parse(self, tokens):
 
-        chartManager = parser.parse(tokens);
-        System.out.println(Chart.prettyPrint(String.join(" ", tokens), chartManager.getCharts()));
-        // check
-        chart
-        size
-        assertThat(chartManager.getCharts().length, equalTo(tokens.length + 1));
-        assertTrue(1 == chartManager.initialStates().count());
-        assertTrue(chartManager.isRecognized());
+        chartManager = self.parser.parse(tokens, self.start_nonterminal)
+        print(chartManager.pretty_print(" ".join(tokens)))
+        print("Final states:")
+        final_states = tuple(chartManager.final_states())
+        if final_states:
+            for state in final_states:
+                print(state.str(state.dot() - 1))
+        print()
 
+        self.assertEqual(len(chartManager.charts()), len(tokens) + 1)
+        self.assertEqual(len(tuple(chartManager.initial_states())), 1)
+        self.assertTrue(chartManager.is_recognized())
 
 # Run the unittests
 if __name__ == '__main__':

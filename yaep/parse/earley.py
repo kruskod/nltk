@@ -1,13 +1,79 @@
 from nltk import CFG
 from nltk import featstruct
 from nltk.compat import unicode_repr
-from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar, is_nonterminal, is_terminal
+from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar, Nonterminal
 from nltk.featstruct import CelexFeatStructReader, TYPE, unify
 from nltk.topology.compassFeat import PRODUCTION_ID_FEATURE, BRANCH_FEATURE
 from nltk.topology.orderedSet import OrderedSet
 from nltk.topology.pgsql import build_rules
 from timeit import default_timer as timer
 import sys
+
+class Term:
+
+    def __init__(self, term, nullable=False):
+        self._is_nonterminal = isinstance(term, Nonterminal)
+        self._term = term
+        self._nullable = nullable
+
+    def unify(self, other):
+        raise NotImplementedError
+
+    def key(self):
+        raise NotImplementedError
+
+    def is_nullable(self):
+        return self._nullable
+
+    def set_nullable(self, nullable):
+        self._nullable = nullable
+
+    def term(self):
+        return self._term
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        elif self is other:
+            return True
+        else:
+            return self._nullable == other._nullable and self._term == other._term
+
+    def is_nonterminal(self):
+        return self._is_nonterminal
+
+    def is_terminal(self):
+        return not self._is_nonterminal
+
+    def __hash__(self):
+        return hash((type(self), self._term, self._nullable))
+
+    def __str__(self):
+        return str(self._term)
+
+    def __repr__(self):
+        return repr(self._term)
+
+class NonTerm(Term):
+
+    def unify(self, other):
+        return self == other
+
+    def key(self):
+        return self._term
+
+class FeatStructNonTerm(Term):
+
+    def unify(self, other):
+        prodId = other._term.get_feature(PRODUCTION_ID_FEATURE)
+        return ((not prodId or (prodId == self._term.get_feature(PRODUCTION_ID_FEATURE)))
+                and featstruct.unify(self._term, other._term, treatBool=False))
+
+    def key(self):
+        return self._term.get(TYPE,None)
 
 class Rule:
     """
@@ -38,7 +104,7 @@ class Rule:
         return self._rhs
 
     def is_terminal(self, index):
-        return is_terminal(self._rhs[index])
+        return not self.is_nonterminal(index)
 
     def is_nonterminal(self, index):
         return is_nonterminal(self._rhs[index])
@@ -158,11 +224,11 @@ class ChartManager:
 
     def initial_states(self):
         if self._charts and self._start_symbol:
-            return (state for state in self._charts[0].states() if state.dot() == 0 and state.from_index() == 0 and featstruct.unify(self._start_symbol, state.rule().lhs(), treatBool = False))
+            return (state for state in self._charts[0].states() if state.dot() == 0 and state.from_index() == 0 and self._start_symbol.unify(state.rule().lhs()))
 
     def final_states(self):
         if self._charts and (len(self._charts) == len(self._tokens) + 1) and self._start_symbol:
-            return (state for state in self._charts[-1].states() if state.from_index() == 0 and state.is_finished() and featstruct.unify(self._start_symbol, state.rule().lhs(), treatBool = False))
+            return (state for state in self._charts[-1].states() if state.from_index() == 0 and state.is_finished() and self._start_symbol.unify(state.rule().lhs()))
 
     def is_recognized(self):
         return next(self.final_states(), None) is not None
@@ -182,7 +248,7 @@ class Grammar:
         rules_dict = {}
         for rule in rules:
             lhs = rule.lhs()
-            lhs_type = lhs.get(TYPE,None)
+            lhs_type = lhs.key()
             if not lhs_type:
                 sys.exit("A nonterminal has no type:" + rule)
             if lhs_type not in rules_dict:
@@ -192,16 +258,11 @@ class Grammar:
         self._terminals = terminals
 
     def find_rule(self, non_terminal):
-        rules = self._rules.get(non_terminal.get(TYPE, None), None)
+        rules = self._rules.get(non_terminal.key())
         if rules:
             for rule in rules:
-                prodId = non_terminal.get_feature(PRODUCTION_ID_FEATURE)
-                if (not prodId or (prodId == rule.lhs().get_feature(PRODUCTION_ID_FEATURE))) and featstruct.unify(non_terminal, rule.lhs(), treatBool = False):
+                if non_terminal.unify(rule.lhs()):
                     yield rule
-
-        # return (rule for rule in self._rules.get(non_terminal.get(TYPE, None),None)
-        #         if featstruct.unify(non_terminal, rule.lhs(), treatBool = False))
-        # non_terminal.get_feature(PRODUCTION_ID_FEATURE)  and
 
 class AbstractEarley:
 
@@ -216,7 +277,7 @@ class AbstractEarley:
 
     def parse(self, tokens, start_symbol = None):
         if not tokens or not start_symbol:
-            raise ValueError("Empty argument {}{}".format(tokens,start_symbol))
+            raise ValueError("Empty argument tokens:{} start:{}".format(tokens,start_symbol))
 
         self.init(tokens)
         self.predictor_non_terminal(start_symbol, 0)
@@ -242,32 +303,51 @@ class AbstractEarley:
         for rule in self._grammar.find_rule(lhs):
             self._charts[token_index].add_state(State(rule, token_index, 0))
 
-    def predictor (self, state, token_index):
+    def predictor(self, state, token_index):
         lhs = state.next_symbol()
         self.predictor_non_terminal(lhs, token_index)
-        if lhs.has_feature({BRANCH_FEATURE: 'facultative'}):
-            self._charts[token_index].add_state(State(state.rule(), state.from_index(), state.dot()+1))
-        # if lhs.is_nullable():
+        if lhs.is_nullable():
+            self._charts[token_index].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
 
-    def completer (self, origin_state, token_index):
+    def completer(self, origin_state, token_index):
         lhs = origin_state.rule().lhs()
         current_chart = self._charts[token_index]
         for temp_state in self._charts[origin_state.from_index()].states():
-            if (not temp_state.is_finished()) and is_nonterminal(temp_state.next_symbol()) and featstruct.unify(lhs, temp_state.next_symbol(), treatBool=False):
-                current_chart.add_state(State(temp_state.rule(), temp_state.from_index(), temp_state.dot()+1))
+            if (not temp_state.is_finished()) and is_nonterminal(temp_state.next_symbol()) and lhs.unify(temp_state.next_symbol()):
+                current_chart.add_state(State(temp_state.rule(), temp_state.from_index(), temp_state.dot() + 1))
 
     def scanner (self, state, token_index):
         raise NotImplementedError
 
 class EarleyParser(AbstractEarley):
 
-   def init(self, tokens):
-       self._tokens = tokens
-       self._charts = tuple(Chart() for i in range(len(tokens)+1))
+    def init(self, tokens):
+        self._tokens = tokens
+        self._charts = tuple(Chart() for i in range(len(tokens) + 1))
 
-   def scanner(self, state, token_index):
-       if self._tokens[token_index] == state.next_symbol():
-           self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot()+1))
+    def scanner(self, state, token_index):
+        if self._tokens[token_index] == state.next_symbol():
+            self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+
+def is_nonterminal(item):
+    """
+    :return: True if the item is a ``Nonterminal``.
+    :rtype: bool
+    """
+    return isinstance(item, (Nonterminal,Term))
+
+def feat_struct_nonterminal_to_term(feat_struct_nonterminal):
+    if isinstance(feat_struct_nonterminal, FeatStructNonterminal):
+        nullable = feat_struct_nonterminal.has_feature({BRANCH_FEATURE: 'facultative'})
+        return FeatStructNonTerm(feat_struct_nonterminal, nullable=nullable)
+    else:
+        return feat_struct_nonterminal
+
+def nonterminal_to_term(feat_struct_nonterminal):
+    if isinstance(feat_struct_nonterminal, Nonterminal):
+        return NonTerm(feat_struct_nonterminal)
+    else:
+        return feat_struct_nonterminal
 
 if __name__ == "__main__":
     # docTEST this
@@ -281,12 +361,14 @@ if __name__ == "__main__":
     start_timer = timer()
     grammar = build_rules(tokens, fstruct_reader)
     productions = grammar.productions()
+    start_nonterminal = feat_struct_nonterminal_to_term(grammar.start())
     # rule = Rule(productions[0])
     # state = State(rule, 2, 1)
     # print(rule)
     # print(state)
     # print(state.is_finished())
-    earley_grammar = Grammar((Rule(production.lhs(), production.rhs()) for production in productions), None)
+    earley_grammar = Grammar((Rule(feat_struct_nonterminal_to_term(production.lhs()), (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production in productions), None)
+
     # test_subj1 = FeatStructNonterminal("subj[ProdId='S6']")
     # test_subj2 = FeatStructNonterminal("S[mood='indicative',number='singular']")
     # subj1_rules = tuple(earley_grammar.find_rule(test_subj1))
@@ -295,7 +377,7 @@ if __name__ == "__main__":
 
     earley_parser = EarleyParser(earley_grammar)
 
-    manager = earley_parser.parse(tokens, grammar.start())
+    manager = earley_parser.parse(tokens, start_nonterminal)
     end_time = timer()
     print(manager.pretty_print(sentence))
     print("Final states:")
