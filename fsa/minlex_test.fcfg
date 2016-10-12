@@ -1,0 +1,7 @@
+% start S
+#####################
+(NP (hd (n [person=3rd,case=nom,branch=facultative])))|- NP0
+(S (hd (v [person=3rd,branch=facultative])) (subj (NP [case=nom,branch=facultative])))|- S1
+#####################
+NP0[case=nom/acc/gen, number=singular] -> "Ich"
+S1[number=singular, person=3rd, status=Fin] -> "sehe"

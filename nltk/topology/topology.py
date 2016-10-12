@@ -8,8 +8,13 @@ from timeit import default_timer as timer
 from nltk import featstruct
 from nltk.draw.tree import TreeTabView
 from nltk.featstruct import CelexFeatStructReader, TYPE, unify
+<<<<<<< HEAD
 from nltk.grammar import FeatStructNonterminal, FeatureGrammar
 from nltk.parse.featurechart import FeatureTopDownChartParser, celex_preprocessing
+=======
+from nltk.grammar import FeatStructNonterminal
+from nltk.parse.featurechart import FeatureTopDownChartParser
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 from nltk.topology.FeatTree import FeatTree, FT, PH, TAG, GF
 from nltk.topology.pgsql import build_rules
 
@@ -291,6 +296,10 @@ def build_topologies():
         # END
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
         Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((None, None),))
             .add_field(Field(FT.F0, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.ADVP and any(edge for edge in field.topology[FT.F1].edges if edge.gf in (GF.subj, GF.obj, GF.iobj, GF.cmp)))), )))
@@ -664,6 +673,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
     return result
 
 def demo(print_times=True, print_grammar=False,
+<<<<<<< HEAD
          print_trees=True, trace=1,
          sent='das Auto fährt', numparses=0):
     """
@@ -676,6 +686,14 @@ def demo(print_times=True, print_grammar=False,
     Bücher liest Mari und Bücher schreibt Jüri
     Monopole sollen geknackt werden und Märkte sollen getrennt werden
     die Länder legen fest daß die nördlichen Inseln zu Rußland und die südliche Inseln zu Japan gehören sollten
+=======
+         print_trees=True, trace=2,
+         sent='ich bin', numparses=0):
+    """
+    ich darf Kaffee trinken - works
+    Kaffee darf ich jeden Tag trinken
+    Monopole sollen geknackt werden
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 
     sent examples:
     Peter wird das Buch finden können
@@ -730,6 +748,7 @@ def demo(print_times=True, print_grammar=False,
     #
     # productions = FeatureGrammar(str_prod.start(), minimized_productions)
     # print(productions.productions()[0].rhs()[0])
+<<<<<<< HEAD
     # with open('../../fsa/query.fcfg', "r") as f:
     #     productions = FeatureGrammar.fromstring(f.read(), logic_parser=None,
     #                                             fstruct_reader=fstruct_reader, encoding=None)
@@ -737,6 +756,9 @@ def demo(print_times=True, print_grammar=False,
     # productions = FeatureGrammar.fromstring(celex_preprocessing('../../fsa/query.fcfg'), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
     # cp = FeatureTopDownChartParser(productions, use_agenda=True, trace=trace)
     cp = FeatureTopDownChartParser(build_rules(tokens, fstruct_reader), use_agenda=True, trace=trace)
+=======
+    cp = FeatureTopDownChartParser(build_rules(tokens, fstruct_reader), use_agenda=True, trace=1)
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 
     dominance_structures = []
     count_trees = 0

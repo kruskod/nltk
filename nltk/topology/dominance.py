@@ -5,6 +5,7 @@ from nltk.topology.FeatTree import FeatTree
 from nltk.topology.pygraphviz.graph import draw_graph
 from nltk.topology.topology import process_dominance, build_topologies
 
+<<<<<<< HEAD
 def wordorder_alternatives(tree, topologies):
     print(tree)
     feat_tree = FeatTree(tree)
@@ -28,6 +29,8 @@ def wordorder_alternatives(tree, topologies):
         print("Alternative {} {}: {} \n Word order: {}".format(index, repr(alternative.topologies), isvalid, " ".join(alternative.leaves())))
         if isvalid:
             yield alternative
+=======
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 
 def demo(dump_path='../../fsa/dominance_structures.dump'):
 
@@ -35,6 +38,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         dumped_trees = pickle.load(f)
 
     topologies = build_topologies()
+<<<<<<< HEAD
     alternatives = []
     for tree in dumped_trees:
         alternatives.extend(wordorder_alternatives(tree, topologies))
@@ -48,6 +52,73 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
     # print(alternatives)
     # print(feat_tree)
     print(80*'#')
+=======
+    # top_dict = dict()
+    # for topology in topologies:
+    #     top_dict[topology.tag] = copy.copy(topology)
+
+    for tree in dumped_trees:
+        print(tree)
+        feat_tree = FeatTree(tree)
+        feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
+        # print(feat_tree.topologies)
+        feat_tree.alternatives()
+        # print(*feat_tree.bfs())
+        alternatives = feat_tree.split_alternatives()
+
+        #alternatives = [alternatives[0],]
+
+        result = []
+
+        #alternatives = (alternatives[2],)
+
+        for alternative in alternatives:
+            print(" ".join(alternative.leaves()))
+            alternative.share()
+            result.extend(alternative.split_shared_topologies())
+
+
+        alternatives = []
+        print("\nAlternatives validaton:")
+        for index, alternative in enumerate(result):
+            isvalid = validate_alternative(alternative)
+            print("Alternative {} {}: {}".format(index, repr(alternative.topologies), isvalid))
+            if isvalid:
+                alternatives.append(alternative)
+
+
+
+        # result = alternatives[2]
+        # result.share()
+        # alternatives = []
+        # alternatives.extend(result.split_shared_topologies())
+
+
+
+
+
+        #result=alternatives
+
+        # testee = alternatives[0]
+        # testee.share()
+        #
+        # for edge in testee.bfs():
+        #     for top in edge.topologies:
+        #         print(top.shared_trace + '-' + str(top))
+
+        # for i, alternative in enumerate(alternatives):
+        #     print("Alternative: ", i)
+        #     print(*alternative.bfs())
+
+        print("Number alternatives: ", len(alternatives))
+        #draw_graph(alternatives[0])
+        if alternatives:
+            Graphview(*sorted(alternatives[:20], key=FeatTree.leaves))
+            #TreeTabView(*alternatives[:20])
+        # print(alternatives)
+        # print(feat_tree)
+        print(80*'#')
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
     # ps2pdf -dEPSCrop Monopole_tree.ps
 
 def validate_alternative(alternative):
@@ -60,5 +131,9 @@ def validate_alternative(alternative):
                 return False
     return True
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 if __name__ == "__main__":
     demo()

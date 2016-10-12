@@ -1472,7 +1472,11 @@ class ChartParser(ParserI):
         if self._use_agenda:
             # Use an agenda-based algorithm.
             for axiom in self._axioms:
+<<<<<<< HEAD
                 new_edges = axiom.apply(chart, grammar)
+=======
+                new_edges = list(axiom.apply(chart, grammar))
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
                 trace_new_edges(chart, axiom, new_edges, trace, trace_edge_width)
 
             inference_rules = self._inference_rules
@@ -1482,7 +1486,10 @@ class ChartParser(ParserI):
             agenda.reverse()
             while agenda:
                 edge = agenda.pop()
+<<<<<<< HEAD
 
+=======
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
                 for rule in inference_rules:
                     new_edges = list(rule.apply(chart, grammar, edge))
                     if trace:

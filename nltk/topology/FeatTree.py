@@ -92,7 +92,10 @@ class PH(AutoNumber):
     adj = ()
     co_conj = ()
     art = ()
+<<<<<<< HEAD
     crd = ()
+=======
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
     # leaves
     # S0 = ()
 
@@ -109,7 +112,10 @@ class GF(AutoNumber):
     cmp = ()
     cmpr = ()
     prt = ()
+<<<<<<< HEAD
     q = () # ein - numbers?
+=======
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 
 class STATUS(AutoNumber):
     Infin = ()  # Infinitive
@@ -141,6 +147,10 @@ class FeatTree(Tree):
             Tree.__init__(self, node._label, children = node)
             self.ph = PH[self._label[TYPE]]
             self.gf = gf
+<<<<<<< HEAD
+=======
+            self.shared = False
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
             self.tag = None
             self.topologies = []
             # make all leaves also FeatTree
@@ -319,6 +329,7 @@ class FeatTree(Tree):
             out += '\n'
         return out
 
+<<<<<<< HEAD
     def major_constituents(self):
         for child in self:
             if self.ph == PH.S:
@@ -326,6 +337,8 @@ class FeatTree(Tree):
             if not isinstance(child, str):
                 yield from child.major_constituents()
 
+=======
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
     def bfs(self, visited=OrderedSet()):
         queue = [self]
         while queue:
@@ -733,6 +746,7 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
     :param parent_topologies: where to share
     :return: None
     """
+<<<<<<< HEAD
     for shared_field in share_fields:
         field = None
         for field, field_gorns in base_topology.items():
@@ -741,6 +755,10 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
         if not field:
             continue
         # = base_topology[field]
+=======
+    for field in share_fields:
+        field_gorns = base_topology[field]
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
         if field_gorns:
             for gorn in field_gorns:
                 edge = parent_edge.find_edge(gorn)
@@ -767,7 +785,11 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
                             else:
                                 field.shared = True
                                 parent_topology[field] = parent_field_gorns + field_gorns
+<<<<<<< HEAD
                             continue
+=======
+                                continue
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
                         field.shared = True
                         parent_topology[field] = parent_field_gorns + field_gorns
 

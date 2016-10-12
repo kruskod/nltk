@@ -1,0 +1,1 @@
+(NP (det (NP [case=gen,decl_type=strong,branch=facultative])) (q (QP [inheritedFeature=number,branch=facultative])) (hd (n [[gender=feminine,properNoun=false] OR [gender=neuter,properNoun=false])

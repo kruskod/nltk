@@ -422,6 +422,7 @@ def wordPresenceVerifier(tokens):
     sort_inp = sorted(tokens)
     return lambda x: sort_inp == sorted(x.leaves())
 
+<<<<<<< HEAD
 def comp(list1, list2):
     for val in list1:
         if val in list2:
@@ -434,6 +435,8 @@ def wordPresenceClauseVerifier(group, leaves):
             return False
     return True
 
+=======
+>>>>>>> 02480653bdcce0ecb81e95d7ef8f6286ea18a88f
 
 #////////////////////////////////////////////////////////////
 # Demonstration
