@@ -41,6 +41,13 @@ class OrderedSet(collections.MutableSet):
             yield curr[0]
             curr = curr[1]
 
+    def __getitem__(self, key):
+        index = 0
+        for item in self.__iter__():
+            if index == key:
+                return item
+            index +=1
+
     def pop(self, last=True):
         if not self:
             raise KeyError('set is empty')
