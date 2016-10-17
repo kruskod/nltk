@@ -237,9 +237,18 @@ class ChartManager:
         return self._charts
 
     def pretty_print(self, input):
-        out = "Charts produced by the sentence: " + input + "\n"
-        for i,chart in enumerate(self._charts, 0):
-            out += "Chart {index}:\n{chart}\n".format_map({'index':i, 'chart':chart.str(i)})
+        out = "Charts produced by the sentence: " + input + "\n\n"
+        out += "\n".join("Chart {index}:\n{chart}".format_map({'index':i, 'chart':chart.str(i)}) for i,chart in enumerate(self._charts, 0))
+        return out
+
+    def __str__(self):
+        return self.pretty_print(" ".join(self._tokens))
+
+    def out(self):
+        out = "Final states:\n"
+        final_states = tuple(self.final_states())
+        if final_states:
+            out += "\n".join(st.str(len(self.charts()) - 1) for st in final_states)
         return out
 
 class Grammar:
@@ -348,6 +357,19 @@ def nonterminal_to_term(feat_struct_nonterminal):
         return NonTerm(feat_struct_nonterminal)
     else:
         return feat_struct_nonterminal
+
+def pase_tokens(grammar_file, tokens):
+    grammar = None
+    with open(grammar_file) as f:
+        grammar = CFG.fromstring(f.readlines())
+
+    start_nonterminal = nonterminal_to_term(grammar.start())
+
+    earley_grammar = Grammar((Rule(nonterminal_to_term(production.lhs()),
+                                   (nonterminal_to_term(fs) for fs in production.rhs())) for production
+                              in grammar.productions()), None)
+    parser = EarleyParser(earley_grammar)
+    return parser.parse(tokens, start_nonterminal)
 
 if __name__ == "__main__":
     # docTEST this

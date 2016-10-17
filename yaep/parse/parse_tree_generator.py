@@ -12,7 +12,8 @@ from nltk.topology.pgsql import build_rules
 from timeit import default_timer as timer
 import sys
 
-from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm
+from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm, \
+    pase_tokens
 from abc import ABCMeta, abstractmethod
 
 class LeafNode:
@@ -197,6 +198,20 @@ class ParseTreeGenerator(AbstractParseTreeGenerator):
                 return result
         return result
 
+def print_trees(tokens):
+    chart_manager = pase_tokens("../test/parse/grammar.txt", tokens)
+    print()
+    print(chart_manager)
+    print(chart_manager.out())
+
+    tree_generator = ParseTreeGenerator()
+    trees = tree_generator.parseTrees(chart_manager)
+    tree_output = ''
+    for tree in trees:
+        tree_output += tree.pretty_print(0) + '\n'
+    tree_output += "Number of trees: {}".format(len(trees))
+    print(tree_output)
+
 if __name__ == "__main__":
     # docTEST this
     import doctest
@@ -205,29 +220,6 @@ if __name__ == "__main__":
         # Perform set up actions (if any)
     tokens1 = ["Mary", "called", "Jan"]
     tokens2 = ["Mary", "called", "Jan", "from", "Frankfurt"]
-    grammar = None
-    with open("../test/parse/grammar.txt") as f:
-        grammar = CFG.fromstring(f.readlines())
+    print_trees(tokens1)
+    print_trees(tokens2)
 
-    start_nonterminal = nonterminal_to_term(grammar.start())
-
-    earley_grammar = Grammar((Rule(nonterminal_to_term(production.lhs()),
-                                   (nonterminal_to_term(fs) for fs in production.rhs())) for production
-                              in grammar.productions()), None)
-    parser = EarleyParser(earley_grammar)
-    chartManager = parser.parse(tokens1, start_nonterminal)
-
-    print(chartManager.pretty_print(" ".join(tokens1)))
-    print("Final states:")
-    final_states = tuple(chartManager.final_states())
-    if final_states:
-        for state in final_states:
-            print(state.str(len(chartManager.charts()) - 1))
-
-    tree_generator = ParseTreeGenerator()
-    trees = tree_generator.parseTrees(chartManager)
-    tree_output = ''
-    for tree in trees:
-        tree_output += tree.pretty_print(0) + '\n'
-    tree_output += "Number of trees: {}".format(len(trees))
-    print(tree_output)
