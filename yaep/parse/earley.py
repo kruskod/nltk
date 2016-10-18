@@ -1,3 +1,5 @@
+from collections import Counter
+
 from nltk import CFG
 from nltk import featstruct
 from nltk.compat import unicode_repr
@@ -67,10 +69,10 @@ class NonTerm(Term):
 
 class FeatStructNonTerm(Term):
 
-    def unify(self, other):
+    def unify(self, other, bindings=None):
         prodId = other._term.get_feature(PRODUCTION_ID_FEATURE)
         return ((not prodId or (prodId == self._term.get_feature(PRODUCTION_ID_FEATURE)))
-                and featstruct.unify(self._term, other._term, treatBool=False))
+                and featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False))
 
     def key(self):
         return self._term.get(TYPE,None)
@@ -253,7 +255,8 @@ class ChartManager:
 
 class Grammar:
 
-    def __init__(self, rules, terminals):
+    def __init__(self, rules, terminals, start = None):
+        self._start = start
         rules_dict = {}
         for rule in rules:
             lhs = rule.lhs()
@@ -272,6 +275,9 @@ class Grammar:
             for rule in rules:
                 if non_terminal.unify(rule.lhs()):
                     yield rule
+
+    def start(self):
+        return self._start
 
 class AbstractEarley:
 
@@ -334,9 +340,31 @@ class EarleyParser(AbstractEarley):
         self._tokens = tokens
         self._charts = tuple(Chart() for i in range(len(tokens) + 1))
 
+    def build_tree_generator(self):
+        from yaep.parse.parse_tree_generator import ParseTreeGenerator
+        return ParseTreeGenerator()
+
     def scanner(self, state, token_index):
         if self._tokens[token_index] == state.next_symbol():
             self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+
+class PermutationEarleyParser(AbstractEarley):
+
+    def init(self, tokens):
+        self._tokens = tokens
+        self._words_map = Counter(tokens)
+        self._charts = tuple(Chart() for i in range(len(tokens) + 1))
+
+    def build_tree_generator(self):
+        from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator
+        return PermutationParseTreeGenerator(self._words_map)
+
+    def scanner(self, state, token_index):
+        if state.next_symbol() in self._words_map:
+            self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+
+    def words_map(self):
+        return self._words_map
 
 def is_nonterminal(item):
     """
@@ -358,38 +386,46 @@ def nonterminal_to_term(feat_struct_nonterminal):
     else:
         return feat_struct_nonterminal
 
-def pase_tokens(grammar_file, tokens):
-    grammar = None
-    with open(grammar_file) as f:
-        grammar = CFG.fromstring(f.readlines())
-
+def pase_tokens(grammar_file_path, tokens, permutations=False):
+    grammar = grammar_from_file(grammar_file_path)
     start_nonterminal = nonterminal_to_term(grammar.start())
 
     earley_grammar = Grammar((Rule(nonterminal_to_term(production.lhs()),
                                    (nonterminal_to_term(fs) for fs in production.rhs())) for production
                               in grammar.productions()), None)
-    parser = EarleyParser(earley_grammar)
+    parser = PermutationEarleyParser(earley_grammar) if permutations else  EarleyParser(earley_grammar)
     return parser.parse(tokens, start_nonterminal)
+
+def grammar_from_file(grammar_file_path) :
+    with open(grammar_file_path) as f:
+        grammar = CFG.fromstring(f.readlines())
+
+    if grammar:
+        start_nonterminal = nonterminal_to_term(grammar.start())
+        return Grammar((Rule(nonterminal_to_term(production.lhs()),
+                                       (nonterminal_to_term(fs) for fs in production.rhs())) for production
+                                  in grammar.productions()), None, start_nonterminal)
+
+def performance_grammar(tokens):
+    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
+    grammar =  build_rules(tokens, fstruct_reader)
+    productions = grammar.productions()
+    start_nonterminal = feat_struct_nonterminal_to_term(grammar.start())
+
+    return Grammar((Rule(feat_struct_nonterminal_to_term(production.lhs()),
+                  (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production in productions),
+            None, start_nonterminal)
 
 if __name__ == "__main__":
     # docTEST this
     import doctest
     doctest.testmod()
 
-    fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
     sentence = "singe ich"
     tokens = sentence.split()
     # cp = FeatureTopDownChartParser(productions, use_agenda=True, trace=trace)
     start_timer = timer()
-    grammar = build_rules(tokens, fstruct_reader)
-    productions = grammar.productions()
-    start_nonterminal = feat_struct_nonterminal_to_term(grammar.start())
-    # rule = Rule(productions[0])
-    # state = State(rule, 2, 1)
-    # print(rule)
-    # print(state)
-    # print(state.is_finished())
-    earley_grammar = Grammar((Rule(feat_struct_nonterminal_to_term(production.lhs()), (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production in productions), None)
+    earley_grammar = performance_grammar(tokens)
 
     # test_subj1 = FeatStructNonterminal("subj[ProdId='S6']")
     # test_subj2 = FeatStructNonterminal("S[mood='indicative',number='singular']")
@@ -399,7 +435,7 @@ if __name__ == "__main__":
 
     earley_parser = EarleyParser(earley_grammar)
 
-    manager = earley_parser.parse(tokens, start_nonterminal)
+    manager = earley_parser.parse(tokens, earley_grammar.start())
     end_time = timer()
     print(manager.pretty_print(sentence))
     print("Final states:")

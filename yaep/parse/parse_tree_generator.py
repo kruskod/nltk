@@ -13,7 +13,7 @@ from timeit import default_timer as timer
 import sys
 
 from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm, \
-    pase_tokens
+    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar
 from abc import ABCMeta, abstractmethod
 
 class LeafNode:
@@ -47,10 +47,10 @@ class LeafNode:
         elif self is other:
             return True
         else:
-            return self._i == other._i and self._symbol == other._symbol
+            return self._i == other._i and self._symbol.unify(other._symbol)
 
     def __hash__(self):
-        return hash((type(self), self._i, self._symbol))
+        return hash((type(self), self._i, self._symbol.key()))
 
     def __str__(self):
         return self._symbol
@@ -99,11 +99,16 @@ class Node(LeafNode):
     def pretty_print(self, level):
         padding = '\n' + '\t' * level
         children_str = " ".join(c.pretty_print(level + 1) for c in self._children)
-        return "{}([{}:{}] {} {})".format(padding, self._i, self._j, self._symbol, children_str if self._children else '')
+        return "{}([{}:{}] {} {})".format(padding, self._i, self._j, unicode_repr(self._symbol), children_str if self._children else '')
+
+    def validate_by_input(self, input_map):
+        for key,val in self._wordsmap.items():
+            if input_map[key] < val:
+                return False
+        return True
 
     def __str__(self):
-        return "[{}:{}] {}".format(self._i, self._j, self._symbol)
-
+        return "[{}:{}] {}".format(self._i, self._j, unicode_repr(self._symbol))
 
 class ExtendedState(State):
 
@@ -131,7 +136,9 @@ class AbstractParseTreeGenerator:
                     val = self._completed.setdefault(temp, list())
                     val.append(ExtendedState(state, i))
 
-        return reduce(lambda x,y: x+y, (self.buildTrees(ExtendedState(st, len(chart_manager.charts()) - 1), set()) for st in chart_manager.final_states()))
+        trees = tuple(self.buildTrees(ExtendedState(st, len(chart_manager.charts()) - 1), set()) for st in chart_manager.final_states())
+        if trees:
+            return reduce(lambda x,y: x+y, trees)
 
 class ParseTreeGenerator(AbstractParseTreeGenerator):
 
@@ -198,13 +205,88 @@ class ParseTreeGenerator(AbstractParseTreeGenerator):
                 return result
         return result
 
-def print_trees(tokens):
-    chart_manager = pase_tokens("../test/parse/grammar.txt", tokens)
+class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
+
+    def __init__(self, words_map):
+        super().__init__()
+        self._words_map = words_map
+
+    def buildTrees(self, state, parent_states):
+        root = Node(state.rule().lhs(), state.from_index(), state.to_index())
+        result = [root,]
+        new_result = []
+        parent_states.add(state)
+
+        for i,cs in enumerate(state.rule().rhs(), 0):
+            if isinstance(cs, (FeatStructNonTerm, NonTerm)):
+                temp = Node(cs)
+
+                if i == (len(state.rule()) - 1):
+                    temp.set_to_index(state.to_index())
+
+                different_last_node_index = False
+
+                if i == 0:
+                    temp.set_from_index(state.from_index())
+                else:
+                    result_iter = iter(result)
+                    last_node_index = next(result_iter).last_child_to_index()
+                    for tempRoot in result_iter:
+                        if last_node_index != tempRoot.last_child_to_index():
+                            different_last_node_index = True
+                            break
+                    else:
+                        temp.set_from_index(last_node_index)
+
+                # Generate alternatives
+
+                if not different_last_node_index:
+                    states = self._completed.get(temp, None)
+                    if states:
+                        children_lists = (self.buildTrees(st, set(parent_states)) for st in states if (st not in parent_states) and (
+                            temp.from_index() == None or st.from_index() == temp.from_index()) and (
+                                              temp.to_index() == None or temp.to_index() == st.to_index()))
+                        children_list = reduce(lambda x,y: x+y, children_lists)
+                        for tempRoot in result:
+                            for child in children_list:
+                                test_node = Node.from_Node_and_child(tempRoot, child)
+                                if test_node.validate_by_input(self._words_map):
+                                    new_result.append(test_node)
+                else:
+                    for tempRoot in result:
+                        temp.set_from_index(tempRoot.last_child_to_index())
+                        states = self._completed.get(temp, None)
+                        if states:
+                            children_lists = (self.buildTrees(st, set(parent_states)) for st in states if
+                                              (st not in parent_states) and (
+                                                  temp.from_index() == None or st.from_index() == temp.from_index()) and (
+                                                  temp.to_index() == None or temp.to_index() == st.to_index()))
+                            children_list = reduce(lambda x, y: x + y, children_lists)
+                            for child in children_list:
+                                test_node = Node.from_Node_and_child(tempRoot, child)
+                                if test_node.validate_by_input(self._words_map):
+                                    new_result.append(test_node)
+            else: # if isinstance Leaf
+                for tempRoot in result:
+                    new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))
+
+            if new_result:
+                result.clear()
+                result.extend(new_result)
+                new_result.clear()
+            #else:
+                # do nothing, because there are nullable non-terminals
+                #return result
+        return result
+
+def print_trees(tokens, grammar, permutations = False):
+    parser = PermutationEarleyParser(grammar) if permutations else  EarleyParser(grammar)
+    chart_manager = parser.parse(tokens, grammar.start())
     print()
     print(chart_manager)
     print(chart_manager.out())
 
-    tree_generator = ParseTreeGenerator()
+    tree_generator = parser.build_tree_generator()
     trees = tree_generator.parseTrees(chart_manager)
     tree_output = ''
     for tree in trees:
@@ -217,9 +299,10 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-        # Perform set up actions (if any)
-    tokens1 = ["Mary", "called", "Jan"]
-    tokens2 = ["Mary", "called", "Jan", "from", "Frankfurt"]
-    print_trees(tokens1)
-    print_trees(tokens2)
-
+    # tokens1 = ["Mary", "called", "Jan"]
+    # tokens2 = ["Mary", "called", "Jan", "from", "Frankfurt"]
+    # print_trees(tokens1, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
+    # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
+    #
+    tokens = "ich sehe".split()
+    print_trees(tokens, grammar=performance_grammar(tokens), permutations=True)
