@@ -1,21 +1,12 @@
-from functools import reduce
 from collections import Counter
 
-from nltk import CFG
-from nltk import featstruct
+from nltk import Variable
 from nltk.compat import unicode_repr
-from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar, Nonterminal
-from nltk.featstruct import CelexFeatStructReader, TYPE, unify, retract_bindings
-from nltk.topology.compassFeat import PRODUCTION_ID_FEATURE, BRANCH_FEATURE
-from nltk.topology.orderedSet import OrderedSet
+from nltk.featstruct import CelexFeatStructReader, substitute_bindings
+from nltk.grammar import FeatStructNonterminal
 from nltk.topology.pgsql import build_rules
-from timeit import default_timer as timer
-import sys
-
-from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm, \
-    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar, AbstractEarley, Chart, \
+from yaep.parse.earley import State, Grammar, Rule, EarleyParser, AbstractEarley, Chart, \
     feat_struct_nonterminal_to_term, is_nonterminal
-from abc import ABCMeta, abstractmethod
 
 
 class BindingsRule(Rule):
@@ -27,18 +18,48 @@ class BindingsRule(Rule):
     def bindings(self):
         return self._bindings
 
+    @classmethod
+    def from_Rule(cls, rule, bindings):
+        new_node = cls(rule.lhs(), rule.rhs())
+        new_node._bindings = bindings
+        return new_node
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        elif self is other:
+            return True
+        else:
+            return self._lhs == other._lhs and self._rhs == other._rhs and self._bindings == other._bindings
+
+    def __str__(self):
+        """
+        Return a verbose string representation of the ``Rule``.
+
+        :rtype: str
+        """
+        result = '%s -> ' % unicode_repr(substitute_bindings(self._lhs, self._bindings, fs_class='default'))
+        result += " ".join(unicode_repr(substitute_bindings(el, self._bindings, fs_class='default')) for el in self._rhs)
+        return result
+
+    def __hash__(self):
+        return hash((type(self), self._lhs, self._rhs, frozenset(self._bindings.values())))
+
 class BindingsGrammar(Grammar):
 
     def find_rule(self, non_terminal, bindings=None):
         if bindings is None:
-            bindings = {}
+            _bindings = {}
+        else:
+            _bindings = bindings.copy()
         rules = self._rules.get(non_terminal.key())
         if rules:
             for rule in rules:
-                result = non_terminal.unify(rule.lhs(), bindings)
+                lhs = rule.lhs()
+                result = non_terminal.unify(lhs, _bindings)
                 if result:
-                    rule._bindings = retract_bindings(result, bindings)
-                    yield rule
+                    extracted_bindings = extract_bindings(lhs.term(), result)
+                    yield BindingsRule.from_Rule(rule,extracted_bindings)
 
 class BindingsPermutationEarleyParser(AbstractEarley):
 
@@ -51,13 +72,13 @@ class BindingsPermutationEarleyParser(AbstractEarley):
         from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator
         return PermutationParseTreeGenerator(self._words_map)
 
-    def predictor_non_terminal(self, lhs, token_index):
-        for rule in self._grammar.find_rule(lhs):
+    def predictor_non_terminal(self, lhs, token_index, bindings=None):
+        for rule in self._grammar.find_rule(lhs, bindings):
             self._charts[token_index].add_state(State(rule, token_index, 0))
 
     def predictor(self, state, token_index):
         lhs = state.next_symbol()
-        self.predictor_non_terminal(lhs, token_index)
+        self.predictor_non_terminal(lhs, token_index, state.rule().bindings())
         if lhs.is_nullable():
             self._charts[token_index].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
 
@@ -66,14 +87,71 @@ class BindingsPermutationEarleyParser(AbstractEarley):
             self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
 
     def completer(self, origin_state, token_index):
-        lhs = origin_state.rule().lhs()
+        origin_rule = origin_state.rule()
+        lhs = origin_rule.lhs()
         current_chart = self._charts[token_index]
         for temp_state in self._charts[origin_state.from_index()].states():
-            if (not temp_state.is_finished()) and is_nonterminal(temp_state.next_symbol()) and lhs.unify(temp_state.next_symbol()):
-                current_chart.add_state(State(temp_state.rule(), temp_state.from_index(), temp_state.dot() + 1))
+            if (not temp_state.is_finished()) and is_nonterminal(temp_state.next_symbol()):
+                common_bindings = dict_intersection(temp_state.rule().bindings(), origin_rule.bindings())
+                if common_bindings is None:
+                    continue
+                result = lhs.unify(temp_state.next_symbol(), common_bindings)
+                if result:
+                    extracted_bindings = extract_bindings(temp_state.next_symbol().term(), result)
+                    rule_bindings = dict_intersection(temp_state.rule().bindings(), extracted_bindings)
+                    if rule_bindings is None:
+                        raise ValueError(rule_bindings)
+
+                    # extracted_bindings = merge_bindings(temp_state.rule().bindings(), extract_bindings(lhs.term(), result))
+                    current_chart.add_state(State(BindingsRule.from_Rule(temp_state.rule(),rule_bindings), temp_state.from_index(), temp_state.dot() + 1))
 
     def words_map(self):
         return self._words_map
+
+def extract_bindings(nt_with_variables, unification_result):
+    dict_variables = {key:val for key, val in nt_with_variables.items() if isinstance(val, Variable)}
+    if dict_variables:
+        dict_unification_result = unification_result.items()
+        result = {dict_variables[key]: val for key, val in dict_unification_result if
+                          key in dict_variables and not isinstance(val, Variable)}
+        return result
+    return {}
+
+def dict_intersection(dict1, dict2):
+    if not dict1:
+        return dict2.copy()
+    elif not dict2 or dict1 == dict2:
+        return dict1.copy()
+
+    intersection = dict1.keys() & dict2.keys()
+    result = dict1.copy()
+    if not intersection:
+        result.update(dict2)
+    else:
+        common_dict = {}
+        for key in intersection:
+            val1 = dict1[key]
+            val2 = dict2[key]
+            if val1 == val2:
+                continue
+            elif isinstance(val1, tuple) or isinstance(val2, tuple):
+                if isinstance(val1, tuple) and val2 in val1:
+                    common_dict[key] = val2
+                    continue
+                elif isinstance(val2, tuple) and val1 in val2:
+                    common_dict[key] = val1
+                    continue
+                elif isinstance(val1, tuple) and isinstance(val2, tuple):
+                    val1_set = set(val1)
+                    val2_set = set(val2)
+                    if val1_set.issubset(val2_set) or val2_set.issubset(val1_set):
+                        common_dict[key] = tuple(val1_set & val2_set)
+                        continue
+            return None
+        result.update(dict2)
+        result.update(common_dict)
+    return result
+
 
 def bindings_performance_grammar(tokens):
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
@@ -81,7 +159,7 @@ def bindings_performance_grammar(tokens):
     productions = grammar.productions()
     start_nonterminal = feat_struct_nonterminal_to_term(grammar.start())
 
-    return BindingsGrammar((BindingsRule(feat_struct_nonterminal_to_term(production.lhs()),
+    return BindingsGrammar((Rule(feat_struct_nonterminal_to_term(production.lhs()),
                   (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production in productions),
             None, start_nonterminal)
 
@@ -94,12 +172,12 @@ def print_trees(tokens, grammar, permutations = False):
 
     tree_generator = parser.build_tree_generator()
     trees = tree_generator.parseTrees(chart_manager)
-    tree_output = ''
-    for tree in trees:
-        tree_output += tree.pretty_print(0) + '\n'
-    tree_output += "Number of trees: {}".format(len(trees))
-    print(tree_output)
-
+    if trees:
+        tree_output = ''
+        for tree in trees:
+            tree_output += tree.pretty_print(0) + '\n'
+        tree_output += "Number of trees: {}".format(len(trees))
+        print(tree_output)
 
 if __name__ == "__main__":
     # docTEST this

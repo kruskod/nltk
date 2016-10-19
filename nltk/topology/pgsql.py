@@ -46,8 +46,8 @@ def build_rules(tokens, fstruct_reader, dump = True):
             cursor.execute(query, (token,))
             productions.extend(productions_extractor(cnx, cursor, fstruct_reader))
 
-        productions.append(Production(FeatStructNonterminal("S[]"), (
-            FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
+        # productions.append(Production(FeatStructNonterminal("S[]"), (
+        #     FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
 
         if dump:
             with open('../../fsa/query.fcfg', "w") as f:
