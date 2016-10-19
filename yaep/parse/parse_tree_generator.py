@@ -243,29 +243,31 @@ class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
                 if not different_last_node_index:
                     states = self._completed.get(temp, None)
                     if states:
-                        children_lists = (self.buildTrees(st, set(parent_states)) for st in states if (st not in parent_states) and (
+                        children_lists = tuple(self.buildTrees(st, set(parent_states)) for st in states if (st not in parent_states) and (
                             temp.from_index() == None or st.from_index() == temp.from_index()) and (
                                               temp.to_index() == None or temp.to_index() == st.to_index()))
-                        children_list = reduce(lambda x,y: x+y, children_lists)
-                        for tempRoot in result:
-                            for child in children_list:
-                                test_node = Node.from_Node_and_child(tempRoot, child)
-                                if test_node.validate_by_input(self._words_map):
-                                    new_result.append(test_node)
+                        if children_lists:
+                            children_list = reduce(lambda x,y: x+y, children_lists)
+                            for tempRoot in result:
+                                for child in children_list:
+                                    test_node = Node.from_Node_and_child(tempRoot, child)
+                                    if test_node.validate_by_input(self._words_map):
+                                        new_result.append(test_node)
                 else:
                     for tempRoot in result:
                         temp.set_from_index(tempRoot.last_child_to_index())
                         states = self._completed.get(temp, None)
                         if states:
-                            children_lists = (self.buildTrees(st, set(parent_states)) for st in states if
+                            children_lists = tuple(self.buildTrees(st, set(parent_states)) for st in states if
                                               (st not in parent_states) and (
                                                   temp.from_index() == None or st.from_index() == temp.from_index()) and (
                                                   temp.to_index() == None or temp.to_index() == st.to_index()))
-                            children_list = reduce(lambda x, y: x + y, children_lists)
-                            for child in children_list:
-                                test_node = Node.from_Node_and_child(tempRoot, child)
-                                if test_node.validate_by_input(self._words_map):
-                                    new_result.append(test_node)
+                            if children_lists:
+                                children_list = reduce(lambda x, y: x + y, children_lists)
+                                for child in children_list:
+                                    test_node = Node.from_Node_and_child(tempRoot, child)
+                                    if test_node.validate_by_input(self._words_map):
+                                        new_result.append(test_node)
             else: # if isinstance Leaf
                 for tempRoot in result:
                     new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))

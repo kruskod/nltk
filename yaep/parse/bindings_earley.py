@@ -1,4 +1,5 @@
 from collections import Counter
+from functools import reduce
 
 from nltk import Variable
 from nltk.compat import unicode_repr
@@ -6,7 +7,8 @@ from nltk.featstruct import CelexFeatStructReader, substitute_bindings
 from nltk.grammar import FeatStructNonterminal
 from nltk.topology.pgsql import build_rules
 from yaep.parse.earley import State, Grammar, Rule, EarleyParser, AbstractEarley, Chart, \
-    feat_struct_nonterminal_to_term, is_nonterminal
+    feat_struct_nonterminal_to_term, is_nonterminal, FeatStructNonTerm
+from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator, ExtendedState, Node
 
 
 class BindingsRule(Rule):
@@ -31,6 +33,19 @@ class BindingsRule(Rule):
             return True
         else:
             return self._lhs == other._lhs and self._rhs == other._rhs and self._bindings == other._bindings
+
+    def str(self, dot):
+        if dot == 0:
+            return '{} -> * {}'.format(unicode_repr(substitute_bindings(self._lhs.term(), self._bindings)), " ".join(unicode_repr(el) for el in self._rhs))
+        elif dot == len(self):
+            return '{} -> {} *'.format(unicode_repr(substitute_bindings(self._lhs.term(), self._bindings)), " ".join(unicode_repr(substitute_bindings(el.term(), self._bindings)) if is_nonterminal(el) else unicode_repr(el) for el in self._rhs))
+        elif 0 < dot < len(self):
+            # substitute bindings only for non_terminals before dot, because we don't know how the bindings will modify further
+            before_dot = " ".join(unicode_repr(substitute_bindings(el.term(), self._bindings)) for el in self._rhs[:dot])
+            after_dot = " ".join(unicode_repr(el) for el in self._rhs[dot:])
+            return '{} -> {} * {}'.format(unicode_repr(substitute_bindings(self._lhs.term(), self._bindings)), before_dot, after_dot)
+        else:
+            raise ValueError("dot: {} is not fit for {}".format(dot, self))
 
     def __str__(self):
         """
@@ -69,8 +84,7 @@ class BindingsPermutationEarleyParser(AbstractEarley):
         self._charts = tuple(Chart() for i in range(len(tokens) + 1))
 
     def build_tree_generator(self):
-        from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator
-        return PermutationParseTreeGenerator(self._words_map)
+        return BindingsPermutationParseTreeGenerator(self._words_map)
 
     def predictor_non_terminal(self, lhs, token_index, bindings=None):
         for rule in self._grammar.find_rule(lhs, bindings):
@@ -152,6 +166,35 @@ def dict_intersection(dict1, dict2):
         result.update(common_dict)
     return result
 
+class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
+    # pass
+
+    def parseTrees(self, chart_manager):
+        '''
+         In this implementation all NonTerm variables will be replaced by their bindings
+        :param chart_manager: recognized chart
+        :return: collection of parse trees
+        '''
+
+        charts = chart_manager.charts()
+        for i, chart in enumerate(charts, 0):
+            for state in chart.states():
+                if state.is_finished():
+                    rule = substitute_rule(state.rule())
+                    temp = Node(rule.lhs(), state.from_index(), i)
+                    val = self._completed.setdefault(temp, list())
+                    val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
+
+        trees = tuple(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
+                      chart_manager.final_states())
+        if trees:
+            return reduce(lambda x, y: x + y, trees)
+
+def substitute_rule(rule):
+    bindings = rule.bindings()
+    lhs = FeatStructNonTerm(substitute_bindings(rule.lhs().term(), bindings), rule.lhs().is_nullable())
+    rhs = (FeatStructNonTerm(substitute_bindings(el.term(), bindings), el.is_nullable()) if is_nonterminal(el) else el for el in rule.rhs())
+    return Rule(lhs, rhs)
 
 def bindings_performance_grammar(tokens):
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
@@ -189,5 +232,5 @@ if __name__ == "__main__":
     # print_trees(tokens1, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     #
-    tokens = "ich sehe".split()
+    tokens = "Monopole sollen geknackt und Märkte getrennt werden".split()
     print_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)

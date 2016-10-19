@@ -124,6 +124,18 @@ class Rule:
         result += " ".join(unicode_repr(el) for el in self._rhs)
         return result
 
+    def str(self, dot):
+        if dot == 0:
+            return '{} -> * {}'.format(unicode_repr(self._lhs), " ".join(unicode_repr(el) for el in self._rhs))
+        elif dot == len(self):
+            return '{} -> {} *'.format(unicode_repr(self._lhs), " ".join(unicode_repr(el) for el in self._rhs))
+        elif 0 < dot < len(self):
+            before_dot = " ".join(unicode_repr(el) for el in self._rhs[:dot])
+            after_dot = " ".join(unicode_repr(el) for el in self._rhs[dot:])
+            return '{} -> {} * {}'.format(unicode_repr(self._lhs), before_dot, after_dot)
+        else:
+            raise ValueError("dot: {} is not fit for {}".format(dot, self))
+
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -167,11 +179,7 @@ class State:
         return self.str('..')
 
     def str(self, j):
-        rhs = self._rule.rhs()
-        before_dot = " ".join(unicode_repr(el) for el in rhs[:self._dot])
-        after_dot = " ".join(unicode_repr(el) for el in rhs[self._dot:])
-        rhs_with_dot = before_dot + " * " + after_dot
-        return "[{}:{}] {} -> {}".format(self._i, j,  unicode_repr(self._rule.lhs()), rhs_with_dot)
+        return "[{}:{}] {}".format(self._i, j,  self.rule().str(self._dot))
 
     def __repr__(self):
         return self.__str__()
