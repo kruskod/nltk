@@ -246,6 +246,9 @@ class ChartManager:
     def charts(self):
         return self._charts
 
+    def tokens(self):
+        return self._tokens
+
     def pretty_print(self, input):
         out = "Charts produced by the sentence: " + input + "\n\n"
         out += "\n".join("Chart {index}:\n{chart}".format_map({'index':i, 'chart':chart.str(i)}) for i,chart in enumerate(self._charts, 0))
@@ -350,7 +353,9 @@ class EarleyParser(AbstractEarley):
 
     def build_tree_generator(self):
         from yaep.parse.parse_tree_generator import ParseTreeGenerator
-        return ParseTreeGenerator()
+        # return ParseTreeGenerator()
+        from yaep.parse.parse_tree_generator import ChartTraverseParseTreeGenerator
+        return ChartTraverseParseTreeGenerator()
 
     def scanner(self, state, token_index):
         if self._tokens[token_index] == state.next_symbol():

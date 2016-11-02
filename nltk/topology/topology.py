@@ -666,8 +666,9 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=1,
-         sent='das Auto fährt', numparses=0):
+         sent='Kaffee darf ich jeden Tag trinken', numparses=0):
     """
+     # tokens = "".split()
     er tritt in die Verwaltung ein und er wird Aktionär
     Für die Bürger schafft das die einzige Möglichkeit , zu kontrollieren und nachzuvollzuehen , was die Politik Frage will
     damit die Gesundheit der Arbeiter geschützt und diese von unzumutbaren Belästigungen verschont würden

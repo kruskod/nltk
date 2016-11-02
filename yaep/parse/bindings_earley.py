@@ -1,6 +1,8 @@
 from collections import Counter
 from functools import reduce
 
+import itertools
+
 from nltk import Variable
 from nltk.compat import unicode_repr
 from nltk.featstruct import CelexFeatStructReader, substitute_bindings
@@ -8,7 +10,8 @@ from nltk.grammar import FeatStructNonterminal
 from nltk.topology.pgsql import build_rules
 from yaep.parse.earley import State, Grammar, Rule, EarleyParser, AbstractEarley, Chart, \
     feat_struct_nonterminal_to_term, is_nonterminal, FeatStructNonTerm
-from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator, ExtendedState, Node
+from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator, ExtendedState, Node, \
+    ChartTraverseParseTreeGenerator
 
 
 class BindingsRule(Rule):
@@ -85,6 +88,7 @@ class BindingsPermutationEarleyParser(AbstractEarley):
 
     def build_tree_generator(self):
         return BindingsPermutationParseTreeGenerator(self._words_map)
+        # return BindingsPermutationTraverseParseTreeGenerator()
 
     def predictor_non_terminal(self, lhs, token_index, bindings=None):
         for rule in self._grammar.find_rule(lhs, bindings):
@@ -185,10 +189,23 @@ class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
                     val = self._completed.setdefault(temp, list())
                     val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
 
-        trees = tuple(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
+        return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
                       chart_manager.final_states())
-        if trees:
-            return reduce(lambda x, y: x + y, trees)
+
+class BindingsPermutationTraverseParseTreeGenerator(ChartTraverseParseTreeGenerator):
+
+    def parseTrees(self, chart_manager):
+        parser_charts = chart_manager.charts()
+        self._charts = tuple(Chart() for i in range(len(parser_charts)))
+        for i, chart in enumerate(parser_charts,0):
+            filtered_chart = self._charts[i]
+            for state in chart.states():
+                if state.is_finished():
+                    filtered_chart.add_state(ExtendedState(State(substitute_rule(state.rule()), state.from_index(), state.dot()), i))
+        j = len(chart_manager.tokens())
+        result = tuple(itertools.chain.from_iterable(
+            self.countDown(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), j), set(), j) for st in chart_manager.final_states()))
+        return result
 
 def substitute_rule(rule):
     bindings = rule.bindings()
@@ -206,7 +223,7 @@ def bindings_performance_grammar(tokens):
                   (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production in productions),
             None, start_nonterminal)
 
-def print_trees(tokens, grammar, permutations = False):
+def print_trees(tokens, grammar, permutations=False):
     parser = BindingsPermutationEarleyParser(grammar) if permutations else  EarleyParser(grammar)
     chart_manager = parser.parse(tokens, grammar.start())
     print()
@@ -215,12 +232,85 @@ def print_trees(tokens, grammar, permutations = False):
 
     tree_generator = parser.build_tree_generator()
     trees = tree_generator.parseTrees(chart_manager)
+    number_trees = 0
+    number_derivation_trees = 0
+    dominance_structures=[]
+    verifier = Counter(tokens)
     if trees:
         tree_output = ''
         for tree in trees:
+            number_derivation_trees += 1
+            if tree.wordsmap() == verifier:
+                number_trees += 1
+                dominance_structures.append(tree)
             tree_output += tree.pretty_print(0) + '\n'
-        tree_output += "Number of trees: {}".format(len(trees))
+        tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
         print(tree_output)
+        print("Number of dominance structures: {}".format(number_trees))
+
+# def print_trees(tokens, grammar, permutations = False):
+#     parser = PermutationEarleyParser(grammar) if permutations else EarleyParser(grammar)
+#     chart_manager = parser.parse(tokens, grammar.start())
+#     print()
+#     print(chart_manager)
+#     print(chart_manager.out())
+#
+#     tree_generator = parser.build_tree_generator()
+#     number_trees = 0
+#     dominance_structures=[]
+#     verifier = Counter(tokens)
+#     for tree in tree_generator.parseTrees(chart_manager):
+#         print(tree.pretty_print(0))
+#         if tree.wordsmap() == verifier:
+#             number_trees += 1
+#             dominance_structures.append(tree)
+#     print("Number of dominance structures: {}".format(number_trees))
+
+    # verifier = wordPresenceVerifier(tokens)
+    # for tree in cp.parse(tokens):
+    #     count_trees += 1
+    #     if verifier(tree):
+    #         try:
+    #             dominance_structures.append(tree)
+    #         except ValueError:
+    #             pass
+    #             # has_subj = False
+    #             # for sub_tree in tree:
+    #             #     if sub_tree._label[TYPE] == 'subj':
+    #             #         has_subj = True
+    #             #         break
+    #             # if ver_result and has_subj and tree._label.has_feature({'status': 'Fin'}):
+    #             #     try:
+    #             #         dominance_structures.append(tree)
+    #             #     except ValueError:
+    #             #         pass
+    #             # print(tree)
+    #             # print("Word presence verification result: {}".format(ver_result))
+    # # topologies = build_topologies()
+    # end_time = timer()
+    # if dominance_structures:
+    #     print("####################################################")
+    #     print("Dominance structures:")
+    #     dominance_structures = sorted(dominance_structures, key=lambda tree: ' '.join(tree.leaves()).lower())
+    #
+    #     for tree in dominance_structures:
+    #         print(tree)
+    #         # feat_tree = FeatTree(tree)
+    #         # feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
+    #         # print(feat_tree)
+    #         # for top in feat_tree.topologies:
+    #         #     print(top.read_out(tokens))
+    #     end_time = timer()
+    #     with open('../../fsa/dominance_structures.dump', 'wb') as f:
+    #         pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
+    # print("####################################################")
+    # print("Nr trees:", count_trees)
+    # print("Nr Dominance structures:", len(dominance_structures))
+    # print('Count of productions:', len(cp._grammar._productions))
+    # print("Time: {:.3f}s.\n".format(end_time - t))
+    #
+    # if dominance_structures:
+    #     TreeTabView(*dominance_structures[:20])
 
 if __name__ == "__main__":
     # docTEST this
@@ -232,5 +322,10 @@ if __name__ == "__main__":
     # print_trees(tokens1, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     #
-    tokens = "Monopole sollen geknackt und Märkte getrennt werden".split()
+    # tokens = "Monopole sollen geknackt und Märkte getrennt werden".split()
+    # tokens = "Kaffee darf ich jeden Tag trinken".split()
+    # tokens = "Kaffee darf ich jeden Tag trinken".split()
+    # tokens = "meine Frau will ein Auto kaufen".split()
+    # tokens = "ich sehe".split()
+    tokens = "ich sehe den Mann".split()
     print_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)

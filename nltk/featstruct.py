@@ -92,6 +92,7 @@ from __future__ import print_function, unicode_literals, division
 from _collections_abc import Iterable
 import re
 import copy
+from operator import itemgetter
 
 from nltk.internals import read_str, raise_unorderable_types
 from nltk.sem.logic import (Variable, Expression, SubstituteBindingsI,
@@ -752,7 +753,7 @@ class FeatDict(FeatStruct, dict):
 
         # sorting note: keys are unique strings, so we'll never fall
         # through to comparing values.
-        for (fname, fval) in sorted(self.items()):
+        for (fname, fval) in sorted(self.items(), key=itemgetter(0)):
             display = getattr(fname, 'display', None)
             if id(fval) in reentrance_ids:
                 segments.append('%s->(%s)' %

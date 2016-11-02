@@ -1,6 +1,8 @@
 from functools import reduce
 from collections import Counter
 
+import itertools
+
 from nltk import CFG
 from nltk import featstruct
 from nltk.compat import unicode_repr
@@ -13,7 +15,7 @@ from timeit import default_timer as timer
 import sys
 
 from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm, \
-    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar
+    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar, Chart, Term
 from abc import ABCMeta, abstractmethod
 
 class LeafNode:
@@ -55,6 +57,9 @@ class LeafNode:
     def __str__(self):
         return self._symbol
 
+    def __repr__(self):
+        return str(self)
+
     def pretty_print(self, level):
         return self._symbol
 
@@ -78,6 +83,13 @@ class Node(LeafNode):
         new_node.add_node(child)
         return new_node
 
+    @classmethod
+    def from_Node_and_children(cls, node, children):
+        new_node = cls.from_Node(node)
+        for child in children:
+            new_node.add_node(child)
+        return new_node
+
     def add_node(self, node):
         if isinstance(node, Node):
             self._wordsmap.update(node._wordsmap)
@@ -99,7 +111,10 @@ class Node(LeafNode):
     def pretty_print(self, level):
         padding = '\n' + '\t' * level
         children_str = " ".join(c.pretty_print(level + 1) for c in self._children)
-        return "{}([{}:{}] {} {})".format(padding, self._i, self._j, unicode_repr(self._symbol), children_str if self._children else '')
+        out = "{}([{}:{}] {} {})".format(padding, self._i, self._j, unicode_repr(self._symbol), children_str if self._children else '')
+        if level == 0:
+            out += '\n' + str(self._wordsmap)
+        return out
 
     def validate_by_input(self, input_map):
         for key,val in self._wordsmap.items():
@@ -136,9 +151,9 @@ class AbstractParseTreeGenerator:
                     val = self._completed.setdefault(temp, list())
                     val.append(ExtendedState(state, i))
 
-        trees = tuple(self.buildTrees(ExtendedState(st, len(chart_manager.charts()) - 1), set()) for st in chart_manager.final_states())
-        if trees:
-            return reduce(lambda x,y: x+y, trees)
+        return itertools.chain.from_iterable(
+                    self.buildTrees(ExtendedState(st, len(chart_manager.charts()) - 1), set()) for st in
+                    chart_manager.final_states())
 
 class ParseTreeGenerator(AbstractParseTreeGenerator):
 
@@ -204,6 +219,58 @@ class ParseTreeGenerator(AbstractParseTreeGenerator):
             else:
                 return result
         return result
+
+class ChartTraverseParseTreeGenerator():
+
+    def parseTrees(self, chart_manager):
+        parser_charts = chart_manager.charts()
+        self._charts = tuple(Chart() for i in range(len(parser_charts)))
+        for i, chart in enumerate(parser_charts,0):
+            filtered_chart = self._charts[i]
+            for state in chart.states():
+                if state.is_finished():
+                    filtered_chart.add_state(ExtendedState(state, i))
+        j = len(chart_manager.tokens())
+        result = tuple(itertools.chain.from_iterable(self.countDown(ExtendedState(st, j), set(), j) for st in chart_manager.final_states()))
+        return result
+
+    def find_state(self, non_terminal, states):
+        for st in states:
+            lhs = st.rule().lhs()
+            if lhs.key() == non_terminal.key() and non_terminal.unify(lhs):
+                yield st
+
+    def countDown(self, state, parent_states, start):
+        parent_states.add(state)
+        root = Node(state.rule().lhs(), state.from_index(), state.to_index())
+        result = []
+        old_result = []
+        reversed_rhs = tuple(reversed(state.rule().rhs()))
+        start_index = start
+        for cs in reversed_rhs:
+            if result:
+                old_result = list(result)
+                result.clear()
+            else:
+                result.extend((node,) for node in self.find_node(cs, set(parent_states), start_index))
+
+            for node_rhs in old_result:
+                node = node_rhs[0]
+                start_index = node.from_index()
+                result.extend((n,) + node_rhs for n in self.find_node(cs, set(parent_states), start_index))
+
+        for children in result:
+            yield Node.from_Node_and_children(root, children)
+
+    def find_node(self, term, parent_states, start_index):
+        if isinstance(term, Term):
+            for st in self.find_state(term, reversed(self._charts[start_index].states())):
+                if st not in parent_states:
+                    yield from self.countDown(st, set(parent_states), start_index)
+        else:
+            # it is a terminal
+            # current = Node(state.rule().lhs(), state.from_index(), state.to_index())
+            yield LeafNode(term, start_index - 1, start_index)
 
 class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
 
@@ -282,29 +349,28 @@ class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
         return result
 
 def print_trees(tokens, grammar, permutations = False):
-    parser = PermutationEarleyParser(grammar) if permutations else  EarleyParser(grammar)
+    parser = PermutationEarleyParser(grammar) if permutations else EarleyParser(grammar)
     chart_manager = parser.parse(tokens, grammar.start())
     print()
     print(chart_manager)
     print(chart_manager.out())
 
     tree_generator = parser.build_tree_generator()
-    trees = tree_generator.parseTrees(chart_manager)
-    tree_output = ''
-    for tree in trees:
-        tree_output += tree.pretty_print(0) + '\n'
-    tree_output += "Number of trees: {}".format(len(trees))
-    print(tree_output)
+    number_trees = 0
+    for tree in tree_generator.parseTrees(chart_manager):
+        print(tree.pretty_print(0))
+        number_trees += 1
+    print("Number of trees: {}".format(number_trees))
 
 if __name__ == "__main__":
     # docTEST this
     import doctest
     doctest.testmod()
 
-    # tokens1 = ["Mary", "called", "Jan"]
-    # tokens2 = ["Mary", "called", "Jan", "from", "Frankfurt"]
-    # print_trees(tokens1, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
+    tokens1 = ["Mary", "called", "Jan"]
+    tokens2 = ["Mary", "called", "Jan", "from", "Frankfurt"]
+    print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=False)
     # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     #
-    tokens = "ich sehe".split()
-    print_trees(tokens, grammar=performance_grammar(tokens), permutations=True)
+    # tokens = "ich sehe".split()
+    # print_trees(tokens, grammar=performance_grammar(tokens), permutations=True)

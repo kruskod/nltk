@@ -1,6 +1,5 @@
 import copy
-
-
+from operator import itemgetter
 
 from nltk.featstruct import CelexFeatStructReader, unify, TYPE, EXPRESSION, _unify_feature_values
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
@@ -50,13 +49,29 @@ def build_rules(tokens, fstruct_reader, dump = True):
         #     FeatStructNonterminal("S[]"), FeatStructNonterminal("XP[]"), FeatStructNonterminal("S[]"),)))
 
         if dump:
+            sorted_productions = sorted(productions, key=lambda production: (get_production_id_feature(production), production.lhs().get(TYPE)))
+            # f.write('\n'.join(rules))
             with open('../../fsa/query.fcfg', "w") as f:
-                for rule in productions:
-                    f.write(repr(rule) + '\n\n')
+                # f.write('\n'.join(repr(rule) for rule in sorted_productions))
+                last_prod_id = None
+                for rule in sorted_productions:
+                    prod_id = get_production_id_feature(rule)
+                    if prod_id != last_prod_id:
+                        f.write('\n')
+                        last_prod_id = prod_id
+                    f.write(repr(rule) + '\n')
         cursor.close()
         cnx.close()
     return FeatureGrammar(FeatStructNonterminal("S[status='Fin']"),  productions)
 
+def get_production_id_feature(production):
+    lhs = production.lhs()
+    if PRODUCTION_ID_FEATURE in lhs:
+        return lhs.get(PRODUCTION_ID_FEATURE)
+    else:
+        for nt in production.rhs():
+            if nt.get(TYPE) == 'hd':
+                return nt.get(PRODUCTION_ID_FEATURE)
 
 def productions_extractor(cnx, cursor, fstruct_reader):
     productions = set()
@@ -78,12 +93,24 @@ def productions_extractor(cnx, cursor, fstruct_reader):
         if formFeature:
             formNT = fstruct_reader.fromstring(formFeature)
             formNT = formNT.filter_feature(SLOT_FEATURE, )  # , PERSONAL_FEATURE
+            # formNT = formNT.filter_feature(SLOT_FEATURE, "ref", "branch", "POS", "perf_aux",
+            #                        "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
+            #                        "refnumber", "refpolite",
+            #                        "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
+            #                        "obj_case", "location",
+            #                        "degree", "cmpr", "lexicalSlot", )  # , PERSONAL_FEATURE
             formNT[TYPE] = pos
             nt = formNT
 
         if categoryFeature:
             catNT = fstruct_reader.fromstring(categoryFeature)
             catNT = catNT.filter_feature(SLOT_FEATURE, )  # PERSONAL_FEATURE
+            # catNT = catNT.filter_feature(SLOT_FEATURE, "ref", "branch", "POS", "perf_aux",
+            #                        "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
+            #                        "refnumber", "refpolite",
+            #                        "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
+            #                        "obj_case", "location",
+            #                        "degree", "cmpr", "lexicalSlot", )  # , PERSONAL_FEATURE
             catNT[TYPE] = pos
             nt = catNT
 
@@ -184,7 +211,24 @@ def productions_extractor(cnx, cursor, fstruct_reader):
 
     unificationCursor.close()
     frameCursor.close()
-    return productions
+    for production in productions:
+        lhs = production.lhs().filter_feature(SLOT_FEATURE, "ref", "POS", "perf_aux",
+                                   "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
+                                   "refnumber", "refpolite",
+                                   "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
+                                   "obj_case", "location",
+                                   "degree", "cmpr", "lexicalSlot", )  # , PERSONAL_FEATURE
+        if production.is_nonlexical():
+            rhs = tuple(nt.filter_feature(SLOT_FEATURE, "ref", "POS", "perf_aux",
+                                       "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
+                                       "refnumber", "refpolite",
+                                       "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
+                                       "obj_case", "location",
+                                       "degree", "cmpr", "lexicalSlot", ) for nt in production.rhs())
+        else:
+            rhs = production.rhs()
+        yield Production(lhs, rhs)
+    # return productions
 
 def wordforms_extractor(cnx, cursor, fstruct_reader):
     productions = set()
