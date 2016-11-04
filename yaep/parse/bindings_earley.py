@@ -1,18 +1,20 @@
-from collections import Counter
-from functools import reduce
-
+# -*- coding: utf-8 -*-
 import itertools
+import multiprocessing
+from collections import Counter
+
+import pathos as pathos
+from timeit import default_timer
 
 from nltk import Variable
 from nltk.compat import unicode_repr
-from nltk.featstruct import CelexFeatStructReader, substitute_bindings
+from nltk.featstruct import CelexFeatStructReader, substitute_bindings, TYPE
 from nltk.grammar import FeatStructNonterminal
 from nltk.topology.pgsql import build_rules
 from yaep.parse.earley import State, Grammar, Rule, EarleyParser, AbstractEarley, Chart, \
     feat_struct_nonterminal_to_term, is_nonterminal, FeatStructNonTerm
-from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator, ExtendedState, Node, \
-    ChartTraverseParseTreeGenerator
-
+from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator, ExtendedState, \
+    ChartTraverseParseTreeGenerator, ParseTreeGenerator
 
 class BindingsRule(Rule):
 
@@ -78,6 +80,48 @@ class BindingsGrammar(Grammar):
                 if result:
                     extracted_bindings = extract_bindings(lhs.term(), result)
                     yield BindingsRule.from_Rule(rule,extracted_bindings)
+
+class BindingsEarleyParser(AbstractEarley):
+
+    def init(self, tokens):
+        self._tokens = tokens
+        self._charts = tuple(Chart() for i in range(len(tokens) + 1))
+
+    def build_tree_generator(self):
+        return BindingsParseTreeGenerator()
+
+    def predictor_non_terminal(self, lhs, token_index, bindings=None):
+        for rule in self._grammar.find_rule(lhs, bindings):
+            self._charts[token_index].add_state(State(rule, token_index, 0))
+
+    def predictor(self, state, token_index):
+        lhs = state.next_symbol()
+        self.predictor_non_terminal(lhs, token_index, state.rule().bindings())
+        if lhs.is_nullable():
+            self._charts[token_index].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+
+    def scanner(self, state, token_index):
+        if self._tokens[token_index] == state.next_symbol():
+            self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+
+    def completer(self, origin_state, token_index):
+        origin_rule = origin_state.rule()
+        lhs = origin_rule.lhs()
+        current_chart = self._charts[token_index]
+        for temp_state in self._charts[origin_state.from_index()].states():
+            if (not temp_state.is_finished()) and is_nonterminal(temp_state.next_symbol()):
+                common_bindings = dict_intersection(temp_state.rule().bindings(), origin_rule.bindings())
+                if common_bindings is None:
+                    continue
+                result = lhs.unify(temp_state.next_symbol(), common_bindings)
+                if result:
+                    extracted_bindings = extract_bindings(temp_state.next_symbol().term(), result)
+                    rule_bindings = dict_intersection(temp_state.rule().bindings(), extracted_bindings)
+                    if rule_bindings is None:
+                        raise ValueError(rule_bindings)
+
+                    # extracted_bindings = merge_bindings(temp_state.rule().bindings(), extract_bindings(lhs.term(), result))
+                    current_chart.add_state(State(BindingsRule.from_Rule(temp_state.rule(),rule_bindings), temp_state.from_index(), temp_state.dot() + 1))
 
 class BindingsPermutationEarleyParser(AbstractEarley):
 
@@ -170,6 +214,33 @@ def dict_intersection(dict1, dict2):
         result.update(common_dict)
     return result
 
+class BindingsParseTreeGenerator(ParseTreeGenerator):
+    # pass
+
+    def parseTrees(self, chart_manager):
+        '''
+         In this implementation all NonTerm variables will be replaced by their bindings
+        :param chart_manager: recognized chart
+        :return: collection of parse trees
+        '''
+
+        charts = chart_manager.charts()
+        for i, chart in enumerate(charts, 0):
+            for state in chart.states():
+                if state.is_finished():
+                    rule = substitute_rule(state.rule())
+                    temp = hash((rule.lhs().term().get(TYPE), state.from_index()))
+                    val = self._completed.setdefault(temp, list())
+                    val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
+
+        # final_state = tuple(chart_manager.final_states())[0]
+        # return itertools.chain.from_iterable(self.buildTrees(
+        #     ExtendedState(State(substitute_rule(final_state.rule()), final_state.from_index(), final_state.dot()),
+        #                   len(chart_manager.charts()) - 1), set()))
+
+        return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
+                      chart_manager.final_states())
+
 class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
     # pass
 
@@ -185,9 +256,41 @@ class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
             for state in chart.states():
                 if state.is_finished():
                     rule = substitute_rule(state.rule())
-                    temp = Node(rule.lhs(), state.from_index(), i)
+                    temp = hash((rule.lhs().term().get(TYPE), state.from_index()))
                     val = self._completed.setdefault(temp, list())
                     val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
+
+        # final_state = tuple(chart_manager.final_states())[0]
+        # return itertools.chain.from_iterable(self.buildTrees(
+        #     ExtendedState(State(substitute_rule(final_state.rule()), final_state.from_index(), final_state.dot()),
+        #                   len(chart_manager.charts()) - 1), set()))
+
+        return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
+                      chart_manager.final_states())
+
+class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
+    # pass
+
+    def parseTrees(self, chart_manager):
+        '''
+         In this implementation all NonTerm variables will be replaced by their bindings
+        :param chart_manager: recognized chart
+        :return: collection of parse trees
+        '''
+
+        charts = chart_manager.charts()
+        for i, chart in enumerate(charts, 0):
+            for state in chart.states():
+                if state.is_finished():
+                    rule = substitute_rule(state.rule())
+                    temp = hash((rule.lhs().term().get(TYPE), state.from_index()))
+                    val = self._completed.setdefault(temp, list())
+                    val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
+
+        # final_state = tuple(chart_manager.final_states())[0]
+        # return itertools.chain.from_iterable(self.buildTrees(
+        #     ExtendedState(State(substitute_rule(final_state.rule()), final_state.from_index(), final_state.dot()),
+        #                   len(chart_manager.charts()) - 1), set()))
 
         return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
                       chart_manager.final_states())
@@ -228,6 +331,7 @@ def print_trees(tokens, grammar, permutations=False):
     chart_manager = parser.parse(tokens, grammar.start())
     print()
     print(chart_manager)
+    print(chart_manager.pretty_print_filtered(" ".join(tokens)))
     print(chart_manager.out())
 
     tree_generator = parser.build_tree_generator()
@@ -247,6 +351,77 @@ def print_trees(tokens, grammar, permutations=False):
         tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
         print(tree_output)
         print("Number of dominance structures: {}".format(number_trees))
+
+def parse_tokens(tokens, grammar, parser, verifier):
+    chart_manager = parser.parse(tokens, grammar.start())
+
+    if next(chart_manager.final_states(), None):
+        print("Successful recognition of the input: " + " ".join(tokens))
+        # print()
+        # print(chart_manager)
+        # # print(chart_manager.pretty_print_filtered(" ".join(tokens)))
+        # print(chart_manager.out())
+
+        return tuple(tree for tree in parser.build_tree_generator().parseTrees(chart_manager) if
+                    verifier == tree.wordsmap())
+    return tuple()
+
+class TreeGenerator(object):
+    def __init__(self, grammar, parser, verifier):
+        self._grammar = grammar
+        self._parser = parser
+        self._verifier = verifier
+
+    def __call__(self, tokens):
+        return parse_tokens(tokens, self._grammar, self._parser, self._verifier)
+
+def permutation_parse_trees_builder(tokens, grammar, parser):
+    verifier = Counter(tokens)
+    pool = pathos.multiprocessing.Pool(multiprocessing.cpu_count())
+
+    return itertools.chain(*pool.map(lambda t: parse_tokens(t, grammar, parser, verifier), itertools.permutations(tokens)))
+
+    # for tokens_variation in sorted(set(itertools.permutations(tokens))):
+    #     chart_manager = parser.parse(tokens_variation, grammar.start())
+    #     if next(chart_manager.final_states(), None):
+    #         print("Successful recognition of the input: " + " ".join(tokens_variation))
+    #         # print()
+    #         # print(chart_manager)
+    #         # # print(chart_manager.pretty_print_filtered(" ".join(tokens)))
+    #         # print(chart_manager.out())
+    #
+    #         yield from (tree for tree in parser.build_tree_generator().parseTrees(chart_manager) if verifier == tree.wordsmap())
+            # tree_generator = parser.build_tree_generator()
+            # trees = tuple(tree_generator.parseTrees(chart_manager))
+            # number_trees = 0
+            # number_derivation_trees = 0
+            #
+            # verifier = Counter(tokens_variation)
+            # if trees:
+            #     tree_output = ''
+            #     for tree in trees:
+            #         number_derivation_trees += 1
+            #         if tree.wordsmap() == verifier:
+            #             number_trees += 1
+            #             yield tree
+            #
+            #         tree_output += tree.pretty_print(0) + '\n'
+            #     tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
+            #     print(tree_output)
+            #     print("Number of dominance structures: {}".format(number_trees))
+
+def print_nw_trees(tokens, grammar, permutations=False):
+    parser = BindingsEarleyParser(grammar) if permutations else EarleyParser(grammar)
+
+    dominance_structures = tuple(permutation_parse_trees_builder(tokens, grammar, parser))
+    number_trees = 0
+    tree_output = ''
+    for tree in dominance_structures:
+        number_trees += 1
+        tree_output += tree.pretty_print(0) + '\n'
+
+    print(tree_output)
+    print("Number of dominance structures: {}".format(number_trees))
 
 # def print_trees(tokens, grammar, permutations = False):
 #     parser = PermutationEarleyParser(grammar) if permutations else EarleyParser(grammar)
@@ -322,10 +497,12 @@ if __name__ == "__main__":
     # print_trees(tokens1, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     #
-    # tokens = "Monopole sollen geknackt und Märkte getrennt werden".split()
-    # tokens = "Kaffee darf ich jeden Tag trinken".split()
-    # tokens = "Kaffee darf ich jeden Tag trinken".split()
+    # tokens = "Monopole sollen geknackt werden und Märkte getrennt werden".split()
+    # tokens = "ich darf jeden Tag Kaffee trinken".split()
     # tokens = "meine Frau will ein Auto kaufen".split()
-    # tokens = "ich sehe".split()
+    # tokens = "jeden Tag kommt".split()
     tokens = "ich sehe den Mann".split()
+    start_time = default_timer()
+    # print_nw_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)
     print_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)
+    print("Time: {:.3f}s.\n".format(default_timer() - start_time))

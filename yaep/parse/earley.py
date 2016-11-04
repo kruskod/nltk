@@ -70,9 +70,10 @@ class NonTerm(Term):
 class FeatStructNonTerm(Term):
 
     def unify(self, other, bindings=None):
-        prodId = other._term.get_feature(PRODUCTION_ID_FEATURE)
-        return ((not prodId or (prodId == self._term.get_feature(PRODUCTION_ID_FEATURE)))
-                and featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False))
+        return featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False)
+        # prodId = other._term.get_feature(PRODUCTION_ID_FEATURE)
+        # return ((not prodId or (prodId == self._term.get_feature(PRODUCTION_ID_FEATURE)))
+        #         and featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False))
 
     def key(self):
         return self._term.get(TYPE,None)
@@ -219,9 +220,12 @@ class Chart:
     def __str__(self):
         return self.str('..')
 
-    def str(self, j):
+    def str(self, j, filtered=False):
         out = ""
-        for state  in self._states:
+        for state in self._states:
+            if filtered:
+                if not state.is_finished():
+                    continue
             out += state.str(j) + '\n'
         return out
 
@@ -252,6 +256,11 @@ class ChartManager:
     def pretty_print(self, input):
         out = "Charts produced by the sentence: " + input + "\n\n"
         out += "\n".join("Chart {index}:\n{chart}".format_map({'index':i, 'chart':chart.str(i)}) for i,chart in enumerate(self._charts, 0))
+        return out
+
+    def pretty_print_filtered(self, input):
+        out = "Filtered charts produced by the sentence: " + input + "\n\n"
+        out += "\n".join("Chart {index}:\n{chart}".format_map({'index':i, 'chart': chart.str(i, filtered=True)}) for i,chart in enumerate(self._charts, 0))
         return out
 
     def __str__(self):

@@ -1,3 +1,4 @@
+from copy import copy
 from functools import reduce
 from collections import Counter
 
@@ -125,6 +126,7 @@ class Node(LeafNode):
     def __str__(self):
         return "[{}:{}] {}".format(self._i, self._j, unicode_repr(self._symbol))
 
+
 class ExtendedState(State):
 
     def __init__(self, state, j):
@@ -136,6 +138,17 @@ class ExtendedState(State):
 
     def __str__(self):
         return "[{}:{}] {} -> {}".format(self._i, self._j, unicode_repr(self._rule.lhs()), " ".join(unicode_repr(el) for el in self._rule.rhs()))
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        elif self is other:
+            return True
+        else:
+            return self._i == other._i and self._j == other._j and self._dot == other._dot and self._rule == other._rule
+
+    def __hash__(self):
+        return hash((type(self), self._i, self._j, self._dot, self._rule))
 
 class AbstractParseTreeGenerator:
 
@@ -165,59 +178,46 @@ class ParseTreeGenerator(AbstractParseTreeGenerator):
 
         for i,cs in enumerate(state.rule().rhs(), 0):
             if isinstance(cs, (FeatStructNonTerm, NonTerm)):
-                temp = Node(cs)
+                type = cs.term().get(TYPE)
+                to_index = None
+                from_index = None
 
                 if i == (len(state.rule()) - 1):
-                    temp.set_to_index(state.to_index())
-
-                different_last_node_index = False
+                    to_index = state.to_index()
 
                 if i == 0:
-                    temp.set_from_index(state.from_index())
-                else:
-                    result_iter = iter(result)
-                    last_node_index = next(result_iter).last_child_to_index()
-                    for tempRoot in result_iter:
-                        if last_node_index != tempRoot.last_child_to_index():
-                            different_last_node_index = True
-                            break
-                    else:
-                        temp.set_from_index(last_node_index)
+                    from_index = state.from_index()
 
                 # Generate alternatives
+                for tempRoot in result:
+                    if from_index is None:
+                        local_from_index = tempRoot.last_child_to_index()
+                    else:
+                        local_from_index = from_index
+                    #
+                    # if local_from_index is None:
+                    #     print("No from index")
 
-                if not different_last_node_index:
-                    states = self._completed.get(temp, None)
+                    states = tuple(st for st in self._completed.get(hash((type, local_from_index)), tuple()) if
+                                   st.from_index() == local_from_index
+                                   and st.to_index() <= state.to_index()
+                                   and (to_index is None or to_index == st.to_index())
+                                   and st not in parent_states
+                                   and cs.unify(st.rule().lhs()))
                     if states:
-                        children_lists = (self.buildTrees(st, set(parent_states)) for st in states if (st not in parent_states) and (
-                            temp.from_index() == None or st.from_index() == temp.from_index()) and (
-                                              temp.to_index() == None or temp.to_index() == st.to_index()))
-                        children_list = reduce(lambda x,y: x+y, children_lists)
-                        for tempRoot in result:
-                            for child in children_list:
-                                new_result.append(Node.from_Node_and_child(tempRoot, child))
-                else:
-                    for tempRoot in result:
-                        temp.set_from_index(tempRoot.last_child_to_index())
-                        states = self._completed.get(temp, None)
-                        if states:
-                            children_lists = (self.buildTrees(st, set(parent_states)) for st in states if
-                                              (st not in parent_states) and (
-                                                  temp.from_index() == None or st.from_index() == temp.from_index()) and (
-                                                  temp.to_index() == None or temp.to_index() == st.to_index()))
-                            children_list = reduce(lambda x, y: x + y, children_lists)
-                            for child in children_list:
-                                new_result.append(Node.from_Node_and_child(tempRoot, child))
+                        children_list = itertools.chain.from_iterable(
+                            self.buildTrees(st, set(parent_states)) for st in states)
+                        for child in children_list:
+                            new_result.append(Node.from_Node_and_child(tempRoot, child))
             else: # if isinstance Leaf
                 for tempRoot in result:
                     new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))
 
-            result.clear()
             if new_result:
+                result.clear()
                 result.extend(new_result)
                 new_result.clear()
-            else:
-                return result
+
         return result
 
 class ChartTraverseParseTreeGenerator():
@@ -286,55 +286,39 @@ class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
 
         for i,cs in enumerate(state.rule().rhs(), 0):
             if isinstance(cs, (FeatStructNonTerm, NonTerm)):
-                temp = Node(cs)
+                type = cs.term().get(TYPE)
+                to_index = None
+                from_index = None
 
                 if i == (len(state.rule()) - 1):
-                    temp.set_to_index(state.to_index())
-
-                different_last_node_index = False
+                    to_index = state.to_index()
 
                 if i == 0:
-                    temp.set_from_index(state.from_index())
-                else:
-                    result_iter = iter(result)
-                    last_node_index = next(result_iter).last_child_to_index()
-                    for tempRoot in result_iter:
-                        if last_node_index != tempRoot.last_child_to_index():
-                            different_last_node_index = True
-                            break
-                    else:
-                        temp.set_from_index(last_node_index)
+                    from_index = state.from_index()
 
                 # Generate alternatives
+                for tempRoot in result:
+                    if from_index is None:
+                        local_from_index = tempRoot.last_child_to_index()
+                    else:
+                        local_from_index = from_index
 
-                if not different_last_node_index:
-                    states = self._completed.get(temp, None)
+                    if local_from_index is None:
+                        print("No from index")
+
+                    states = tuple(st for st in self._completed.get(hash((type, local_from_index)), tuple()) if
+                                   st.from_index() == local_from_index
+                                   and st.to_index() <= state.to_index()
+                                   and (to_index is None or to_index == st.to_index())
+                                   and st not in parent_states
+                                   and cs.unify(st.rule().lhs()))
                     if states:
-                        children_lists = tuple(self.buildTrees(st, set(parent_states)) for st in states if (st not in parent_states) and (
-                            temp.from_index() == None or st.from_index() == temp.from_index()) and (
-                                              temp.to_index() == None or temp.to_index() == st.to_index()))
-                        if children_lists:
-                            children_list = reduce(lambda x,y: x+y, children_lists)
-                            for tempRoot in result:
-                                for child in children_list:
-                                    test_node = Node.from_Node_and_child(tempRoot, child)
-                                    if test_node.validate_by_input(self._words_map):
-                                        new_result.append(test_node)
-                else:
-                    for tempRoot in result:
-                        temp.set_from_index(tempRoot.last_child_to_index())
-                        states = self._completed.get(temp, None)
-                        if states:
-                            children_lists = tuple(self.buildTrees(st, set(parent_states)) for st in states if
-                                              (st not in parent_states) and (
-                                                  temp.from_index() == None or st.from_index() == temp.from_index()) and (
-                                                  temp.to_index() == None or temp.to_index() == st.to_index()))
-                            if children_lists:
-                                children_list = reduce(lambda x, y: x + y, children_lists)
-                                for child in children_list:
-                                    test_node = Node.from_Node_and_child(tempRoot, child)
-                                    if test_node.validate_by_input(self._words_map):
-                                        new_result.append(test_node)
+                        children_list = itertools.chain.from_iterable(self.buildTrees(st, set(parent_states)) for st in states)
+                        for child in children_list:
+                            test_node = Node.from_Node_and_child(tempRoot, child)
+                            if test_node.validate_by_input(self._words_map):
+                                new_result.append(test_node)
+
             else: # if isinstance Leaf
                 for tempRoot in result:
                     new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))

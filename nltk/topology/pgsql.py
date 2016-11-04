@@ -82,7 +82,7 @@ def productions_extractor(cnx, cursor, fstruct_reader):
     frameQuery = ('select w.position, pos1,pos2,pos3,feature, w.facultative from WordCategorySegment w' +
                   ' inner join Segment s on s.position = w.position' +
                   ' left join PartOfSpeech p on p.pos = s.pos3' +
-                  ' where w.lexFrameKey = %s  and pos2 !="mod" ' +
+                  ' where w.lexFrameKey = %s  ' + # and pos2 !="mod"
                   ' order by w.facultative, w.position;')
 
     unificationQuery = ('select cond, feature from UnificationFeatures u where u.position = %s;')
@@ -217,14 +217,14 @@ def productions_extractor(cnx, cursor, fstruct_reader):
                                    "refnumber", "refpolite",
                                    "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
                                    "obj_case", "location",
-                                   "degree", "cmpr", "lexicalSlot", )  # , PERSONAL_FEATURE
+                                   "degree", "cmpr", "lexicalSlot",  )  # , PERSONAL_FEATURE
         if production.is_nonlexical():
             rhs = tuple(nt.filter_feature(SLOT_FEATURE, "ref", "POS", "perf_aux",
                                        "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
                                        "refnumber", "refpolite",
                                        "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
                                        "obj_case", "location",
-                                       "degree", "cmpr", "lexicalSlot", ) for nt in production.rhs())
+                                       "degree", "cmpr", "lexicalSlot",  ) for nt in production.rhs())
         else:
             rhs = production.rhs()
         yield Production(lhs, rhs)
@@ -413,7 +413,7 @@ def get_frame_examples(lexFrameKey):
              ' f.lexFrameKey as WordFrame_lexFrameKey,'
              ' f.inflParadigmKey as WordFrame_inflParadigmKey,'
              ' l.lemma as Lemma_lemma,'
-             ' l.feature as Lemma_feature,'
+             # ' l.feature as Lemma_feature,'
              ' w.word as WordForm_word,'
              ' w.pronuncation as WordForm_pronuncation,'
              ' w.inflFormKey as WordForm_inflFormKey,'
