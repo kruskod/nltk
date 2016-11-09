@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import itertools
 import multiprocessing
+import pickle
 from collections import Counter
 
 import pathos as pathos
@@ -8,6 +9,7 @@ from timeit import default_timer
 
 from nltk import Variable
 from nltk.compat import unicode_repr
+from nltk.draw.tree import TreeTabView
 from nltk.featstruct import CelexFeatStructReader, substitute_bindings, TYPE
 from nltk.grammar import FeatStructNonterminal
 from nltk.topology.pgsql import build_rules
@@ -241,32 +243,6 @@ class BindingsParseTreeGenerator(ParseTreeGenerator):
         return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
                       chart_manager.final_states())
 
-class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
-    # pass
-
-    def parseTrees(self, chart_manager):
-        '''
-         In this implementation all NonTerm variables will be replaced by their bindings
-        :param chart_manager: recognized chart
-        :return: collection of parse trees
-        '''
-
-        charts = chart_manager.charts()
-        for i, chart in enumerate(charts, 0):
-            for state in chart.states():
-                if state.is_finished():
-                    rule = substitute_rule(state.rule())
-                    temp = hash((rule.lhs().term().get(TYPE), state.from_index()))
-                    val = self._completed.setdefault(temp, list())
-                    val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
-
-        # final_state = tuple(chart_manager.final_states())[0]
-        # return itertools.chain.from_iterable(self.buildTrees(
-        #     ExtendedState(State(substitute_rule(final_state.rule()), final_state.from_index(), final_state.dot()),
-        #                   len(chart_manager.charts()) - 1), set()))
-
-        return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
-                      chart_manager.final_states())
 
 class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
     # pass
@@ -328,6 +304,7 @@ def bindings_performance_grammar(tokens):
 
 def print_trees(tokens, grammar, permutations=False):
     parser = BindingsPermutationEarleyParser(grammar) if permutations else  EarleyParser(grammar)
+    start_time = default_timer()
     chart_manager = parser.parse(tokens, grammar.start())
     print()
     print(chart_manager)
@@ -340,6 +317,7 @@ def print_trees(tokens, grammar, permutations=False):
     number_derivation_trees = 0
     dominance_structures=[]
     verifier = Counter(tokens)
+    end_time = default_timer()
     if trees:
         tree_output = ''
         for tree in trees:
@@ -351,12 +329,17 @@ def print_trees(tokens, grammar, permutations=False):
         tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
         print(tree_output)
         print("Number of dominance structures: {}".format(number_trees))
+        print("Time: {:.3f}s.\n".format(end_time - start_time))
+        if dominance_structures:
+            with open('../../fsa/dominance_structures.dump', 'wb') as f:
+                pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
+            TreeTabView(*dominance_structures[:20])
 
 def parse_tokens(tokens, grammar, parser, verifier):
     chart_manager = parser.parse(tokens, grammar.start())
 
     if next(chart_manager.final_states(), None):
-        print("Successful recognition of the input: " + " ".join(tokens))
+        print("Successful recognition: " + " ".join(tokens))
         # print()
         # print(chart_manager)
         # # print(chart_manager.pretty_print_filtered(" ".join(tokens)))
@@ -378,114 +361,26 @@ class TreeGenerator(object):
 def permutation_parse_trees_builder(tokens, grammar, parser):
     verifier = Counter(tokens)
     pool = pathos.multiprocessing.Pool(multiprocessing.cpu_count())
-
     return itertools.chain(*pool.map(lambda t: parse_tokens(t, grammar, parser, verifier), itertools.permutations(tokens)))
-
-    # for tokens_variation in sorted(set(itertools.permutations(tokens))):
-    #     chart_manager = parser.parse(tokens_variation, grammar.start())
-    #     if next(chart_manager.final_states(), None):
-    #         print("Successful recognition of the input: " + " ".join(tokens_variation))
-    #         # print()
-    #         # print(chart_manager)
-    #         # # print(chart_manager.pretty_print_filtered(" ".join(tokens)))
-    #         # print(chart_manager.out())
-    #
-    #         yield from (tree for tree in parser.build_tree_generator().parseTrees(chart_manager) if verifier == tree.wordsmap())
-            # tree_generator = parser.build_tree_generator()
-            # trees = tuple(tree_generator.parseTrees(chart_manager))
-            # number_trees = 0
-            # number_derivation_trees = 0
-            #
-            # verifier = Counter(tokens_variation)
-            # if trees:
-            #     tree_output = ''
-            #     for tree in trees:
-            #         number_derivation_trees += 1
-            #         if tree.wordsmap() == verifier:
-            #             number_trees += 1
-            #             yield tree
-            #
-            #         tree_output += tree.pretty_print(0) + '\n'
-            #     tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
-            #     print(tree_output)
-            #     print("Number of dominance structures: {}".format(number_trees))
 
 def print_nw_trees(tokens, grammar, permutations=False):
     parser = BindingsEarleyParser(grammar) if permutations else EarleyParser(grammar)
-
+    start_time = default_timer()
     dominance_structures = tuple(permutation_parse_trees_builder(tokens, grammar, parser))
+    end_time = default_timer()
     number_trees = 0
     tree_output = ''
-    for tree in dominance_structures:
-        number_trees += 1
-        tree_output += tree.pretty_print(0) + '\n'
+    if dominance_structures:
+        for tree in dominance_structures:
+            number_trees += 1
+            tree_output += tree.pretty_print(0) + '\n'
 
-    print(tree_output)
-    print("Number of dominance structures: {}".format(number_trees))
-
-# def print_trees(tokens, grammar, permutations = False):
-#     parser = PermutationEarleyParser(grammar) if permutations else EarleyParser(grammar)
-#     chart_manager = parser.parse(tokens, grammar.start())
-#     print()
-#     print(chart_manager)
-#     print(chart_manager.out())
-#
-#     tree_generator = parser.build_tree_generator()
-#     number_trees = 0
-#     dominance_structures=[]
-#     verifier = Counter(tokens)
-#     for tree in tree_generator.parseTrees(chart_manager):
-#         print(tree.pretty_print(0))
-#         if tree.wordsmap() == verifier:
-#             number_trees += 1
-#             dominance_structures.append(tree)
-#     print("Number of dominance structures: {}".format(number_trees))
-
-    # verifier = wordPresenceVerifier(tokens)
-    # for tree in cp.parse(tokens):
-    #     count_trees += 1
-    #     if verifier(tree):
-    #         try:
-    #             dominance_structures.append(tree)
-    #         except ValueError:
-    #             pass
-    #             # has_subj = False
-    #             # for sub_tree in tree:
-    #             #     if sub_tree._label[TYPE] == 'subj':
-    #             #         has_subj = True
-    #             #         break
-    #             # if ver_result and has_subj and tree._label.has_feature({'status': 'Fin'}):
-    #             #     try:
-    #             #         dominance_structures.append(tree)
-    #             #     except ValueError:
-    #             #         pass
-    #             # print(tree)
-    #             # print("Word presence verification result: {}".format(ver_result))
-    # # topologies = build_topologies()
-    # end_time = timer()
-    # if dominance_structures:
-    #     print("####################################################")
-    #     print("Dominance structures:")
-    #     dominance_structures = sorted(dominance_structures, key=lambda tree: ' '.join(tree.leaves()).lower())
-    #
-    #     for tree in dominance_structures:
-    #         print(tree)
-    #         # feat_tree = FeatTree(tree)
-    #         # feat_tree.topologies.extend(process_dominance(feat_tree, topologies))
-    #         # print(feat_tree)
-    #         # for top in feat_tree.topologies:
-    #         #     print(top.read_out(tokens))
-    #     end_time = timer()
-    #     with open('../../fsa/dominance_structures.dump', 'wb') as f:
-    #         pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
-    # print("####################################################")
-    # print("Nr trees:", count_trees)
-    # print("Nr Dominance structures:", len(dominance_structures))
-    # print('Count of productions:', len(cp._grammar._productions))
-    # print("Time: {:.3f}s.\n".format(end_time - t))
-    #
-    # if dominance_structures:
-    #     TreeTabView(*dominance_structures[:20])
+        print(tree_output)
+        print("Number of dominance structures: {}".format(number_trees))
+        print("Time: {:.3f}s.\n".format(end_time - start_time))
+        # with open('../../fsa/dominance_structures.dump', 'wb') as f:
+        #     pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
+        # TreeTabView(*dominance_structures[:20])
 
 if __name__ == "__main__":
     # docTEST this
@@ -498,11 +393,13 @@ if __name__ == "__main__":
     # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     #
     # tokens = "Monopole sollen geknackt werden und Märkte getrennt werden".split()
-    # tokens = "ich darf jeden Tag Kaffee trinken".split()
+    # tokens = "ich darf Kaffee trinken".split()
     # tokens = "meine Frau will ein Auto kaufen".split()
-    # tokens = "jeden Tag kommt".split()
-    tokens = "ich sehe den Mann".split()
-    start_time = default_timer()
+    # tokens = "ich sehe den Mann mit dem Hund in dem Wald".split()
+    # tokens = "ich sehe den Mann mit dem Hund".split()
+    tokens = "ich esse".split()
+    # tokens = "ich sehe den Mann mit dem Hund".split()
+
+
     # print_nw_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)
     print_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)
-    print("Time: {:.3f}s.\n".format(default_timer() - start_time))

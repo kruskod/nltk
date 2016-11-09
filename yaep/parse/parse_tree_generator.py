@@ -16,7 +16,7 @@ from timeit import default_timer as timer
 import sys
 
 from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm, \
-    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar, Chart, Term
+    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar, Chart, Term, test_unify
 from abc import ABCMeta, abstractmethod
 
 class LeafNode:
@@ -64,18 +64,27 @@ class LeafNode:
     def pretty_print(self, level):
         return self._symbol
 
+    # functions for the tree presentation
+
+    def label(self):
+        return self._symbol
+    #
+    # def has_consistent_children(self):
+    #     return False
+
 class Node(LeafNode):
 
-    def __init__(self, sybmbol, i=None, j=None):
+    def __init__(self, sybmbol, i=None, j=None, init_collections = True):
         super().__init__(sybmbol, i=i, j=j)
-        self._children = []
-        self._wordsmap = Counter()
+        if init_collections:
+            self._children = []
+            self._wordsmap = Counter()
 
     @classmethod
     def from_Node(cls, node):
-        new_node = cls(node.symbol(), node.from_index(), node.to_index())
-        new_node._children.extend(node.children())
-        new_node._wordsmap.update(node.wordsmap())
+        new_node = cls(node.symbol(), node.from_index(), node.to_index(), init_collections=False)
+        new_node._children = list(node._children)
+        new_node._wordsmap = Counter(node._wordsmap)
         return new_node
 
     @classmethod
@@ -95,7 +104,7 @@ class Node(LeafNode):
         if isinstance(node, Node):
             self._wordsmap.update(node._wordsmap)
         else:
-            self._wordsmap[node.symbol()] = 1
+            self._wordsmap[node._symbol] = 1
         self._children.append(node)
 
     def children(self):
@@ -107,7 +116,7 @@ class Node(LeafNode):
     def last_child_to_index(self):
         if not self._children:
             return None
-        return self._children[-1].to_index()
+        return self._children[-1]._j
 
     def pretty_print(self, level):
         padding = '\n' + '\t' * level
@@ -123,9 +132,36 @@ class Node(LeafNode):
                 return False
         return True
 
+    def has_consistent_children(self):
+        if self._wordsmap:
+            return sum(self._wordsmap.values()) == (self._j - self._i)
+        return False
+
     def __str__(self):
         return "[{}:{}] {}".format(self._i, self._j, unicode_repr(self._symbol))
 
+    # functions for the tree presentation
+
+    def leaves(self):
+        return self._wordsmap
+
+    def label(self):
+        return self._symbol._term
+
+    def __len__(self):
+        return len(self._children)
+
+    # ////////////////////////////////////////////////////////////
+    # Indexing (with support for tree positions)
+    # ////////////////////////////////////////////////////////////
+    def __getitem__(self, index):
+        return self._children[index]
+
+    def __setitem__(self, index, value):
+        self._children[index] = value
+
+    def __delitem__(self, index):
+        return NotImplemented
 
 class ExtendedState(State):
 
@@ -177,7 +213,7 @@ class ParseTreeGenerator(AbstractParseTreeGenerator):
         parent_states.add(state)
 
         for i,cs in enumerate(state.rule().rhs(), 0):
-            if isinstance(cs, (FeatStructNonTerm, NonTerm)):
+            if isinstance(cs, Term):
                 type = cs.term().get(TYPE)
                 to_index = None
                 from_index = None
@@ -194,31 +230,91 @@ class ParseTreeGenerator(AbstractParseTreeGenerator):
                         local_from_index = tempRoot.last_child_to_index()
                     else:
                         local_from_index = from_index
-                    #
-                    # if local_from_index is None:
-                    #     print("No from index")
 
-                    states = tuple(st for st in self._completed.get(hash((type, local_from_index)), tuple()) if
+                    states = (st for st in self._completed.get(hash((type, local_from_index)), tuple()) if
                                    st.from_index() == local_from_index
-                                   and st.to_index() <= state.to_index()
-                                   and (to_index is None or to_index == st.to_index())
+                                   and (to_index == st.to_index() or (to_index is None and st.to_index() <= state.to_index()))
                                    and st not in parent_states
-                                   and cs.unify(st.rule().lhs()))
-                    if states:
-                        children_list = itertools.chain.from_iterable(
-                            self.buildTrees(st, set(parent_states)) for st in states)
-                        for child in children_list:
-                            new_result.append(Node.from_Node_and_child(tempRoot, child))
+                                   and test_unify(cs.term(), st.rule().lhs().term())) #  cs.unify(st.rule().lhs())
+
+                    for child in itertools.chain.from_iterable(self.buildTrees(st, set(parent_states)) for st in states):
+                        new_result.append(Node.from_Node_and_child(tempRoot, child))
+                if not cs.is_nullable():
+                    result.clear()
+
             else: # if isinstance Leaf
                 for tempRoot in result:
                     new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))
+                result.clear()
 
             if new_result:
-                result.clear()
+                # This condition was replaced because of optimization reasons by two result.clear() above
+                # if not isinstance(cs, Term) or not cs.is_nullable():
+                #     result.clear()
                 result.extend(new_result)
                 new_result.clear()
 
-        return result
+        return (node for node in result if node.has_consistent_children())
+
+class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
+
+    def __init__(self, words_map):
+        super().__init__()
+        self._words_map = words_map
+
+    def buildTrees(self, state, parent_states):
+        root = Node(state.rule().lhs(), state.from_index(), state.to_index())
+        result = [root,]
+        new_result = []
+        parent_states.add(state)
+
+        for i,cs in enumerate(state.rule().rhs(), 0):
+            if isinstance(cs, Term):
+                type = cs.term().get(TYPE)
+                to_index = None
+                from_index = None
+
+                if i == (len(state.rule()) - 1):
+                    to_index = state.to_index()
+
+                if i == 0:
+                    from_index = state.from_index()
+
+                # Generate alternatives
+                for tempRoot in result:
+                    if from_index is None:
+                        local_from_index = tempRoot.last_child_to_index()
+                    else:
+                        local_from_index = from_index
+
+                    states = (st for st in self._completed.get(hash((type, local_from_index)), tuple()) if
+                                    st.from_index() == local_from_index
+                                    and (to_index == st.to_index() or (to_index is None and st.to_index() <= state.to_index()))
+                                    and st not in parent_states
+                                    and test_unify(cs.term(), st.rule().lhs().term())) #cs.unify()
+
+                    for child in itertools.chain.from_iterable(self.buildTrees(st, set(parent_states)) for st in states):
+                        test_node = Node.from_Node_and_child(tempRoot, child)
+                        if test_node.validate_by_input(self._words_map):
+                            new_result.append(test_node)
+                if not cs.is_nullable():
+                    result.clear()
+
+            else: # if isinstance Leaf
+                for tempRoot in result:
+                    new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))
+                # clear result, because we must add new leaves anyway
+                result.clear()
+
+            if new_result:
+                # This condition was replaced because of optimization reasons by two result.clear() above
+                # if not isinstance(cs, Term) or not cs.is_nullable():
+                #     result.clear()
+
+                result.extend(new_result)
+                new_result.clear()
+
+        return (node for node in result if node.has_consistent_children())
 
 class ChartTraverseParseTreeGenerator():
 
@@ -272,65 +368,6 @@ class ChartTraverseParseTreeGenerator():
             # current = Node(state.rule().lhs(), state.from_index(), state.to_index())
             yield LeafNode(term, start_index - 1, start_index)
 
-class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
-
-    def __init__(self, words_map):
-        super().__init__()
-        self._words_map = words_map
-
-    def buildTrees(self, state, parent_states):
-        root = Node(state.rule().lhs(), state.from_index(), state.to_index())
-        result = [root,]
-        new_result = []
-        parent_states.add(state)
-
-        for i,cs in enumerate(state.rule().rhs(), 0):
-            if isinstance(cs, (FeatStructNonTerm, NonTerm)):
-                type = cs.term().get(TYPE)
-                to_index = None
-                from_index = None
-
-                if i == (len(state.rule()) - 1):
-                    to_index = state.to_index()
-
-                if i == 0:
-                    from_index = state.from_index()
-
-                # Generate alternatives
-                for tempRoot in result:
-                    if from_index is None:
-                        local_from_index = tempRoot.last_child_to_index()
-                    else:
-                        local_from_index = from_index
-
-                    if local_from_index is None:
-                        print("No from index")
-
-                    states = tuple(st for st in self._completed.get(hash((type, local_from_index)), tuple()) if
-                                   st.from_index() == local_from_index
-                                   and st.to_index() <= state.to_index()
-                                   and (to_index is None or to_index == st.to_index())
-                                   and st not in parent_states
-                                   and cs.unify(st.rule().lhs()))
-                    if states:
-                        children_list = itertools.chain.from_iterable(self.buildTrees(st, set(parent_states)) for st in states)
-                        for child in children_list:
-                            test_node = Node.from_Node_and_child(tempRoot, child)
-                            if test_node.validate_by_input(self._words_map):
-                                new_result.append(test_node)
-
-            else: # if isinstance Leaf
-                for tempRoot in result:
-                    new_result.append(Node.from_Node_and_child(tempRoot, LeafNode(cs, state.from_index(), state.to_index())))
-
-            if new_result:
-                result.clear()
-                result.extend(new_result)
-                new_result.clear()
-            #else:
-                # do nothing, because there are nullable non-terminals
-                #return result
-        return result
 
 def print_trees(tokens, grammar, permutations = False):
     parser = PermutationEarleyParser(grammar) if permutations else EarleyParser(grammar)

@@ -70,13 +70,44 @@ class NonTerm(Term):
 class FeatStructNonTerm(Term):
 
     def unify(self, other, bindings=None):
-        return featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False)
-        # prodId = other._term.get_feature(PRODUCTION_ID_FEATURE)
-        # return ((not prodId or (prodId == self._term.get_feature(PRODUCTION_ID_FEATURE)))
-        #         and featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False))
+        # return featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False)
+        prodId = other._term.get_feature(PRODUCTION_ID_FEATURE)
+        return ((not prodId or (prodId == self._term.get_feature(PRODUCTION_ID_FEATURE)))
+                and featstruct.unify(self._term, other._term, bindings=bindings, treatBool=False))
+
+    def test_unify(self, other, bindings=None):
+        return test_unify(self._term, other._term)
 
     def key(self):
         return self._term.get(TYPE,None)
+
+def test_unify(fstruct1, fstruct2):
+
+    # If fstruct1 is already identical to fstruct2, we're done.
+    if fstruct1 is fstruct2:
+        return True
+
+    common_keys = fstruct1.keys() & fstruct2.keys()
+
+    for key in common_keys:
+        val1 = fstruct1[key]
+        val2 = fstruct2[key]
+        if val1 == val2:
+            continue
+        elif isinstance(val1, tuple) or isinstance(val2, tuple):
+            if isinstance(val1, tuple) and isinstance(val2, tuple):
+                val1_set = set(val1)
+                val2_set = set(val2)
+                if val1_set.issubset(val2_set) or val2_set.issubset(val1_set):
+                    continue
+            elif isinstance(val1, tuple) and val2 in val1:
+                continue
+            elif isinstance(val2, tuple) and val1 in val2:
+                continue
+        return False
+
+    # no discrepancies were found
+    return True
 
 class Rule:
     """

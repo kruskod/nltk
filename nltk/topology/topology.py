@@ -666,7 +666,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=1,
-         sent='Kaffee darf ich trinken', numparses=0):
+         sent='ich sehe', numparses=0):
     """
      # tokens = "".split()
     er tritt in die Verwaltung ein und er wird Aktionär

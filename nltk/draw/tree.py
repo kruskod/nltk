@@ -32,6 +32,8 @@ from PIL import Image, ImageTk
 ##//////////////////////////////////////////////////////
 ##  Tree Segment
 ##//////////////////////////////////////////////////////
+from yaep.parse.parse_tree_generator import Node
+
 
 class TreeSegmentWidget(CanvasWidget):
     """
@@ -1564,7 +1566,7 @@ class FeatTreeWidget(CanvasWidget):
 
     def _make_expanded_tree(self, canvas, t, key, nodeattribs, leafattribs):
 
-        if isinstance(t, Tree):
+        if isinstance(t, (Tree, Node)):
             label = t.label()
             prefix = ""
             if isinstance(label, FeatStructNonterminal):
@@ -1801,7 +1803,6 @@ class FeatTreeWidget(CanvasWidget):
 
         text = tree.text = Text(parent_widget, height=5, wrap='word')
         text.pack(expand=YES, fill=BOTH)
-
 
 if __name__ == '__main__':
     demo()
