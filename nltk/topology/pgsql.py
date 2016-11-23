@@ -514,6 +514,34 @@ def get_rules(tokens, dump=True):
         cnx.close()
     return rules
 
+def get_wordform(word, lemmaIds):
+    cnx = connect()
+    if cnx:
+        cursor = cnx.cursor()
+
+        query = (
+            'SELECT * FROM WordForm where word=%s and lemmaId in (%s);'
+            )
+        cursor.execute(query, (word, lemmaIds))
+        cnx.close()
+        if cursor:
+            for lemmaId, lemma in cursor:
+                yield (lemmaId, lemma)
+
+def get_lemma(lemma):
+    cnx = connect()
+    if cnx:
+        cursor = cnx.cursor()
+
+        query = (
+            'SELECT l.lemmaId as Lemma_Id, l.lemma as Lemma_lemma from Lemma l where l.lemma=%s'
+            )
+        cursor.execute(query, (lemma,))
+        cnx.close()
+        if cursor:
+            for lemmaId, lemma in cursor:
+                yield (lemmaId, lemma)
+
 def get_word_inf(word):
     cnx = connect()
     if cnx:
@@ -523,7 +551,7 @@ def get_word_inf(word):
         'SELECT '
         ' l.lemmaId as Lemma_Id, '
         ' f.lexFrameKey as WordFrame_lexFrameKey, '
-        ' l.lemma as Lemma_lemma, l.feature as Lemma_feature, '
+        ' l.lemma as Lemma_lemma, ' # l.feature as Lemma_feature,
         ' w.word as WordForm_word, w.pronuncation as WordForm_pronuncation, '
         ' c.pos as WordCategory_pos, c.feature as WordCategory_feature,	c.description as WordCategory_description, c.example as WordCategory_example,	'
         ' i.feature as InflectionalForm_feature, i.description as InflectionalForm_description, '
