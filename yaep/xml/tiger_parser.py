@@ -35,7 +35,6 @@ def extract_grammar(path, file_name):
     tree = ET.parse(path + file_name)
     root = tree.getroot()
 
-
     for graph in root.findall('body/s/graph'):
         root = graph.get('root', default=None)
         discontinuous = graph.get('discontinuous', default='').lower() == 'true'

@@ -461,7 +461,7 @@ def grammar_from_file(grammar_file_path) :
 
 def performance_grammar(tokens):
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    grammar =  build_rules(tokens, fstruct_reader)
+    grammar = build_rules(tokens, fstruct_reader)
     productions = grammar.productions()
     start_nonterminal = feat_struct_nonterminal_to_term(grammar.start())
 

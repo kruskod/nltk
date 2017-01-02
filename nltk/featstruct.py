@@ -1319,6 +1319,9 @@ def unify(fstruct1, fstruct2, bindings=None, trace=False,
     assert isinstance(fstruct1, fs_class)
     assert isinstance(fstruct2, fs_class)
 
+    # if fstruct1[TYPE] != fstruct2[TYPE]:
+    #     return None
+
     # if fstruct1[TYPE] == 'v':
     #     if EXPRESSION in fstruct1:
     #         simp_expressions = simplify_expression(fstruct1[EXPRESSION])
