@@ -2108,7 +2108,7 @@ class FeatStructReader(object):
     _START_FSTRUCT_RE = re.compile(r'\s*(?:\((\d+)\)\s*)?(\??[\w-]+)?(\[)')
     _END_FSTRUCT_RE = re.compile(r'\s*]\s*')
     _SLASH_RE = re.compile(r'/')
-    _FEATURE_NAME_RE = re.compile(r'\s*([+-]?)([^\s\(\)<>"\'\-=\[\],]+)\s*')
+    _FEATURE_NAME_RE = re.compile(r'\s*([+-]?)([^\s\(\)<>"\'=\[\],]+)\s*')
     _REENTRANCE_RE = re.compile(r'\s*->\s*')
     _TARGET_RE = re.compile(r'\s*\((\d+)\)\s*')
     _ASSIGN_RE = re.compile(r'\s*=\s*')

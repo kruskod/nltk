@@ -51,6 +51,8 @@ class ElleipoNode:
             for feat in features:
                 if '=' in feat:
                     key, val = feat.split('=')
+                    if '{' in val or '}' in val: # or '~' in val:
+                        val = re.sub(r'[{}]','', val)
                     node_features[key.strip()] = val.strip()
 
 
@@ -59,7 +61,7 @@ class ElleipoNode:
         if self._gf:
             node_features['gf'] = self._gf
         if self._ref:
-            node_features['ref'] = self._ref
+            node_features['ref'] = self._ref # re.sub(r'[{}~]','', self._ref)
 
         return node_features
 
@@ -206,7 +208,7 @@ def extract_grammar(path, file_name):
     for node in nodes:
         node_file = '_'.join(node.leaves()) + '.cf'
         with open(grammar_path + '/' + node_file, 'w') as grammar_file:
-            grammar_file.write('\n'.join((node.to_attribute_grammar())))
+            grammar_file.write('\r\n'.join((node.to_attribute_grammar())))
 
 def load_grammar(path, filename):
     assert filename, "Grammar filename should be specified"
@@ -236,8 +238,10 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
-    # extract_grammar('../../fsa/elleipo/', 'german-sent-struc_utf.txt')
-    filename = 'Ich_schlafe_und_du_schläfst'
+    extract_grammar('../../fsa/elleipo/', 'german-sent-struc_utf.txt')
+    # filename = 'Ich_schlafe_und_du_schläfst'
+    filename = 'Gestern_bist_du_gegangen_und_gestern_hast_du_mich_nicht_gewarnt'
+    # filename = 'Mit_Bier_und_mit_Würstchen_und_mit_Kartoffelsalat_grillt_Hans_mit_Maria_vor_dem_Haus_und_neben_dem_Haus_und_hinter_dem_Haus'
     tokens = tuple(token.lower() for token in filename.split('_'))
     grammar = load_grammar('../../fsa/elleipo/grammars/', filename + '.cf')
 
@@ -266,5 +270,3 @@ if __name__ == "__main__":
         print(tree.pretty_print(0))
         number_trees += 1
     print("Number of trees: {}".format(number_trees))
-
-
