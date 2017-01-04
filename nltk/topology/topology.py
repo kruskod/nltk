@@ -622,8 +622,11 @@ def build_topologies():
 
 
 def process_dominance(tree, topology_rules, parent_tree=None):
+    """
+    build all possible topologies in consistence to topology_rules for tree
+    """
     from nltk import Tree
-    # build all possible topologies for tree
+
     node = tree.hclabel()
     result = []
     for temp_topol in topology_rules:
@@ -642,25 +645,27 @@ def process_dominance(tree, topology_rules, parent_tree=None):
             # create FeatStructNonterminal from topology features
             if temp_topol.features and len(node) > 1:
                 top_fstruct = FeatStructNonterminal(temp_topol.features)
-                #top_fstruct[EXPRESSION] = temp_topol.features
                 unif = featstruct.unify(node, top_fstruct)
             else:
                 unif = True
             if unif:
                 topology = copy.deepcopy(temp_topol)
-                # tree.topologies.append(topology)
                 # fill topology
                 for child in tree:
                     if isinstance(child, Tree):
+                        usage_number = 0
                         for field in topology.keys():
                             for func in field.grammatical_funcs:
                                 if func.fit(child):
+                                    usage_number += 1
                                     # add edge to topology
                                     topology[field] += (child.gorn,)
 
                                     if not child.topologies and not child.ishead():
                                         child.topologies.extend(process_dominance(child, topology_rules, parent_tree=tree))
                                     break
+                        if not usage_number:
+                            print("Warning! Node {} doesn't feat in any field of the topoology {}".format(child.short_str_with_features(), temp_topol))
                 result.append(topology)
     return result
 

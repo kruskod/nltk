@@ -276,7 +276,10 @@ class FeatTree(Tree):
         return False
 
     def short_str(self):
-        return ((str(self.gf) + " ") if self.gf else "") + "{}({})".format(self.ph, self.gorn)
+        return "({}){} {}".format(self.gorn, self.gf if self.gf else "", self.ph)
+
+    def short_str_with_features(self):
+        return "({}){} {}".format(self.gorn, self.gf if self.gf else "", repr(self.label()))
 
     def __str__(self):
         out = "\r\n({}) {} ".format(self.gorn, self.gf if self.gf else '') +  repr(self.label())
@@ -307,7 +310,7 @@ class FeatTree(Tree):
                     for field, field_edges in top.items():
                         if len(field_edges) > counter:
                             has_items = True
-                            edge = field_edges[counter]
+                            edge = self.find_edge(field_edges[counter])
                             line = "{} {} ({})".format(edge.gf, edge.ph, edge.gorn)
                             if len(line) > max_length:
                                 max_length = len(line)
@@ -552,18 +555,14 @@ class FeatTree(Tree):
                     if shared_parent_topologies:
                         self.parent.topologies = shared_parent_topologies
                         self.topologies = shared_topologies
-
                     # 4 step
-
 
     def alternatives(self):
         """
         split topologies with several possible word order on different topologies with only possible word order
         :return: None
         """
-
         result = set()
-
         for topology in self.topologies:
             # print("\nInitial topology: \n" + repr(topology))
             # split topology to topologies with only one item in an one field
@@ -600,7 +599,7 @@ class FeatTree(Tree):
                             places[gorn] = set()
                         places[gorn].add(field)
 
-                if (len(places) < len(self)): # not all nodes were used for topology - topology is wrong
+                if len(places) < len(self): # not all nodes were used for topology = topology is wrong
                     continue
 
                 generated_topologies = [unified_topology,]

@@ -1,9 +1,7 @@
 import pickle
 
-from nltk import Tree
-from nltk.draw.tree import TreeTabView, Graphview
+from nltk.draw.tree import Graphview
 from nltk.topology.FeatTree import FeatTree
-from nltk.topology.pygraphviz.graph import draw_graph
 from nltk.topology.topology import process_dominance, build_topologies
 from yaep.parse.parse_tree_generator import Node
 

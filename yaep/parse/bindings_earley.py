@@ -404,9 +404,8 @@ if __name__ == "__main__":
     # tokens = "meine Frau will ein Auto kaufen".split()
     # tokens = "ich sehe den Mann mit dem Hund in dem Wald".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
-    tokens = "ich sehe".split()
+    tokens = "ich gebe ihr".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
-
 
     # print_nw_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)
     print_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)
