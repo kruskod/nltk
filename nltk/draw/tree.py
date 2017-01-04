@@ -1222,7 +1222,7 @@ class Graphview(TreeTabView):
             if leaves:
                 leaves[0] = leaves[0].title()
                 readout_str = ' '.join(leaves)
-                print(readout_str)
+                # print(readout_str)
                 nb.add(tab, text=readout_str)
                 CreateToolTip(tab, readout_str)
 

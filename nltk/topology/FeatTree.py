@@ -134,35 +134,62 @@ class VCAT(AutoNumber):
 #     imperative = ()
 
 #Declarative sentense wh = false
+
 class FeatTree(Tree):
-    def __init__(self, node, children=None, gf=None):
+
+    def __init__(self, label=None, children=tuple(), gf=None):
         self._hcLabel = None
-        if isinstance(node, Tree):
-            Tree.__init__(self, node._label, children = node)
-            self.ph = PH[self._label[TYPE]]
-            self.gf = gf
-            self.tag = None
-            self.topologies = []
-            # make all leaves also FeatTree
-            if not self.ishead():
-                for index, child in enumerate(self):
-                    # nodes with GF at this level
-                    child_gf = GF[child._label[TYPE]]
-                    feat_child = FeatTree(child[0], children=None, gf=child_gf)
-                    if feat_child:
-                        self[index] = feat_child
-                    else:
-                        raise ValueError
+        self.ph = None
+        self.gf = gf
+        self.tag = None
+        self.topologies = None
+        self._label = label
+        list.__init__(self, children)
+
+    @classmethod
+    def from_tree(cls, node, gf=None):
+        assert isinstance(node, Tree)
+
+        label = node.label()
+        feat_tree = cls(label, gf=gf)
+        feat_tree.ph = PH[label[TYPE]]
+        feat_tree.topologies = []
+
+        # convert all Tree leaves to FeatTree
+        if not feat_tree.ishead():
+            for child in node:
+                # nodes with GF at this level
+                child_gf = GF[child.label()[TYPE]]
+                feat_child = FeatTree.from_tree(child[0], gf=child_gf)
+                assert feat_child, "All leaves should be processed correctly to build a correct tree"
+                feat_tree.append(feat_child)
+
+        feat_tree.numerate()
+        return feat_tree
+
+    @classmethod
+    def from_node(cls, node, gf=None):
+        from yaep.parse.parse_tree_generator import LeafNode
+        assert isinstance(node, LeafNode)
+
+        label = node.label()
+        feat_tree = cls(label, gf=gf)
+        feat_tree.ph = PH[label[TYPE]]
+        feat_tree.topologies = []
+
+        # convert all Tree leaves to FeatTree
+        if not feat_tree.ishead():
+            for child in node.children():
+                # nodes with GF at this level
+                child_gf = GF[child.label()[TYPE]]
+                feat_child = FeatTree.from_node(child[0], gf=child_gf)
+                assert feat_child, "All leaves should be processed correctly to build a correct tree"
+                feat_tree.append(feat_child)
         else:
-            if children is None:
-                raise TypeError("%s: Expected a node value and child list " % type(self).__name__)
-            elif isinstance(children, str):
-                raise TypeError("%s() argument 2 should be a list, not a "
-                                "string" % type(self).__name__)
-            else:
-                list.__init__(self, children)
-                self._label = node
-        self.numerate()
+            for child in node.children():
+                feat_tree.append(child.label())
+        feat_tree.numerate()
+        return feat_tree
 
     def ishead(self):
         return self.gf == GF.hd

@@ -286,15 +286,17 @@ class BindingsPermutationTraverseParseTreeGenerator(ChartTraverseParseTreeGenera
             self.countDown(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), j), set(), j) for st in chart_manager.final_states()))
         return result
 
+
 def substitute_rule(rule):
     bindings = rule.bindings()
     lhs = FeatStructNonTerm(substitute_bindings(rule.lhs().term(), bindings), rule.lhs().is_nullable())
     rhs = (FeatStructNonTerm(substitute_bindings(el.term(), bindings), el.is_nullable()) if is_nonterminal(el) else el for el in rule.rhs())
     return Rule(lhs, rhs)
 
+
 def bindings_performance_grammar(tokens):
     fstruct_reader = CelexFeatStructReader(fdict_class=FeatStructNonterminal)
-    grammar =  build_rules(tokens, fstruct_reader)
+    grammar = build_rules(tokens, fstruct_reader)
     productions = grammar.productions()
     start_nonterminal = feat_struct_nonterminal_to_term(grammar.start())
 
@@ -302,8 +304,9 @@ def bindings_performance_grammar(tokens):
                   (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production in productions),
             None, start_nonterminal)
 
+
 def print_trees(tokens, grammar, permutations=False):
-    parser = BindingsPermutationEarleyParser(grammar) if permutations else  EarleyParser(grammar)
+    parser = BindingsPermutationEarleyParser(grammar) if permutations else EarleyParser(grammar)
     start_time = default_timer()
     chart_manager = parser.parse(tokens, grammar.start())
     print()
@@ -335,6 +338,7 @@ def print_trees(tokens, grammar, permutations=False):
                 pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
             TreeTabView(*dominance_structures[:20])
 
+
 def parse_tokens(tokens, grammar, parser, verifier):
     chart_manager = parser.parse(tokens, grammar.start())
 
@@ -349,6 +353,7 @@ def parse_tokens(tokens, grammar, parser, verifier):
                     verifier == tree.wordsmap())
     return tuple()
 
+
 class TreeGenerator(object):
     def __init__(self, grammar, parser, verifier):
         self._grammar = grammar
@@ -358,10 +363,12 @@ class TreeGenerator(object):
     def __call__(self, tokens):
         return parse_tokens(tokens, self._grammar, self._parser, self._verifier)
 
+
 def permutation_parse_trees_builder(tokens, grammar, parser):
     verifier = Counter(tokens)
     pool = pathos.multiprocessing.Pool(multiprocessing.cpu_count())
     return itertools.chain(*pool.map(lambda t: parse_tokens(t, grammar, parser, verifier), itertools.permutations(tokens)))
+
 
 def print_nw_trees(tokens, grammar, permutations=False):
     parser = BindingsEarleyParser(grammar) if permutations else EarleyParser(grammar)
@@ -397,7 +404,7 @@ if __name__ == "__main__":
     # tokens = "meine Frau will ein Auto kaufen".split()
     # tokens = "ich sehe den Mann mit dem Hund in dem Wald".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
-    tokens = "ich esse".split()
+    tokens = "ich sehe".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
 
 

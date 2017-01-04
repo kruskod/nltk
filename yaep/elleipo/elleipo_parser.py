@@ -1,12 +1,15 @@
 import csv
 import os
+import pickle
 import re
 import xml.etree.ElementTree as ET
+from collections import Counter
 from copy import copy
 from operator import itemgetter
 from timeit import default_timer
 
 from nltk import TYPE
+from nltk.draw.tree import TreeTabView
 from nltk.featstruct import CelexFeatStructReader
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
 from nltk.parse.featurechart import celex_preprocessing
@@ -210,6 +213,7 @@ def extract_grammar(path, file_name):
         with open(grammar_path + '/' + node_file, 'w') as grammar_file:
             grammar_file.write('\r\n'.join((node.to_attribute_grammar())))
 
+
 def load_grammar(path, filename):
     assert filename, "Grammar filename should be specified"
 
@@ -265,8 +269,29 @@ if __name__ == "__main__":
     print(manager.out())
 
     tree_generator = earley_parser.build_tree_generator()
+    trees = tree_generator.parseTrees(manager)
+    # for tree in tree_generator.parseTrees(manager):
+    #     print(tree.pretty_print(0))
+    #     number_trees += 1
+    # print("Number of trees: {}".format(number_trees))
     number_trees = 0
-    for tree in tree_generator.parseTrees(manager):
-        print(tree.pretty_print(0))
-        number_trees += 1
-    print("Number of trees: {}".format(number_trees))
+    number_derivation_trees = 0
+    dominance_structures = []
+    verifier = Counter(tokens)
+    end_time = default_timer()
+    if trees:
+        tree_output = ''
+        for tree in trees:
+            number_derivation_trees += 1
+            if tree.wordsmap() == verifier:
+                number_trees += 1
+                dominance_structures.append(tree)
+            tree_output += tree.pretty_print(0) + '\n'
+        tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
+        print(tree_output)
+        print("Number of dominance structures: {}".format(number_trees))
+        print("Time: {:.3f}s.\n".format(end_time - load_grammar_timer))
+        if dominance_structures:
+            with open('../../fsa/dominance_structures.dump', 'wb') as f:
+                pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
+            TreeTabView(*dominance_structures[:40])

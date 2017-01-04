@@ -1,15 +1,15 @@
+import sys
 from collections import Counter
+from timeit import default_timer as timer
 
 from nltk import CFG
 from nltk import featstruct
 from nltk.compat import unicode_repr
-from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar, Nonterminal
-from nltk.featstruct import CelexFeatStructReader, TYPE, unify
+from nltk.featstruct import CelexFeatStructReader, TYPE
+from nltk.grammar import FeatStructNonterminal, Nonterminal
 from nltk.topology.compassFeat import PRODUCTION_ID_FEATURE, BRANCH_FEATURE
 from nltk.topology.orderedSet import OrderedSet
 from nltk.topology.pgsql import build_rules
-from timeit import default_timer as timer
-import sys
 
 class Term:
 
@@ -392,7 +392,6 @@ class EarleyParser(AbstractEarley):
         self._charts = tuple(Chart() for i in range(len(tokens) + 1))
 
     def build_tree_generator(self):
-        from yaep.parse.parse_tree_generator import ParseTreeGenerator
         # return ParseTreeGenerator()
         from yaep.parse.parse_tree_generator import ChartTraverseParseTreeGenerator
         return ChartTraverseParseTreeGenerator()

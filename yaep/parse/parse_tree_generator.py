@@ -1,23 +1,10 @@
-from copy import copy
-from functools import reduce
+import itertools
 from collections import Counter
 
-import itertools
-
-from nltk import CFG
-from nltk import featstruct
 from nltk.compat import unicode_repr
-from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar, Nonterminal
-from nltk.featstruct import CelexFeatStructReader, TYPE, unify
-from nltk.topology.compassFeat import PRODUCTION_ID_FEATURE, BRANCH_FEATURE
-from nltk.topology.orderedSet import OrderedSet
-from nltk.topology.pgsql import build_rules
-from timeit import default_timer as timer
-import sys
+from nltk.featstruct import TYPE
+from yaep.parse.earley import State, EarleyParser, PermutationEarleyParser, grammar_from_file, Chart, Term, test_unify
 
-from yaep.parse.earley import State, FeatStructNonTerm, nonterminal_to_term, Grammar, Rule, EarleyParser, NonTerm, \
-    pase_tokens, PermutationEarleyParser, grammar_from_file, performance_grammar, Chart, Term, test_unify
-from abc import ABCMeta, abstractmethod
 
 class LeafNode:
 

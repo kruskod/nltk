@@ -656,7 +656,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
                             for func in field.grammatical_funcs:
                                 if func.fit(child):
                                     # add edge to topology
-                                    topology[field] = topology[field] + (child.gorn,)
+                                    topology[field] += (child.gorn,)
 
                                     if not child.topologies and not child.ishead():
                                         child.topologies.extend(process_dominance(child, topology_rules, parent_tree=tree))
