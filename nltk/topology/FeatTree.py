@@ -142,7 +142,7 @@ class VCAT(AutoNumber):
 
 class FeatTree(Tree):
 
-    def __init__(self, label=None, children=tuple(), gf=None, parent=None):
+    def __init__(self, label=None, children=tuple(), gf=None, parent=None, gorn=None):
         self._hcLabel = None
         self.ph = None
         self.gf = gf
@@ -150,6 +150,7 @@ class FeatTree(Tree):
         self.topologies = None
         self._label = label
         self.parent = parent
+        self.gorn = gorn
         list.__init__(self, children)
 
     @classmethod
@@ -208,6 +209,9 @@ class FeatTree(Tree):
                     if self.gorn in (edge.gorn for edge in field_edges):
                         fields.add(field.ft)
         return fields
+
+    def label(self):
+        return self._label
 
     def hclabel(self):
         if self._hcLabel:
@@ -659,10 +663,12 @@ class FeatTree(Tree):
                         else:
                             raise AssertionError("Gorn numbers:{} should must correspond edges: {}".format(field_gorns, self))
                 children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
-                new_self = copy.deepcopy(self)
-                list.__init__(new_self, children_order)
-                top.edge = new_self
-                new_self.topologies = [copy.deepcopy(top),]
+                new_self = FeatTree(self.label(), children_order, gf=self.gf, parent=self.parent, gorn=self.gorn)
+                # new_self = copy.copy(self)
+                # list.__init__(new_self, children_order)
+                copy_topology = copy.deepcopy(top)
+                copy_topology.edge = new_self
+                new_self.topologies = [copy_topology,]
                 alternatives.append(new_self)
 
             child_alternatives = []
