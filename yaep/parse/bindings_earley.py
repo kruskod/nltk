@@ -245,15 +245,13 @@ class BindingsParseTreeGenerator(ParseTreeGenerator):
 
 
 class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
-    # pass
 
     def parseTrees(self, chart_manager):
-        '''
+        """
          In this implementation all NonTerm variables will be replaced by their bindings
         :param chart_manager: recognized chart
         :return: collection of parse trees
-        '''
-
+        """
         charts = chart_manager.charts()
         for i, chart in enumerate(charts, 0):
             for state in chart.states():
@@ -263,13 +261,9 @@ class BindingsPermutationParseTreeGenerator(PermutationParseTreeGenerator):
                     val = self._completed.setdefault(temp, list())
                     val.append(ExtendedState(State(rule, state.from_index(), state.dot()), i))
 
-        # final_state = tuple(chart_manager.final_states())[0]
-        # return itertools.chain.from_iterable(self.buildTrees(
-        #     ExtendedState(State(substitute_rule(final_state.rule()), final_state.from_index(), final_state.dot()),
-        #                   len(chart_manager.charts()) - 1), set()))
-
         return itertools.chain.from_iterable(self.buildTrees(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), len(chart_manager.charts()) - 1), set()) for st in
                       chart_manager.final_states())
+
 
 class BindingsPermutationTraverseParseTreeGenerator(ChartTraverseParseTreeGenerator):
 
@@ -285,6 +279,16 @@ class BindingsPermutationTraverseParseTreeGenerator(ChartTraverseParseTreeGenera
         result = tuple(itertools.chain.from_iterable(
             self.countDown(ExtendedState(State(substitute_rule(st.rule()), st.from_index(), st.dot()), j), set(), j) for st in chart_manager.final_states()))
         return result
+
+
+class TreeGenerator(object):
+    def __init__(self, grammar, parser, verifier):
+        self._grammar = grammar
+        self._parser = parser
+        self._verifier = verifier
+
+    def __call__(self, tokens):
+        return parse_tokens(tokens, self._grammar, self._parser, self._verifier)
 
 
 def substitute_rule(rule):
@@ -354,16 +358,6 @@ def parse_tokens(tokens, grammar, parser, verifier):
     return tuple()
 
 
-class TreeGenerator(object):
-    def __init__(self, grammar, parser, verifier):
-        self._grammar = grammar
-        self._parser = parser
-        self._verifier = verifier
-
-    def __call__(self, tokens):
-        return parse_tokens(tokens, self._grammar, self._parser, self._verifier)
-
-
 def permutation_parse_trees_builder(tokens, grammar, parser):
     verifier = Counter(tokens)
     pool = pathos.multiprocessing.Pool(multiprocessing.cpu_count())
@@ -404,7 +398,7 @@ if __name__ == "__main__":
     # tokens = "meine Frau will ein Auto kaufen".split()
     # tokens = "ich sehe den Mann mit dem Hund in dem Wald".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
-    tokens = "ich gebe ihr".split()
+    tokens = " ich fahre schnell".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
 
     # print_nw_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)

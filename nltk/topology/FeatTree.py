@@ -43,6 +43,10 @@ class TAG(AutoNumber):
 
 
 class FT(AutoNumber):
+    CP1 = ()
+    DP1 = ()
+    QP1 = ()
+    ADVP1 = ()
     ADJP1 = ()
     ADJP2 = ()
     E1 = ()
@@ -87,6 +91,7 @@ class PH(AutoNumber):
     PP = ()
     ADJP = ()
     ADVP = ()
+    adv = ()
     prep = ()
     v = ()
     adj = ()
@@ -109,7 +114,7 @@ class GF(AutoNumber):
     cmp = ()
     cmpr = ()
     prt = ()
-    q = () # ein - numbers?
+    q = () # ein - Quantifier
 
 class STATUS(AutoNumber):
     Infin = ()  # Infinitive
@@ -137,21 +142,22 @@ class VCAT(AutoNumber):
 
 class FeatTree(Tree):
 
-    def __init__(self, label=None, children=tuple(), gf=None):
+    def __init__(self, label=None, children=tuple(), gf=None, parent=None):
         self._hcLabel = None
         self.ph = None
         self.gf = gf
         self.tag = None
         self.topologies = None
         self._label = label
+        self.parent = parent
         list.__init__(self, children)
 
     @classmethod
-    def from_tree(cls, node, gf=None):
+    def from_tree(cls, node, gf=None, parent=None):
         assert isinstance(node, Tree)
 
         label = node.label()
-        feat_tree = cls(label, gf=gf)
+        feat_tree = cls(label, gf=gf, parent=parent)
         feat_tree.ph = PH[label[TYPE]]
         feat_tree.topologies = []
 
@@ -160,7 +166,7 @@ class FeatTree(Tree):
             for child in node:
                 # nodes with GF at this level
                 child_gf = GF[child.label()[TYPE]]
-                feat_child = FeatTree.from_tree(child[0], gf=child_gf)
+                feat_child = FeatTree.from_tree(child[0], gf=child_gf, parent=feat_tree)
                 assert feat_child, "All leaves should be processed correctly to build a correct tree"
                 feat_tree.append(feat_child)
 
@@ -168,12 +174,12 @@ class FeatTree(Tree):
         return feat_tree
 
     @classmethod
-    def from_node(cls, node, gf=None):
+    def from_node(cls, node, gf=None, parent=None):
         from yaep.parse.parse_tree_generator import LeafNode
         assert isinstance(node, LeafNode)
 
         label = node.label()
-        feat_tree = cls(label, gf=gf)
+        feat_tree = cls(label, gf=gf, parent = parent)
         feat_tree.ph = PH[label[TYPE]]
         feat_tree.topologies = []
 
@@ -182,7 +188,7 @@ class FeatTree(Tree):
             for child in node.children():
                 # nodes with GF at this level
                 child_gf = GF[child.label()[TYPE]]
-                feat_child = FeatTree.from_node(child[0], gf=child_gf)
+                feat_child = FeatTree.from_node(child[0], gf=child_gf, parent=feat_tree)
                 assert feat_child, "All leaves should be processed correctly to build a correct tree"
                 feat_tree.append(feat_child)
         else:
@@ -382,10 +388,11 @@ class FeatTree(Tree):
             leaves in the tree's hierarchical structure.
         :rtype: list
         """
-
+        assert len(self.topologies) == 1, "It should be only one topology for the tree"
+        topology = self.topologies[0]
         leaves = []
-        for field, field_gorns in self.topologies[0].items():
-            if not field.shared:
+        for ft, field_gorns in topology.items():
+            if field_gorns and not topology.field_map[ft].shared:
                 for gorn in field_gorns:
                     vertex = self.find_edge(gorn)
                     if vertex.topologies:
@@ -634,7 +641,7 @@ class FeatTree(Tree):
 
     def split_alternatives(self):
         """
-        split multiple topologies to separate trees
+        split tree topologies to the separate trees
         :return:
         """
         if not self.ishead():

@@ -225,14 +225,14 @@ def productions_extractor(cnx, cursor, fstruct_reader):
                                    "refnumber", "refpolite",
                                    "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
                                    "obj_case", "location",
-                                   "degree", "cmpr", "lexicalSlot", 'mood')  # , PERSONAL_FEATURE
+                                   "degree", "cmpr", "lexicalSlot",)  # , PERSONAL_FEATURE
         if production.is_nonlexical():
             rhs = tuple(nt.filter_feature(SLOT_FEATURE, "ref", "POS", "perf_aux",
                                        "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
                                        "refnumber", "refpolite",
                                        "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
                                        "obj_case", "location",
-                                       "degree", "cmpr", "lexicalSlot", 'mood') for nt in production.rhs())
+                                       "degree", "cmpr", "lexicalSlot",) for nt in production.rhs())
         else:
             rhs = production.rhs()
         yield Production(lhs, rhs)

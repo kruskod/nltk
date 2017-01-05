@@ -24,8 +24,10 @@ class Topology(OrderedDict):
         # parent_restriction=((None, None)) "((some GF, some PH))" means, that topology can be only root topology
         self.parent_restriction = parent_restriction
         if fields:
-            OrderedDict.__init__(self,((field.ft, field) for field in fields))
+            self.field_map = {field.ft: field for field in fields}
+            OrderedDict.__init__(self,{field.ft:set() for field in fields})
         else:
+            self.field_map = dict()
             OrderedDict.__init__(self)
         # inner variable to control alternatives generation by sharing
         self.shared_trace = ''
@@ -35,8 +37,8 @@ class Topology(OrderedDict):
         """
         :return: True if all needed fields are filled.
         """
-        for field, field_gorns in self.items():
-            if "!" == field.mod and not field_gorns:
+        for ft, field_gorns in self.items():
+            if "!" == self.field_map[ft].mod and not field_gorns:
                 return False
         return True
 
@@ -66,9 +68,9 @@ class Topology(OrderedDict):
     def __str__(self):
         out = self.short_str()
         field_type = '{'
-        for field, field_gorns in self.items():
+        for ft, field_gorns in self.items():
             if field_gorns:
-                field_type += field.short_str() + str(field_gorns) + '|'
+                field_type += self.field_map[ft].short_str() + str(field_gorns) + '|'
         return out + field_type[:-1] + '}'
 
     def __repr__(self):
@@ -76,7 +78,8 @@ class Topology(OrderedDict):
 
     def add_field(self, field):
         field.topology = self
-        self[field] = ()
+        self[field.ft] = ()
+        self.field_map[field.ft] = field
         for gram_func in field.grammatical_funcs:
             gram_func.field = field
         return self
@@ -160,7 +163,6 @@ class Topology(OrderedDict):
 class Field:
     # M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
 
-
     def __init__(self, ft=None, mod=None, grammatical_funcs=None, dependencies=None):
 
         self.ft = ft
@@ -171,8 +173,6 @@ class Field:
 
     def short_str(self):
         return str(self.ft) + (self.mod if self.mod else '')
-
-
 
     def add_gramfunc(self, gram_func):
         if not self.grammatical_funcs:
@@ -209,36 +209,6 @@ class Field:
     def __repr__(self):
         return self.__str__()
 
-    # def __eq__(self, other):
-    #     if not isinstance(other, Field):
-    #         return NotImplemented
-    #     elif self is other:
-    #         return True
-    #     else:
-    #         if self.ft == other.ft and self.topology == other.topology and self.mod == other.mod and self.edges == other.edges:
-    #             return True
-    #     return False
-
-    # def __hash__(self, *args, **kwargs):
-    #     # edge_hash = 7
-    #     # for edge in self.edges:
-    #     #     edge_hash ^= hash(edge)
-    #     # result = edge_hash ^ hash(self.ft) ^ hash(self.mod)
-    #     # return result
-    #     # return hash(repr(self))
-    #     return hash(super(self,))
-
-    # def __repr__(self):
-    #     count_edges = len(self.edges)
-    #     if count_edges:
-    #         out = '['
-    #         for index, edge in enumerate(self.edges):
-    #             out += "{} {}({})".format(edge.gf, edge.ph, edge.gorn)
-    #             if index < count_edges -1 :
-    #                 out += ' '
-    #         return '{}{}]'.format(self.ft, out)
-    #     return str(self.ft)
-
 class GramFunc:
     def __init__(self, gf=None, ph=None, expression=None, field=None, tag=None):
         self.field = field
@@ -252,8 +222,10 @@ class GramFunc:
             if self.gf == edge.gf:
                 if self.expression:
                     return self.expression(edge, self.field)
-                else:
+                elif self.ph:
                     return self.ph == edge.ph
+                else:   # this idea reflects "! category = none" matching
+                    return True
         return False
 
     def __str__(self):
@@ -263,65 +235,62 @@ class GramFunc:
 def build_topologies():
 
     return (
-
         # TOPOLOGY S[(status=Fin|status=Infin/Fin/PInfin),mood!=imperative] // Main order: SVO, OVS, VSO
         #  TAG main
-        #  F0  : mod: PP OR ADVP IF (subj: IN F1 OR dobj: IN F1 OR iobj: IN F1 OR cmp: IN F1 TAG modf0)
-        #  F1  : subj: NP AND NOT (NP (hd rel.pro)),
-        #        dobj: NP AND NOT (NP (hd rel.pro)) TAG focusdobj,
-        #        iobj: NP AND NOT (NP (hd rel.pro)) TAG focusiobj,
-        #        cmp: S TAG focuscmp,
-        #        mod: ADVP,
-        #        mod: PP,
-        #        prt: PP OR ADVP
-        #  M1 !: hd: v
-        #  M2a : subj: NP[wh=false|!wh]
-        #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
-        #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
-        #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>))
-        #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)),
-        #        Pred: NP,
-        #        Pred: AP
-        #  M4c*: iobj: PP, mod: ADVP[!wh|wh=false],
-        #        mod: PP[!wh|wh=false]
-        #  M5  : cmp: S[status=Infin|status=PastP]
-        #  M6a : prt: PP OR ADVP
-        #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
-        #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
-        # END
-
-
-
-        Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((None, None),))
+        Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood':('indicative', 'subjunctive')}, parent_restriction=((None, None),))
+            #  F0  : mod: PP OR ADVP IF (subj: IN F1 OR dobj: IN F1 OR iobj: IN F1 OR cmp: IN F1 TAG modf0)
             .add_field(Field(FT.F0, grammatical_funcs=(
-                GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.ADVP and any(edge for edge in field.topology[FT.F1].edges if edge.gf in (GF.subj, GF.obj, GF.iobj, GF.cmp)))), )))
+                GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.PP, PH.ADVP) and any(gorn for gorn in field.topology[FT.F1] if edge.parent.find_edge(gorn).gf in (GF.subj, GF.obj, GF.iobj, GF.cmp))),
+                ), dependencies=(FT.F1,)))
+            #  F1  : subj: NP AND NOT (NP (hd rel.pro)),
+            #        dobj: NP AND NOT (NP (hd rel.pro)) TAG focusdobj,
+            #        iobj: NP AND NOT (NP (hd rel.pro)) TAG focusiobj,
+            #        cmp: S TAG focuscmp,
+            #        mod: ADVP,
+            #        mod: PP,
+            #        prt: PP OR ADVP
             .add_field(Field(FT.F1, grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S, tag=TAG.focuscmp),
                 GramFunc(GF.mod, ph=(PH.PP, PH.ADVP)), )))
+            #  M1 !: hd: v
             .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, ph=PH.v),)))
+            #  M2a : subj: NP[wh=false|!wh]
             .add_field(Field(FT.M2a, grammatical_funcs=(
                 GramFunc(GF.subj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})),)))
+            #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
             .add_field(Field(FT.M2b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro))),)))
+            #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
             .add_field(Field(FT.M2c, grammatical_funcs=(
                 GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro))),)))
+            #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>))
             .add_field(Field(FT.M4a, grammatical_funcs=(
                 GramFunc(GF.iobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.dem_pro, PH.rel_pro, PH.pers_pro))),)))
+            #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)),
+            #        Pred: NP,
+            #        Pred: AP
             .add_field(Field(FT.M4b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression= lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.dem_pro, PH.rel_pro, PH.pers_pro))),
                 GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
+            #  M4c*: iobj: PP, mod: ADVP[!wh|wh=false],
+            #        mod: PP[!wh|wh=false]
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
-                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.ADVP or edge.ph == PH.PP) and edge.has_feature({'wh': False})), )))
+                GramFunc(GF.mod, expression= lambda edge, field: edge.ph in (PH.ADVP, PH.PP,PH.NP) and edge.has_feature({'wh': False})), ))) # Added or edge.ph == PH.NP to match COMPASS behavior
+            #  M5  : cmp: S[status=Infin|status=PastP]
             .add_field(Field(FT.M5, grammatical_funcs=(
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Infin','PastP')})),)))
+            #  M6a : prt: PP OR ADVP
             .add_field(Field(FT.M6a, grammatical_funcs=(GramFunc(GF.prt, ph=(PH.PP, PH.ADVP)),)))
+            #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
+            #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
                 GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
+        # END TOPOLOGY S TAG main
         ,
 
         #  TOPOLOGY S[(status=Fin|status=Infin/Fin/PInfin),mood=imperative] // Main order: VO
@@ -566,7 +535,6 @@ def build_topologies():
                 )))
         ,
 
-
         # TOPOLOGY NP
         # TAG np
         # NP1 : det: <DP OR NP OR QP>
@@ -586,8 +554,8 @@ def build_topologies():
                 GramFunc(GF.hd, expression=lambda edge, field: edge.ph in (PH.n, PH.rel_pro, PH.dem_pro, PH.pers_pro)),)))
 
             .add_field(Field(FT.NP4, grammatical_funcs=(
-                GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.S and edge.has_feature({'topo': 'subrel'}))),))) ,
-
+                GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.S and edge.has_feature({'topo': 'subrel'}))),)))
+        ,
 
         # TOPOLOGY PP
         #  TAG pp
@@ -612,12 +580,44 @@ def build_topologies():
         # END
         # )
 
-        Topology(PH.ADJP, tag='pp')
-            .add_field(Field(FT.ADJP1, grammatical_funcs=(
-                GramFunc(GF.mod, ph=PH.ADJP),)))
+        # Adjp
+        # definition ~ [category = ADJP & defined = 'true'] ~ > [slot = ADJP1 & function = mod & category = ADVP]: TOP;
+        # definition ~ [category = ADJP & defined = 'true']: [slot = ADJP2 & function = hd & ! category = none];
 
-            .add_field(Field(FT.ADJP2, mod='!', grammatical_funcs=(
-                GramFunc(GF.mod, ph=PH.adj),))) ,
+        Topology(PH.ADJP, tag='adjp')
+                .add_field(Field(FT.ADJP1, grammatical_funcs=(
+                    GramFunc(GF.mod, ph=PH.ADVP),)))
+
+                .add_field(Field(FT.ADJP2, mod='!', grammatical_funcs=(
+                    GramFunc(GF.hd, ph=PH.adj),))) ,
+
+        # Advp
+        # definition ~ [category = ADVP & defined = 'true']: [slot = ADVP1 & function = hd & ! category = none];
+
+        Topology(PH.ADVP, tag='advp')
+            .add_field(Field(FT.ADVP1, grammatical_funcs=(
+            GramFunc(GF.hd),))),
+
+        # Quantifier
+        # definition ~ [category = QP & defined = 'true']: [slot = QP1 & function = hd & ! category = none];
+
+        Topology(PH.QP, tag='qp')
+            .add_field(Field(FT.QP1, grammatical_funcs=(
+            GramFunc(GF.hd),))),
+
+        # Determiner
+        # definition ~ [category = DP & defined = 'true']: [slot = DP1 & function = hd & ! category = none];
+
+        Topology(PH.DP, tag='dp')
+            .add_field(Field(FT.DP1, grammatical_funcs=(
+            GramFunc(GF.hd),))),
+
+        # CP
+        # definition ~ [category = CP & defined = 'true']: [slot = CP1 & function = hd & ! category = none];
+
+        Topology(PH.CP, tag='cp')
+            .add_field(Field(FT.CP1, grammatical_funcs=(
+            GramFunc(GF.hd), ))),
     )
 
 
@@ -628,7 +628,6 @@ def process_dominance(tree, topology_rules, parent_tree=None):
     from nltk import Tree
 
     node = tree.hclabel()
-    result = []
     for temp_topol in topology_rules:
         # chose a topology for the dominance structure item
         if tree.ph == temp_topol.ph:
@@ -650,24 +649,54 @@ def process_dominance(tree, topology_rules, parent_tree=None):
                 unif = True
             if unif:
                 topology = copy.deepcopy(temp_topol)
-                # fill topology
+                # fill topology fields
+                dependent_fields = dict()
+                child_usages = dict()
                 for child in tree:
+                    child_usages[child] = 0
                     if isinstance(child, Tree):
-                        usage_number = 0
-                        for field in topology.keys():
+                        for field in topology.field_map.values():
+                            if field.dependencies:
+                                dependent_fields[field.ft] = field
+                                continue
                             for func in field.grammatical_funcs:
                                 if func.fit(child):
-                                    usage_number += 1
+                                    child_usages[child] += 1
                                     # add edge to topology
-                                    topology[field] += (child.gorn,)
-
-                                    if not child.topologies and not child.ishead():
-                                        child.topologies.extend(process_dominance(child, topology_rules, parent_tree=tree))
+                                    topology[field.ft] += (child.gorn,)
                                     break
-                        if not usage_number:
-                            print("Warning! Node {} doesn't feat in any field of the topoology {}".format(child.short_str_with_features(), temp_topol))
-                result.append(topology)
-    return result
+
+                # fill fields, that should be processed afterwards because the have dependencies
+                while dependent_fields:
+                    for ft, field in list(dependent_fields.items()):
+                        if field.dependencies in dependent_fields:
+                            continue
+                        del dependent_fields[ft]
+                        for child in tree:
+                            if isinstance(child, Tree):
+                                for func in field.grammatical_funcs:
+                                    if func.fit(child):
+                                        child_usages[child] += 1
+                                        # add edge to topology
+                                        topology[ft] += (child.gorn,)
+                                        break
+
+                unused_fields = False
+                children_without_topologies = False
+                for child, usage_number in child_usages.items():
+                    if not usage_number:
+                        unused_fields = True
+                        print("Warning! Node {} doesn't feat in any field of the topoology {}".format(
+                            child.short_str_with_features(), topology))
+                    elif not child.topologies and not child.ishead():
+                        child.topologies.extend(process_dominance(child, topology_rules, parent_tree=tree))
+                    if not child.ishead() and not child.topologies:
+                        children_without_topologies = True
+                        print("Warning! Node {} doesn't have any topoology".format(child.short_str_with_features()))
+
+                if not unused_fields and not children_without_topologies:
+                    yield topology
+
 
 def demo(print_times=True, print_grammar=False,
          print_trees=True, trace=1,

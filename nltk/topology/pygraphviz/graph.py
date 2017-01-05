@@ -37,13 +37,13 @@ def add_cluster(Graph, parent_index, root, topologies):
         shared_edges = non_shared_cluster_gorns - cluster_gorns
 
         n = 0
-        for field, field_gorns in topology.items():
+        for ft, field_gorns in topology.items():
 
             shared = False
             if n < left_shared_area or n >= count_fields - right_shared_area:
                 shared = True
 
-            field_label = field.short_str()
+            field_label = topology.field_map[ft].short_str()
 
             if field_gorns:
                 for gorn in field_gorns:
