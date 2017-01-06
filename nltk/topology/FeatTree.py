@@ -26,6 +26,7 @@ class OP(AutoNumber):
     # ANDNOT = ()
 
 class TAG(AutoNumber):
+    adjp = ()
     dobjrel = ()
     focuscmp = ()
     focusdobj = ()

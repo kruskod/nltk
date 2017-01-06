@@ -2,7 +2,7 @@ import copy
 
 import inspect
 import pickle
-from collections import OrderedDict
+from collections import OrderedDict, Iterable
 from timeit import default_timer as timer
 
 from nltk import featstruct
@@ -110,15 +110,6 @@ class Field:
         self.grammatical_funcs.append(gram_func)
         return self
 
-    def fit(self, edge):
-        if isinstance(edge, FeatTree):
-            if self.gf == edge.gf:
-                if self.expression:
-                    return self.expression(edge)
-                else:
-                    return self.ph == edge.ph
-        return False
-
     def __eq__(self, other):
         if not isinstance(other, Field):
             return NotImplemented
@@ -148,14 +139,17 @@ class GramFunc:
         self.tag = tag
 
     def fit(self, edge):
-        if isinstance(edge, FeatTree):
-            if self.gf == edge.gf:
-                if self.expression:
-                    return self.expression(edge, self.field)
-                elif self.ph:
-                    return self.ph == edge.ph
-                else:   # this idea reflects "! category = none" matching
-                    return True
+        assert isinstance(edge, FeatTree)
+        if self.gf == edge.gf:
+            if self.expression:
+                return self.expression(edge, self.field)
+            elif self.ph:
+                if isinstance(self.ph, Iterable):
+                    return edge.ph in self.ph
+                else:
+                    return edge.ph == self.ph
+            else:   # this idea reflects "! category = none" matching
+                return True
         return False
 
     def __str__(self):
@@ -320,207 +314,226 @@ def build_topologies():
         # END TOPOLOGY S TAG sub
         ,
 
+
         # TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
         #  TAG subv2
-        #  F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true]
-        #  M1 !: cmpr: CP
-        #  M1a!: subj: NP, dobj: NP, iobj: NP, cmp: S, mod: ADVP, mod: PP
-        #  M1b!: hd: v
-        #  M2a : subj: NP[wh=false|!wh]
-        #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
-        #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
-        #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>))
-        #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP
-        #  M4c*: iobj: PP, mod: ADVP[!wh|wh=false], mod: PP[!wh|wh=false]
-        #  M5  : cmp: S[status=Infin|status=PastP]
-        #  M6a : prt: PP OR ADVP
-        #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
-        # END
+        Topology(PH.S, tag=TAG.sub, features={'status': ('Fin', 'Infin', 'PInfin')})  # Subordinate order: SOV, OSV
+            #  F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true]
+            .add_field(Field(FT.F1, grammatical_funcs=(
+            GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
+            GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
+            GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),)))
+            #  M1 !: cmpr: CP
+            .add_field(Field(FT.M1, mod='!', grammatical_funcs=(
+            GramFunc(GF.cmpr, PH.CP),)))
+            #  M1a!: subj: NP, dobj: NP, iobj: NP, cmp: S, mod: ADVP, mod: PP
+            .add_field(Field(FT.M1a, mod='!', grammatical_funcs=(
+            GramFunc(GF.subj, ph=PH.NP),
+            GramFunc(GF.dobj, ph=PH.NP),
+            GramFunc(GF.iobj, ph=PH.NP),
+            GramFunc(GF.cmp, ph=PH.S),
+            GramFunc(GF.mod, ph=PH.ADVP),
+            GramFunc(GF.mod, ph=PH.PP),)))
+            #  M1b!: hd: v
+            .add_field(Field(FT.M1b, mod='!', grammatical_funcs=(
+            GramFunc(GF.hd, PH.v),)))
+            #  M2a : subj: NP[wh=false|!wh]
+            .add_field(Field(FT.M2a, grammatical_funcs=(
+            GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})),)))
+            #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
+            .add_field(Field(FT.M2b, grammatical_funcs=(
+            GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro))),)))
+            #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
+            .add_field(Field(FT.M2c, grammatical_funcs=(
+            GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro))),)))
+            #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>))
+            .add_field(Field(FT.M4a, grammatical_funcs=(
+            GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.dem_pro, PH.rel_pro, PH.pers_pro))), )))
+            #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)),
+            #        Pred: NP,
+            #        Pred: AP
+            .add_field(Field(FT.M4b, grammatical_funcs=(
+            GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.dem_pro, PH.rel_pro, PH.pers_pro))),
+            GramFunc(GF.Pred, ph=(PH.NP, PH.AP)),)))
+            #  M4c*: iobj: PP, mod: ADVP[!wh|wh=false], mod: PP[!wh|wh=false]
+            .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
+            GramFunc(GF.iobj, ph=PH.PP),
+            GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.ADVP, PH.PP) and edge.has_feature({'wh': False})),)))
+            #  M5  : cmp: S[status=Infin|status=PastP]
+            .add_field(Field(FT.M5, grammatical_funcs=(
+            GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')})),)))
+            #  M6a : prt: PP OR ADVP
+            .add_field(Field(FT.M6a, grammatical_funcs=(GramFunc(GF.prt, ph=(PH.PP, PH.ADVP)),)))
+            #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
+            #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
+            .add_field(Field(FT.E2, grammatical_funcs=(
+            GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+            GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),)))
+        # END TOPOLOGY S TAG subv2
+        ,
 
 
         # TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
         #  TAG subrel
-        #  F1  !: subj: (NP (hd rel.pro)), dobj: (NP (hd rel.pro)) TAG dobjrel, iobj: (NP (hd rel.pro)) TAG iobjrel
-        #  M2a : subj: NP[wh=false|!wh]
-        #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
-        #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
-        #  M3  : subj: NP[wh=false|!wh] IF dobj: NP IN M2b OR iobj: NP IN M2c
-        #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>))
-        #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP
-        #  M4c*: iobj: PP, mod: ADVP, mod: PP
-        #  M5  : cmp: S[status=Infin|status=PastP]
-        #  M6a : prt: PP OR ADVP
-        #  M6b!: hd: v
-        #  E1  : cmp: (S[status=Infin|status=PastP] * (cmp S) *)
-        #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
-        # END
-
-        (Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((GF.mod, PH.NP),)))
+        Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, ) # parent_restriction=((GF.mod, PH.NP)),
+            # F1!: subj: (NP (hd rel.pro)),
+            #      dobj: (NP (hd rel.pro)) TAG dobjrel,
+            #      iobj: (NP (hd rel.pro)) TAG iobjrel
             .add_field(Field(FT.F1, mod='!', grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.dobjrel),
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.iobjrel),
-                    )))
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.iobjrel), )))
+            #  M2a : subj: NP[wh=false|!wh]
             .add_field(Field(FT.M2a, grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})), )))
-
+            #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
             .add_field(Field(FT.M2b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro)))),)))
-
+            #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>))
             .add_field(Field(FT.M2c, grammatical_funcs=(
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro)))),)))
-
+            #  M3  : subj: NP[wh=false|!wh] IF dobj: NP IN M2b OR iobj: NP IN M2c
             .add_field(Field(FT.M3, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (any(edge for edge in field.topology[FT.M2b].edges if edge.fit(GF.dobj, PH.NP)) or any(edge for edge in field.topology[FT.M2c].edges if edge.fit(GF.iobj, PH.NP)))),), dependencies = (FT.M2b, FT.M2c), ))
-
+                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})
+                    and (any(gorn for gorn in field.topology[FT.M2b] if edge.parent.find_edge(gorn).gf == GF.dobj and edge.parent.find_edge(gorn).ph == PH.NP)
+                        or any(gorn for gorn in field.topology[FT.M2c] if edge.parent.find_edge(gorn).gf == GF.iobj and edge.parent.find_edge(gorn).ph == PH.NP))),), dependencies=(FT.M2b, FT.M2c)))
+            #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>))
             .add_field(Field(FT.M4a, grammatical_funcs=(
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.dem_pro, PH.pers_pro))),)))
-
+            #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)),
+            #  Pred: NP, Pred: AP
             .add_field(Field(FT.M4b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.dem_pro, PH.pers_pro))),
-                GramFunc(GF.Pred, ph=PH.NP),
-                GramFunc(GF.Pred, ph=PH.AP),
-                )))
-
+                GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
+            #  M4c*: iobj: PP,
+            #        mod: ADVP,
+            #        mod: PP
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
-                GramFunc(GF.mod, ph=PH.ADVP),
-                GramFunc(GF.mod, ph=PH.PP),
-                )))
-
+                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP)), )))
+            #  M5  : cmp: S[status=Infin|status=PastP]
             .add_field(Field(FT.M5, grammatical_funcs=(
-                GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')})),
-                )))
-
+                GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')})), )))
+            #  M6a : prt: PP OR ADVP
             .add_field(Field(FT.M6a, grammatical_funcs=(
-                GramFunc(GF.prt, ph=(PH.PP, PH.ADVP)),)))
-
+                GramFunc(GF.prt, ph=(PH.PP, PH.ADVP)), )))
+            #  M6b!: hd: v
             .add_field(Field(FT.M6b, mod='!', grammatical_funcs=(
                 GramFunc(GF.hd, ph = PH.v),)))
+            #  E1  : cmp: (S[status=Infin|status=PastP] * (cmp S) *)
             .add_field(Field(FT.E1, grammatical_funcs=(
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')}) ),)))
-
+            #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
                 GramFunc(GF.mod,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 )))
+            # END TOPOLOGY S TAG subrel
         ,
 
-        #  TOPOLOGY S[status=PInfin|status=PastP|status=Infin]
-        #  TAG inf;
-        #  F1  : dobj:NP[wh=true], dobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusdobj, dobj: (NP (hd rel.pro)) TAG dobjrel, iobj:NP[wh=true], iobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusiobj, iobj: (NP (hd rel.pro)) TAG iobjrel, cmp: S TAG focuscmp;
-        #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
-        #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
-        #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
-        #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
-        #  M4c*: iobj: PP, mod: ADVP, mod: PP;
-        #  M5  : cmp: S[status=Infin|status=PastP];
-        #  M6b!: hd: v;
-        #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
-        # END
 
-         (Topology(PH.S, tag=TAG.inf, features={'status': ('PastP', 'Infin', 'PInfin')}))
+         #  TOPOLOGY S[status=PInfin|status=PastP|status=Infin]
+         #  TAG inf;
+         Topology(PH.S, tag=TAG.inf, features={'status': ('PastP', 'Infin', 'PInfin')})
+            #  F1  : dobj:NP[wh=true],
+            #        dobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusdobj,
+            #        dobj: (NP (hd rel.pro)) TAG dobjrel,
+            #        iobj:NP[wh=true],
+            #        iobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusiobj,
+            #        iobj: (NP (hd rel.pro)) TAG iobjrel,
+            #        cmp: S TAG focuscmp;
             .add_field(Field(FT.F1, grammatical_funcs=(
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})),
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not (edge.has_child(GF.hd, (PH.rel_pro,))), tag = TAG.focusdobj),
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro,)), tag = TAG.focusdobj),
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.dobjrel),
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro), tag = TAG.focusiobj),
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, PH.rel_pro), tag = TAG.focusiobj),
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_child(GF.hd, PH.rel_pro), tag = TAG.iobjrel),
                 GramFunc(GF.cmp, ph=PH.S, tag = TAG.focuscmp),
                     )))
+            #  M2b : dobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
             .add_field(Field(FT.M2b, grammatical_funcs=(
-                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro)))),)))
-
+                GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro))),)))
+            #  M2c : iobj: (NP[wh=false|!wh] (hd <dem.pro OR pers.pro>));
             .add_field(Field(FT.M2c, grammatical_funcs=(
-                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and (edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro)))),)))
-
-            .add_field(Field(FT.M3, grammatical_funcs=(
-                GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False})
-                    #and (any(edge for edge in field.topology[FT.M2b].edges if edge.fit(GF.dobj, PH.NP)) or any(edge for edge in field.topology[FT.M2c].edges if edge.fit(GF.iobj, PH.NP)))
-                         ),), dependencies = (FT.M2b, FT.M2c), ))
-
+                GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and edge.has_child(GF.hd, (PH.dem_pro, PH.pers_pro))),)))
+            #  M4a : iobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>));
             .add_field(Field(FT.M4a, grammatical_funcs=(
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.dem_pro, PH.pers_pro))),)))
-
+            #  M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)),
+            #        Pred: NP,
+            #        Pred: AP;
             .add_field(Field(FT.M4b, grammatical_funcs=(
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': False}) and not edge.has_child(GF.hd, (PH.rel_pro, PH.dem_pro, PH.pers_pro))),
-                GramFunc(GF.Pred, ph=PH.NP),
-                GramFunc(GF.Pred, ph=PH.AP),
-                )))
-
+                GramFunc(GF.Pred, ph=(PH.NP, PH.AP)), )))
+            #  M4c*: iobj: PP, mod: ADVP, mod: PP;
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
                 GramFunc(GF.mod, ph=(PH.ADVP, PH.PP)),
                 )))
-
+            #  M5  : cmp: S[status=Infin|status=PastP];
             .add_field(Field(FT.M5, grammatical_funcs=(
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')})),
                 )))
+            #  M6b!: hd: v;
             .add_field(Field(FT.M6b, mod='!', grammatical_funcs=(
                 GramFunc(GF.hd, ph = PH.v),)))
-
+            #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
+            #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
                 GramFunc(GF.mod,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 )))
+        # END TOPOLOGY S TAG inf
         ,
+
 
         # TOPOLOGY NP
         # TAG np
-        # NP1 : det: <DP OR NP OR QP>
-        # NP2 : mod: ADJP
-        #  NP3!: hd: n, hd: rel.pro, hd: dem.pro, hd: pers.pro
-        #  NP4 : mod: PP, mod: S IF mod: S[topo=subrel] IN NP4
-        # END
-
-        Topology(PH.NP, tag='np')
+        Topology(PH.NP, tag=TAG.np)
+            # NP1 : det: <DP OR NP OR QP>
             .add_field(Field(FT.NP1, grammatical_funcs=(
-                GramFunc(GF.det, expression=lambda edge, field: edge.ph in (PH.DP, PH.NP, PH.QP)),)))
-
+                GramFunc(GF.det, ph=(PH.DP, PH.NP, PH.QP)),)))
+            # NP2 : mod: ADJP
             .add_field(Field(FT.NP2, grammatical_funcs=(
                 GramFunc(GF.mod, ph=PH.ADJP),)))
-
+            #  NP3!: hd: n, hd: rel.pro, hd: dem.pro, hd: pers.pro
             .add_field(Field(FT.NP3, mod='!', grammatical_funcs=(
-                GramFunc(GF.hd, expression=lambda edge, field: edge.ph in (PH.n, PH.rel_pro, PH.dem_pro, PH.pers_pro)),)))
-
+                GramFunc(GF.hd, ph=(PH.n, PH.rel_pro, PH.dem_pro, PH.pers_pro)),)))
+            #  NP4 : mod: PP, mod: S IF mod: S[topo=subrel] IN NP4
             .add_field(Field(FT.NP4, grammatical_funcs=(
                 GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.PP or (edge.ph == PH.S and edge.has_feature({'topo': 'subrel'}))),)))
+        # END TOPOLOGY NP
         ,
+
 
         # TOPOLOGY PP
         #  TAG pp
-        #  PP1 : hd: prep[location=pre]
-        #  PP2 : obj: NP OR ADVP
-        #  PP3 : hd: prep[location=post]
-        # END
-
-        Topology(PH.PP, tag='pp')
+        Topology(PH.PP, tag=TAG.pp)
+            #  PP1 : hd: prep[location=pre]
             .add_field(Field(FT.PP1, grammatical_funcs=(
                 GramFunc(GF.hd, expression=lambda edge, field: edge.ph == PH.prep and edge.has_feature({'location': 'pre'})),)))
-
+            #  PP2 : obj: NP OR ADVP
             .add_field(Field(FT.PP2, grammatical_funcs=(
-                GramFunc(GF.obj, expression=lambda edge, field: edge.ph == PH.NP or edge.ph == PH.ADVP),)))
-
+                GramFunc(GF.obj, ph=(PH.NP, PH.ADVP)), )))
+            #  PP3 : hd: prep[location=post]
             .add_field(Field(FT.PP3, grammatical_funcs=(
-                GramFunc(GF.hd, expression=lambda edge, field: edge.ph == PH.prep and edge.has_feature({'location': 'post'})),))) ,
+                GramFunc(GF.hd, expression=lambda edge, field: edge.ph == PH.prep and edge.has_feature({'location': 'post'})),)))
+        # END TOPOLOGY PP
+        ,
 
-        # TOPOLOGY ADJP
-        #  ADJP1 : mod: ADVP
-        #  ADJP2!: hd: adj
-        # END
-        # )
 
         # Adjp
         # definition ~ [category = ADJP & defined = 'true'] ~ > [slot = ADJP1 & function = mod & category = ADVP]: TOP;
         # definition ~ [category = ADJP & defined = 'true']: [slot = ADJP2 & function = hd & ! category = none];
-
-        Topology(PH.ADJP, tag='adjp')
-                .add_field(Field(FT.ADJP1, grammatical_funcs=(
-                    GramFunc(GF.mod, ph=PH.ADVP),)))
-
-                .add_field(Field(FT.ADJP2, mod='!', grammatical_funcs=(
-                    GramFunc(GF.hd, ph=PH.adj),))) ,
+        # TOPOLOGY ADJP
+        Topology(PH.ADJP, tag=TAG.adjp)
+            #  ADJP1 : mod: ADVP
+            .add_field(Field(FT.ADJP1, grammatical_funcs=(GramFunc(GF.mod, ph=PH.ADVP),)))
+            #  ADJP2!: hd: adj
+            .add_field(Field(FT.ADJP2, mod='!', grammatical_funcs=(GramFunc(GF.hd, ph=PH.adj),)))
+        # END TOPOLOGY ADJP
+        ,
 
         # Advp
         # definition ~ [category = ADVP & defined = 'true']: [slot = ADVP1 & function = hd & ! category = none];
