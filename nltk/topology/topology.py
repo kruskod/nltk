@@ -148,7 +148,7 @@ class GramFunc:
                     return edge.ph in self.ph
                 else:
                     return edge.ph == self.ph
-            else:   # this idea reflects "! category = none" matching
+            else:   # this idea reflects matching for "! category = none"
                 return True
         return False
 
@@ -317,7 +317,7 @@ def build_topologies():
 
         # TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
         #  TAG subv2
-        Topology(PH.S, tag=TAG.sub, features={'status': ('Fin', 'Infin', 'PInfin')})  # Subordinate order: SOV, OSV
+        Topology(PH.S, tag=TAG.subv2, features={'status': ('Fin', 'Infin', 'PInfin')})  # Subordinate order: SOV, OSV
             #  F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true]
             .add_field(Field(FT.F1, grammatical_funcs=(
             GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
@@ -538,28 +538,28 @@ def build_topologies():
         # Advp
         # definition ~ [category = ADVP & defined = 'true']: [slot = ADVP1 & function = hd & ! category = none];
 
-        Topology(PH.ADVP, tag='advp')
+        Topology(PH.ADVP, tag=TAG.advp)
             .add_field(Field(FT.ADVP1, grammatical_funcs=(
             GramFunc(GF.hd),))),
 
         # Quantifier
         # definition ~ [category = QP & defined = 'true']: [slot = QP1 & function = hd & ! category = none];
 
-        Topology(PH.QP, tag='qp')
+        Topology(PH.QP, tag=TAG.qp)
             .add_field(Field(FT.QP1, grammatical_funcs=(
             GramFunc(GF.hd),))),
 
         # Determiner
         # definition ~ [category = DP & defined = 'true']: [slot = DP1 & function = hd & ! category = none];
 
-        Topology(PH.DP, tag='dp')
+        Topology(PH.DP, tag=TAG.dp)
             .add_field(Field(FT.DP1, grammatical_funcs=(
             GramFunc(GF.hd),))),
 
         # CP
         # definition ~ [category = CP & defined = 'true']: [slot = CP1 & function = hd & ! category = none];
 
-        Topology(PH.CP, tag='cp')
+        Topology(PH.CP, tag=TAG.cp)
             .add_field(Field(FT.CP1, grammatical_funcs=(
             GramFunc(GF.hd), ))),
     )
@@ -630,7 +630,7 @@ def process_dominance(tree, topology_rules, parent_tree=None):
                 for child, usage_number in child_usages.items():
                     if not usage_number:
                         unused_fields = True
-                        print("Warning! Node {} doesn't feat in any field of the topoology {}".format(
+                        print("Warning! Node {} doesn't fit in any field of the topoology {}".format(
                             child.short_str_with_features(), topology))
                     elif not child.topologies and not child.ishead():
                         child.topologies.extend(process_dominance(child, topology_rules, parent_tree=tree))

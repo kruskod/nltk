@@ -1,5 +1,6 @@
 import itertools
 
+from nltk.compat import unicode_repr
 from nltk.topology.orderedSet import OrderedSet
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
@@ -26,6 +27,10 @@ class OP(AutoNumber):
     # ANDNOT = ()
 
 class TAG(AutoNumber):
+    cp = ()
+    dp = ()
+    qp = ()
+    advp = ()
     adjp = ()
     dobjrel = ()
     focuscmp = ()
@@ -292,8 +297,14 @@ class FeatTree(Tree):
     def short_str_with_features(self):
         return "({}){} {}".format(self.gorn, self.gf if self.gf else "", repr(self.label()))
 
+    def pretty_print(self, level):
+        padding = '\n' + '\t' * level
+        children_str = " ".join(c.pretty_print(level + 1) if isinstance(c, FeatTree) else c for c in self)
+        out = "{}([{}] {}{} {})".format(padding, self.gorn, str(self.gf) + ' ' if self.gf else '', unicode_repr(self.label()), children_str if self else '')
+        return out
+
     def __str__(self):
-        out = "\r\n({}) {} ".format(self.gorn, self.gf if self.gf else '') +  repr(self.label())
+        out = "\r\n({}) {} ".format(self.gorn, self.gf if self.gf else '') + repr(self.label())
         # print leaves
         if self:
             leaves_str = ''.join(

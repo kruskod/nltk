@@ -394,11 +394,11 @@ if __name__ == "__main__":
     # print_trees(tokens2, grammar = grammar_from_file('../test/parse/grammar.txt'), permutations=True)
     #
     # tokens = "Monopole sollen geknackt werden und Märkte getrennt werden".split()
-    # tokens = "ich darf Kaffee trinken".split()
+    tokens = "Kaffee darf ich jeden Tag trinken".split()
     # tokens = "meine Frau will ein Auto kaufen".split()
     # tokens = "ich sehe den Mann mit dem Hund in dem Wald".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
-    tokens = " ich fahre schnell".split()
+    # tokens = " ich fahre schnell".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
 
     # print_nw_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)

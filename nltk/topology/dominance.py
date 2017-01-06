@@ -36,11 +36,12 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
 
     alternatives = []
     for tree in dumped_trees:
-        print(tree.pretty_print(0))
+        # print(tree.pretty_print(0))
         if isinstance(tree, Node):
             feat_tree = FeatTree.from_node(tree)
         else:
             feat_tree = FeatTree(tree)
+        print(feat_tree.pretty_print(0))
         alternatives.extend(wordorder_alternatives(feat_tree, topologies))
 
     if alternatives:
