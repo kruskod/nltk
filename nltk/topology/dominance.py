@@ -1,6 +1,6 @@
 import pickle
 
-from nltk.draw.tree import Graphview
+from nltk.draw.tree import Graphview, TreeTabView
 from nltk.topology.FeatTree import FeatTree
 from nltk.topology.topology import process_dominance, build_topologies
 from yaep.parse.parse_tree_generator import Node
@@ -32,10 +32,12 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
     with open(dump_path, 'rb') as f:
         dumped_trees = pickle.load(f)
 
+    # TreeTabView(*dumped_trees[:20])
+
     topologies = build_topologies()
 
     alternatives = []
-    for tree in dumped_trees:
+    for tree in (dumped_trees[0],):
         # print(tree.pretty_print(0))
         if isinstance(tree, Node):
             feat_tree = FeatTree.from_node(tree)

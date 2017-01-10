@@ -162,9 +162,9 @@ def build_topologies():
         # TOPOLOGY S[(status=Fin|status=Infin/Fin/PInfin),mood!=imperative] // Main order: SVO, OVS, VSO
         #  TAG main
         Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood':('indicative', 'subjunctive')}, parent_restriction=((None, None),))
-            #  F0  : mod: PP OR ADVP IF (subj: IN F1 OR dobj: IN F1 OR iobj: IN F1 OR cmp: IN F1 TAG modf0)
+            #  F0  : mod: PP OR ADVP OR NP IF (subj: IN F1 OR dobj: IN F1 OR iobj: IN F1 OR cmp: IN F1 TAG modf0)
             .add_field(Field(FT.F0, grammatical_funcs=(
-                GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.PP, PH.ADVP) and any(gorn for gorn in field.topology[FT.F1] if edge.parent.find_edge(gorn).gf in (GF.subj, GF.obj, GF.iobj, GF.cmp))),
+                GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.PP, PH.ADVP, PH.NP) and any(gorn for gorn in field.topology[FT.F1] if edge.parent.find_edge(gorn).gf in (GF.subj, GF.obj, GF.iobj, GF.cmp))),
                 ), dependencies=(FT.F1,)))
             #  F1  : subj: NP AND NOT (NP (hd rel.pro)),
             #        dobj: NP AND NOT (NP (hd rel.pro)) TAG focusdobj,
@@ -178,7 +178,7 @@ def build_topologies():
                 GramFunc(GF.dobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.iobj, expression=lambda edge, field: edge.ph == PH.NP and not edge.has_child(GF.hd, PH.rel_pro)),
                 GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S, tag=TAG.focuscmp),
-                GramFunc(GF.mod, ph=(PH.PP, PH.ADVP)), )))
+                GramFunc(GF.mod, ph=(PH.PP, PH.ADVP, PH.NP)), )))
             #  M1 !: hd: v
             .add_field(Field(FT.M1, mod='!', grammatical_funcs=(GramFunc(GF.hd, ph=PH.v),)))
             #  M2a : subj: NP[wh=false|!wh]
@@ -212,7 +212,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
         # END TOPOLOGY S TAG main
         ,
@@ -242,7 +242,7 @@ def build_topologies():
             #        mod: PP[wh=false]
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
-                GramFunc(GF.mod, expression= lambda edge, field: edge.ph in (PH.ADVP,PH.PP) and edge.has_feature({'wh': False})), )))
+                GramFunc(GF.mod, expression= lambda edge, field: edge.ph in (PH.ADVP,PH.PP,PH.NP) and edge.has_feature({'wh': False})), )))
             #  M5  : cmp: S[status=Infin|status=PastP]
             .add_field(Field(FT.M5, grammatical_funcs=(
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Infin','PastP')})),)))
@@ -251,14 +251,14 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
         # END TOPOLOGY S TAG imperative
         ,
 
         # TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
         #  TAG sub
-          Topology(PH.S, tag=TAG.sub, features={'status': ('Fin', 'Infin', 'PInfin')}) # Subordinate order: SOV, OSV
+          Topology(PH.S, tag=TAG.sub, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((None, PH.S),(GF.mod, PH.S),(GF.cmp, PH.S))) # Subordinate order: SOV, OSV
             #  F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true]
             .add_field(Field(FT.F1, grammatical_funcs=(
                 GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
@@ -295,7 +295,7 @@ def build_topologies():
             #  M4c*: iobj: PP, mod: ADVP, mod: PP
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
-                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP)), )))
+                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP,PH.NP)), )))
             #  M5  : cmp: S[status=Infin|status=PastP]
             .add_field(Field(FT.M5, grammatical_funcs=(
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Infin','PastP')})),)))
@@ -309,7 +309,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
         # END TOPOLOGY S TAG sub
         ,
@@ -317,7 +317,7 @@ def build_topologies():
 
         # TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
         #  TAG subv2
-        Topology(PH.S, tag=TAG.subv2, features={'status': ('Fin', 'Infin', 'PInfin')})  # Subordinate order: SOV, OSV
+        Topology(PH.S, tag=TAG.subv2, features={'status': ('Fin', 'Infin', 'PInfin')},parent_restriction=((None, PH.S),(GF.mod, PH.S),(GF.cmp, PH.S)))  # Subordinate order: SOV, OSV
             #  F1  : subj: NP[wh=true], dobj: NP[wh=true], iobj: NP[wh=true]
             .add_field(Field(FT.F1, grammatical_funcs=(
             GramFunc(GF.subj, expression=lambda edge, field: edge.ph == PH.NP and edge.has_feature({'wh': True})),
@@ -332,8 +332,8 @@ def build_topologies():
             GramFunc(GF.dobj, ph=PH.NP),
             GramFunc(GF.iobj, ph=PH.NP),
             GramFunc(GF.cmp, ph=PH.S),
-            GramFunc(GF.mod, ph=PH.ADVP),
-            GramFunc(GF.mod, ph=PH.PP),)))
+            GramFunc(GF.mod, ph=(PH.ADVP, PH.PP, PH.NP)),
+            )))
             #  M1b!: hd: v
             .add_field(Field(FT.M1b, mod='!', grammatical_funcs=(
             GramFunc(GF.hd, PH.v),)))
@@ -358,7 +358,7 @@ def build_topologies():
             #  M4c*: iobj: PP, mod: ADVP[!wh|wh=false], mod: PP[!wh|wh=false]
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
             GramFunc(GF.iobj, ph=PH.PP),
-            GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.ADVP, PH.PP) and edge.has_feature({'wh': False})),)))
+            GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.ADVP, PH.PP, PH.NP) and edge.has_feature({'wh': False})),)))
             #  M5  : cmp: S[status=Infin|status=PastP]
             .add_field(Field(FT.M5, grammatical_funcs=(
             GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')})),)))
@@ -367,7 +367,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-            GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+            GramFunc(GF.mod, expression=lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
             GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),)))
         # END TOPOLOGY S TAG subv2
         ,
@@ -375,7 +375,7 @@ def build_topologies():
 
         # TOPOLOGY S[status=Fin|status=Infin/Fin/PInfin] // Subordinate order: SOV, OSV
         #  TAG subrel
-        Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, ) # parent_restriction=((GF.mod, PH.NP)),
+        Topology(PH.S, tag=TAG.subrel, features={'status': ('Fin', 'Infin', 'PInfin')}, parent_restriction=((GF.mod, PH.NP)))
             # F1!: subj: (NP (hd rel.pro)),
             #      dobj: (NP (hd rel.pro)) TAG dobjrel,
             #      iobj: (NP (hd rel.pro)) TAG iobjrel
@@ -410,7 +410,7 @@ def build_topologies():
             #        mod: PP
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
-                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP)), )))
+                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP, PH.NP)), )))
             #  M5  : cmp: S[status=Infin|status=PastP]
             .add_field(Field(FT.M5, grammatical_funcs=(
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')})), )))
@@ -425,7 +425,7 @@ def build_topologies():
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')}) ),)))
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+                GramFunc(GF.mod,  expression=lambda edge, field=None: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 )))
             # END TOPOLOGY S TAG subrel
@@ -434,7 +434,7 @@ def build_topologies():
 
          #  TOPOLOGY S[status=PInfin|status=PastP|status=Infin]
          #  TAG inf;
-         Topology(PH.S, tag=TAG.inf, features={'status': ('PastP', 'Infin', 'PInfin')})
+         Topology(PH.S, tag=TAG.inf, features={'status': ('PastP', 'Infin', 'PInfin')}, parent_restriction=((None, PH.S),(GF.mod, PH.S),(GF.cmp, PH.S)))
             #  F1  : dobj:NP[wh=true],
             #        dobj: NP[wh=false|!wh] AND NOT (NP (hd rel.pro)) TAG focusdobj,
             #        dobj: (NP (hd rel.pro)) TAG dobjrel,
@@ -469,7 +469,7 @@ def build_topologies():
             #  M4c*: iobj: PP, mod: ADVP, mod: PP;
             .add_field(Field(FT.M4c, mod='*', grammatical_funcs=(
                 GramFunc(GF.iobj, ph=PH.PP),
-                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP)),
+                GramFunc(GF.mod, ph=(PH.ADVP, PH.PP,PH.NP)),
                 )))
             #  M5  : cmp: S[status=Infin|status=PastP];
             .add_field(Field(FT.M5, grammatical_funcs=(
@@ -481,7 +481,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
+                GramFunc(GF.mod,  expression=lambda edge, field=None: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 )))
         # END TOPOLOGY S TAG inf

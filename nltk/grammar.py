@@ -308,6 +308,14 @@ class FeatStructNonterminal(FeatDict, Nonterminal):
             filter_node.pop(feat, None)
         return filter_node
 
+    def filter_varialbes(self):
+        filter_node = self.copy(deep=True)
+        for key,value in list(filter_node.items()):
+            if isinstance(value, Variable):
+                filter_node.pop(key)
+        return filter_node
+
+
 def is_nonterminal(item):
     """
     :return: True if the item is a ``Nonterminal``.

@@ -245,6 +245,7 @@ if __name__ == "__main__":
     extract_grammar('../../fsa/elleipo/', 'german-sent-struc_utf.txt')
     # filename = 'Ich_schlafe_und_du_schläfst'
     filename = 'Gestern_bist_du_gegangen_und_gestern_hast_du_mich_nicht_gewarnt'
+    # filename = 'Hans_ißt_Äpfel_und_Peter_ißt_Birnen'
     # filename = 'Mit_Bier_und_mit_Würstchen_und_mit_Kartoffelsalat_grillt_Hans_mit_Maria_vor_dem_Haus_und_neben_dem_Haus_und_hinter_dem_Haus'
     tokens = tuple(token.lower() for token in filename.split('_'))
     grammar = load_grammar('../../fsa/elleipo/grammars/', filename + '.cf')
@@ -292,6 +293,6 @@ if __name__ == "__main__":
         print("Number of dominance structures: {}".format(number_trees))
         print("Time: {:.3f}s.\n".format(end_time - load_grammar_timer))
         if dominance_structures:
-            with open('../../fsa/dominance_structures.dump', 'wb') as f:
-                pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
+            # with open('../../fsa/dominance_structures.dump', 'wb') as f:
+            #     pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
             TreeTabView(*dominance_structures[:40])

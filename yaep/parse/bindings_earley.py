@@ -293,8 +293,9 @@ class TreeGenerator(object):
 
 def substitute_rule(rule):
     bindings = rule.bindings()
-    lhs = FeatStructNonTerm(substitute_bindings(rule.lhs().term(), bindings), rule.lhs().is_nullable())
-    rhs = (FeatStructNonTerm(substitute_bindings(el.term(), bindings), el.is_nullable()) if is_nonterminal(el) else el for el in rule.rhs())
+
+    lhs = FeatStructNonTerm(substitute_bindings(rule.lhs().term(), bindings).filter_varialbes(), rule.lhs().is_nullable())
+    rhs = (FeatStructNonTerm(substitute_bindings(el.term(), bindings).filter_varialbes(), el.is_nullable()) if is_nonterminal(el) else el for el in rule.rhs())
     return Rule(lhs, rhs)
 
 
@@ -398,7 +399,7 @@ if __name__ == "__main__":
     # tokens = "meine Frau will ein Auto kaufen".split()
     # tokens = "ich sehe den Mann mit dem Hund in dem Wald".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
-    # tokens = " ich fahre schnell".split()
+    # tokens = " ich esse jeden Tag".split()
     # tokens = "ich sehe den Mann mit dem Hund".split()
 
     # print_nw_trees(tokens, grammar=bindings_performance_grammar(tokens), permutations=True)

@@ -125,14 +125,6 @@ def generate_CFG(tree_hierarchy, nonterminals, terminals, node_id, parent=None):
         parent_node = FeatStructNonterminal({key: val for key, val in nt_features.items() if key not in ('idref', 'label')})
         yield Production(parent_node, (FeatStructNonterminal({key: val for key, val in lhs.items() if key in ('id', TYPE)}),))
 
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     # docTEST this
     import doctest
