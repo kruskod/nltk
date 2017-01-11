@@ -221,18 +221,18 @@ def productions_extractor(cnx, cursor, fstruct_reader):
     frameCursor.close()
     for production in productions:
         lhs = production.lhs().filter_feature(SLOT_FEATURE, "ref", "POS", "perf_aux",
-                                   "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
+                                   "personal",  "sepPrefix", "defdet", "inheritedFeature", "refperson",
                                    "refnumber", "refpolite",
                                    "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
                                    "obj_case",
-                                   "degree", "cmpr", "lexicalSlot",)  # , PERSONAL_FEATURE, "location",
+                                   "degree", "cmpr", "lexicalSlot",)  # , PERSONAL_FEATURE, "location","vcat",
         if production.is_nonlexical():
             rhs = tuple(nt.filter_feature(SLOT_FEATURE, "ref", "POS", "perf_aux",
-                                       "personal", "vcat", "sepPrefix", "defdet", "inheritedFeature", "refperson",
+                                       "personal", "sepPrefix", "defdet", "inheritedFeature", "refperson",
                                        "refnumber", "refpolite",
                                        "properNoun", "particle", "iobj_case", "citationForm", "refgender", "lexiconSlot",
                                        "obj_case",
-                                       "degree", "cmpr", "lexicalSlot",) for nt in production.rhs()) # "location",
+                                       "degree", "cmpr", "lexicalSlot",) for nt in production.rhs()) # "location", "vcat",
         else:
             rhs = production.rhs()
         yield Production(lhs, rhs)

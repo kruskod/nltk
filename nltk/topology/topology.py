@@ -89,6 +89,10 @@ class Topology(OrderedDict):
             if gorns:
                 yield from (gorn for gorn in gorns)
 
+    def clear_gorns(self):
+        for key in self.keys():
+            self[key] = tuple()
+
 
 class Field:
     # M4b : dobj: NP[wh=false|!wh] AND NOT (NP (hd <rel.pro OR dem.pro OR pers.pro>)), Pred: NP, Pred: AP;
@@ -99,7 +103,9 @@ class Field:
         self.mod = mod
         self.grammatical_funcs = grammatical_funcs
         self.dependencies = dependencies
-        self.shared = False
+
+        self.shared_to = None
+        self.shared_from = None
 
     def short_str(self):
         return str(self.ft) + (self.mod if self.mod else '')
@@ -164,7 +170,7 @@ def build_topologies():
         Topology(PH.S, tag=TAG.main, features={'status': ('Fin', 'Infin', 'PInfin'), 'mood':('indicative', 'subjunctive')}, parent_restriction=((None, None),))
             #  F0  : mod: PP OR ADVP OR NP IF (subj: IN F1 OR dobj: IN F1 OR iobj: IN F1 OR cmp: IN F1 TAG modf0)
             .add_field(Field(FT.F0, grammatical_funcs=(
-                GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.PP, PH.ADVP, PH.NP) and any(gorn for gorn in field.topology[FT.F1] if edge.parent.find_edge(gorn).gf in (GF.subj, GF.obj, GF.iobj, GF.cmp))),
+                GramFunc(GF.mod, expression=lambda edge, field: edge.ph in (PH.PP, PH.ADVP, PH.NP) and not any(gorn for gorn in field.topology[FT.F1] if edge.parent.find_edge(gorn).gf in (GF.subj, GF.obj, GF.iobj, GF.cmp))),
                 ), dependencies=(FT.F1,)))
             #  F1  : subj: NP AND NOT (NP (hd rel.pro)),
             #        dobj: NP AND NOT (NP (hd rel.pro)) TAG focusdobj,
@@ -212,7 +218,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
+                GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
         # END TOPOLOGY S TAG main
         ,
@@ -251,7 +257,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
+                GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
         # END TOPOLOGY S TAG imperative
         ,
@@ -309,7 +315,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod, expression= lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
+                GramFunc(GF.mod, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp, expression= lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})), )))
         # END TOPOLOGY S TAG sub
         ,
@@ -367,7 +373,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-            GramFunc(GF.mod, expression=lambda edge, field: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
+            GramFunc(GF.mod, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
             GramFunc(GF.cmp, expression=lambda edge, field: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),)))
         # END TOPOLOGY S TAG subv2
         ,
@@ -425,7 +431,7 @@ def build_topologies():
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Infin', 'PastP')}) ),)))
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin], cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod,  expression=lambda edge, field=None: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
+                GramFunc(GF.mod,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 )))
             # END TOPOLOGY S TAG subrel
@@ -481,7 +487,7 @@ def build_topologies():
             #  E2  : mod: S[status=Fin|status=Infin/Fin/PInfin],
             #        cmp: S[status=Fin|status=PInfin|status=Infin/Fin/PInfin]
             .add_field(Field(FT.E2, grammatical_funcs=(
-                GramFunc(GF.mod,  expression=lambda edge, field=None: (edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})) or edge.ph == PH.NP),
+                GramFunc(GF.mod,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 GramFunc(GF.cmp,  expression=lambda edge, field=None: edge.ph == PH.S and edge.has_feature({'status': ('Fin', 'Infin', 'PInfin')})),
                 )))
         # END TOPOLOGY S TAG inf

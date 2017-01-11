@@ -2,6 +2,7 @@ import itertools
 
 from nltk.compat import unicode_repr
 from nltk.topology.orderedSet import OrderedSet
+from yaep.tools.permutations import values_combinations
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
@@ -148,9 +149,9 @@ class VCAT(AutoNumber):
 
 class FeatTree(Tree):
 
-    def __init__(self, label=None, children=tuple(), gf=None, parent=None, gorn=None):
-        self._hcLabel = None
-        self.ph = None
+    def __init__(self, label=None, hclabel=None, children=tuple(), gf=None, ph=None, parent=None, gorn=None):
+        self._hcLabel = hclabel
+        self.ph = ph
         self.gf = gf
         self.tag = None
         self.topologies = None
@@ -378,7 +379,9 @@ class FeatTree(Tree):
             if not isinstance(child, str):
                 yield from child.major_constituents()
 
-    def bfs(self, visited=OrderedSet()):
+    def bfs(self, visited=None):
+        if visited is None:
+            visited = OrderedSet()
         queue = [self]
         while queue:
             vertex = queue.pop(0)
@@ -408,7 +411,7 @@ class FeatTree(Tree):
         topology = self.topologies[0]
         leaves = []
         for ft, field_gorns in topology.items():
-            if field_gorns and not topology.field_map[ft].shared:
+            if field_gorns and not topology.field_map[ft].shared_to:
                 for gorn in field_gorns:
                     vertex = self.find_edge(gorn)
                     if vertex.topologies:
@@ -416,6 +419,7 @@ class FeatTree(Tree):
                     else:
                         leaves.append(vertex[0])
         return leaves
+
 
     def share(self, parent=None):
         """ 1. go to bottom till reach head
@@ -439,7 +443,7 @@ class FeatTree(Tree):
         if GF.cmp == self.gf and PH.S == self.ph:
             if parent and PH.S == parent.ph:
                 #set sharing area using status and vcat features
-                #TODO add check on interrogative and declarative sentence
+                # TODO add check on interrogative and declarative sentence
                 status = get_feature(self._hcLabel, STATUS_FEATURE)
                 vcat = get_feature(self._hcLabel, VCAT_FEATURE)
                 ls = rs = ()
@@ -519,7 +523,7 @@ class FeatTree(Tree):
                                     left_shared_topology = copy.deepcopy(topology)
 
                                     fields = list(left_shared_topology.keys())
-                                    # We must share left_span edges
+                                    # we must share left_span edges
                                     left_span_fields = fields[:left_span]
 
                                     number_left_shared_fields = number_shared_fields(self, left_span_fields, left_shared_topology)
@@ -585,64 +589,75 @@ class FeatTree(Tree):
         split topologies with several possible word order on different topologies with only possible word order
         :return: None
         """
-        result = set()
+        # result = set()
+        # for topology in self.topologies:
+        #     # print("\nInitial topology: \n" + repr(topology))
+        #     # split topology to topologies with only one item in an one field
+        #     unified_topologies = [copy.deepcopy(topology),]
+        #
+        #     has_duplicate = True
+        #     while(has_duplicate):
+        #         has_duplicate = False
+        #         forks = []
+        #         for index, top in enumerate(unified_topologies):
+        #             for field, field_gorns in top.items():
+        #                 if len(field_gorns) > 1:
+        #                     has_duplicate = True
+        #                     for edge in field_gorns:
+        #                         new_topology = copy.deepcopy(topology)
+        #                         new_topology[field] = (edge,)
+        #                         forks.append(new_topology)
+        #                     del unified_topologies[index]
+        #                     break
+        #
+        #         if forks:
+        #              unified_topologies.extend(forks)
+        #
+        #     # print("\nHandling duplicates:")
+        #     # for unified_topology in unified_topologies:
+        #     #     print(repr(unified_topology))
+        #
+        #     for unified_topology in unified_topologies:
+        #         places = dict()
+        #         # fill places for node . f.e. NP -> F1, F2
+        #         for field, field_gorns in unified_topology.items():
+        #             for gorn in field_gorns:
+        #                 if gorn not in places:
+        #                     places[gorn] = set()
+        #                 places[gorn].add(field)
+        #
+        #         if len(places) < len(self): # not all nodes were used for topology = topology is wrong
+        #             continue
+        #
+        #         generated_topologies = [unified_topology,]
+        #         for gorn, fields in places.items():
+        #             forks = []
+        #             if len(fields) > 1:
+        #                 while generated_topologies:
+        #                     top = generated_topologies.pop()
+        #                     for field in fields:
+        #                         new_topology = copy.deepcopy(top)
+        #                         for field_to_free in fields:
+        #                             if field_to_free != field:
+        #                                 new_topology[field_to_free] = tuple(field_gorn for field_gorn in new_topology[field_to_free] if field_gorn != gorn)
+        #                         forks.append(new_topology)
+        #             generated_topologies.extend(forks)
+        #         result.update(generated_topologies)
+
+        unified_topologies =[]
         for topology in self.topologies:
-            # print("\nInitial topology: \n" + repr(topology))
-            # split topology to topologies with only one item in an one field
-            unified_topologies = [copy.deepcopy(topology),]
-            has_duplicate = True
-            while(has_duplicate):
-                has_duplicate = False
-                forks = []
-                for index, top in enumerate(unified_topologies):
-                    alternatives = False
-                    for field, field_gorns in top.items():
-                        if len(field_gorns) > 1:
-                            has_duplicate = True
-                            for edge in field_gorns:
-                                new_topology = copy.deepcopy(topology)
-                                new_topology[field] = (edge,)
-                                forks.append(new_topology)
-                            del unified_topologies[index]
-                            break
-
-                if forks:
-                     unified_topologies.extend(forks)
-
-            # print("\nHandling duplicates:")
-            # for unified_topology in unified_topologies:
-            #     print(repr(unified_topology))
-
-            for unified_topology in unified_topologies:
-                places = dict()
-                # fill places for node . f.e. NP -> F1, F2
-                for field, field_gorns in unified_topology.items():
-                    for gorn in field_gorns:
-                        if gorn not in places:
-                            places[gorn] = set()
-                        places[gorn].add(field)
-
-                if len(places) < len(self): # not all nodes were used for topology = topology is wrong
-                    continue
-
-                generated_topologies = [unified_topology,]
-                for gorn, fields in places.items():
-                    forks = []
-                    if len(fields) > 1:
-                        while generated_topologies:
-                            top = generated_topologies.pop()
-                            for field in fields:
-                                new_topology = copy.deepcopy(top)
-                                for field_to_free in fields:
-                                    if field_to_free != field:
-                                        new_topology[field_to_free] = tuple(field_gorn for field_gorn in new_topology[field_to_free] if field_gorn != gorn)
-                                forks.append(new_topology)
-                    generated_topologies.extend(forks)
-                result.update(generated_topologies)
+            topology_field_keys = tuple(topology.keys())
+            clean_topology = copy.deepcopy(topology)
+            clean_topology.clear_gorns()
+            for combination in values_combinations(topology.values()):
+                new_topology = copy.deepcopy(clean_topology)
+                for field_index, gorn in combination:
+                    new_topology[topology_field_keys[field_index]] = (gorn,)
+                unified_topologies.append(new_topology)
 
         # topologies validation, that all needed fields are filled
         self.topologies = []
-        for topology in sorted(result, key=repr):
+        for topology in unified_topologies:
             if topology.isvalid():
                 self.topologies.append(topology)
             else:
@@ -675,7 +690,7 @@ class FeatTree(Tree):
                         else:
                             raise AssertionError("Gorn numbers:{} should must correspond edges: {}".format(field_gorns, self))
                 children_order = [tup[1] for tup in sorted(children_index, key=lambda x: x[0])]
-                new_self = FeatTree(self.label(), children_order, gf=self.gf, parent=self.parent, gorn=self.gorn)
+                new_self = FeatTree(self.label(), hclabel=self.hclabel(), children=children_order, gf=self.gf, ph=self.ph, parent=self.parent, gorn=self.gorn)
                 # new_self = copy.copy(self)
                 # list.__init__(new_self, children_order)
                 copy_topology = copy.deepcopy(top)
@@ -785,13 +800,11 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
     :return: None
     """
     for shared_field in share_fields:
-        field = None
-        for field, field_gorns in base_topology.items():
-            if field == shared_field:
+        for field_key, field_gorns in base_topology.items():
+            if field_key == shared_field:
                 break
-        if not field:
-            continue
-        # = base_topology[field]
+        else: continue
+
         if field_gorns:
             for gorn in field_gorns:
                 edge = parent_edge.find_edge(gorn)
@@ -800,14 +813,13 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
             # there is no head in field_gorns, we can do sharing
             else:
                 # don't remove gorn from origin topology, because you can't find the field of it after sharing
-                #base_topology[field] = tuple()
                 for parent_topology in parent_topologies:
-                    if field in parent_topology.keys():
-                        parent_field_gorns = parent_topology[field]
+                    if field_key in parent_topology.keys():
+                        parent_field_gorns = parent_topology[field_key]
 
                         if parent_field_gorns:
-                            # don' share to F fields if they are not empty
-                            if field.ft in (FT.F0,FT.F1):
+                            # don't share to F fields if they are not empty
+                            if field_key in (FT.F0,FT.F1):
                                 continue
 
                             # check that we do not share to the head field
@@ -816,11 +828,14 @@ def share_edges(parent_edge, share_fields, base_topology, parent_topologies):
                                 if edge.ishead():
                                     break
                             else:
-                                field.shared = True
-                                parent_topology[field] = parent_field_gorns + field_gorns
-                            continue
-                        field.shared = True
-                        parent_topology[field] = parent_field_gorns + field_gorns
+                                parent_topology[field_key] = parent_field_gorns + field_gorns
+                                parent_topology.field_map[field_key].shared_from = base_topology.field_map[field_key]
+                                base_topology.field_map[field_key].shared_to = parent_topology.field_map[field_key]
+                        else:
+                                parent_topology[field_key] = parent_field_gorns + field_gorns
+                                parent_topology.field_map[field_key].shared_from = base_topology.field_map[field_key]
+                                base_topology.field_map[field_key].shared_to = parent_topology.field_map[field_key]
+
 
 def find_head(root):
     for child in root:
@@ -1120,11 +1135,10 @@ def get_feature(featStructNonTerm, feature):
         for exp in simp_expressions:
             if feature in exp:
                 result.add(exp[feature])
-        return result
     else:
         if feature in featStructNonTerm:
             result.add(featStructNonTerm[feature])
-    return result
+    return tuple(result)
 
 def minimize_nonterm(nt):
     if not is_nonterminal(nt):

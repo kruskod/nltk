@@ -16,14 +16,14 @@ def wordorder_alternatives(feat_tree, topologies):
     shared_alternatives = []
 
     for alternative in alternatives:
-        print("\t" + " ".join(alternative.leaves()))
+        # print("\t" + " ".join(alternative.leaves()))
         alternative.share()
         shared_alternatives.extend(alternative.split_shared_topologies())
 
     print("\nAlternatives validaton:")
-    for index, alternative in enumerate(shared_alternatives):
+    for index, alternative in enumerate(sorted(shared_alternatives, key=FeatTree.leaves)):
         isvalid = validate_alternative(alternative)
-        print("Alternative {} {}: {} \n Word order: {}".format(index, repr(alternative.topologies), isvalid, "\t" + " ".join(alternative.leaves())))
+        print("{}\t{}\t{}:\t{}".format(index, " ".join(alternative.leaves()), repr(alternative.topologies), isvalid ))
         if isvalid:
             yield alternative
 
@@ -47,8 +47,12 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         alternatives.extend(wordorder_alternatives(feat_tree, topologies))
 
     if alternatives:
-        Graphview(*sorted(alternatives[:20], key=FeatTree.leaves))
+        # print(alternatives[6].leaves())
+        # for alternative in sorted_alternatives:
+        #     print("\t" + " ".join(alternative.leaves()))
+        Graphview(*alternatives[:30])
     # ps2pdf -dEPSCrop Monopole_tree.ps
+
 
 def validate_alternative(alternative):
     if not alternative.topologies:

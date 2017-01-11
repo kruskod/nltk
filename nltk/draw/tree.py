@@ -1142,8 +1142,6 @@ class Graphview(TreeTabView):
 
         nb.pack(fill=BOTH, expand=1)
 
-
-
         # Size is variable.
         self._size = IntVar(self._top)
         self._size.set(12)
@@ -1581,7 +1579,6 @@ class FeatTreeWidget(CanvasWidget):
             if isinstance(t, FeatTree.FeatTree):
                 if t.topologies:
                     prefix = ",".join(str(t.tag) for t in t.topologies) + prefix
-
 
             # if t.shared:
             #     # '#ccd8e5', 'red'

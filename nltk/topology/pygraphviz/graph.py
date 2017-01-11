@@ -12,6 +12,7 @@ from pygraphviz import *
 
 __author__ = 'Denis Krusko: kruskod@gmail.com'
 
+
 def add_cluster(Graph, parent_index, root, topologies):
 
     if topologies:
@@ -31,10 +32,10 @@ def add_cluster(Graph, parent_index, root, topologies):
         right_shared_area = topology.rs
         count_fields = len(topology.keys())
 
-        non_shared_cluster_gorns = set(edge.gorn for edge in root )
-        cluster_gorns = set(topology.gorns())
+        non_shared_cluster_gorns = set(edge.gorn for edge in root)
+        # cluster_gorns = set(topology.gorns())
 
-        shared_edges = non_shared_cluster_gorns - cluster_gorns
+        # shared_edges = non_shared_cluster_gorns - cluster_gorns
 
         n = 0
         for ft, field_gorns in topology.items():

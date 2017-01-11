@@ -349,7 +349,7 @@ class nTreeSegmentWidget(CanvasWidget):
         if self._featTree.parent:
             for topology in self._featTree.parent.topologies:
                 for field in topology.keys():
-                    if field.shared:
+                    if field.shared_from:
                         self.canvas().itemconfig(self._rect, dash=(3,5))
                         break
 
