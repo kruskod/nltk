@@ -589,61 +589,6 @@ class FeatTree(Tree):
         split topologies with several possible word order on different topologies with only possible word order
         :return: None
         """
-        # result = set()
-        # for topology in self.topologies:
-        #     # print("\nInitial topology: \n" + repr(topology))
-        #     # split topology to topologies with only one item in an one field
-        #     unified_topologies = [copy.deepcopy(topology),]
-        #
-        #     has_duplicate = True
-        #     while(has_duplicate):
-        #         has_duplicate = False
-        #         forks = []
-        #         for index, top in enumerate(unified_topologies):
-        #             for field, field_gorns in top.items():
-        #                 if len(field_gorns) > 1:
-        #                     has_duplicate = True
-        #                     for edge in field_gorns:
-        #                         new_topology = copy.deepcopy(topology)
-        #                         new_topology[field] = (edge,)
-        #                         forks.append(new_topology)
-        #                     del unified_topologies[index]
-        #                     break
-        #
-        #         if forks:
-        #              unified_topologies.extend(forks)
-        #
-        #     # print("\nHandling duplicates:")
-        #     # for unified_topology in unified_topologies:
-        #     #     print(repr(unified_topology))
-        #
-        #     for unified_topology in unified_topologies:
-        #         places = dict()
-        #         # fill places for node . f.e. NP -> F1, F2
-        #         for field, field_gorns in unified_topology.items():
-        #             for gorn in field_gorns:
-        #                 if gorn not in places:
-        #                     places[gorn] = set()
-        #                 places[gorn].add(field)
-        #
-        #         if len(places) < len(self): # not all nodes were used for topology = topology is wrong
-        #             continue
-        #
-        #         generated_topologies = [unified_topology,]
-        #         for gorn, fields in places.items():
-        #             forks = []
-        #             if len(fields) > 1:
-        #                 while generated_topologies:
-        #                     top = generated_topologies.pop()
-        #                     for field in fields:
-        #                         new_topology = copy.deepcopy(top)
-        #                         for field_to_free in fields:
-        #                             if field_to_free != field:
-        #                                 new_topology[field_to_free] = tuple(field_gorn for field_gorn in new_topology[field_to_free] if field_gorn != gorn)
-        #                         forks.append(new_topology)
-        #             generated_topologies.extend(forks)
-        #         result.update(generated_topologies)
-
         unified_topologies =[]
         for topology in self.topologies:
             topology_field_keys = tuple(topology.keys())

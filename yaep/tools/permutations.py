@@ -1,8 +1,3 @@
-import itertools
-
-from nltk.topology.orderedSet import OrderedSet
-
-
 def unique_permutations(seq):
     """
     Yield only unique permutations of seq in an efficient way.
@@ -50,9 +45,6 @@ def unique_permutations(seq):
         # including k, also efficiently.                     0 0 1 1 0 0 1 1
         seq[k + 1:] = seq[-1:k:-1]
 
-"""
-
-"""
 
 def values_combinations(iterable):
     """
@@ -88,6 +80,7 @@ def values_combinations(iterable):
                  val, indexes_of_value = values_items[index]
                  fields.append((meta_index,val))
             yield fields #sorted(fields, key=lambda x: x[0])
+
 
 def product(iterable):
     result = [[]]
