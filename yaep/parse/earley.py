@@ -302,6 +302,9 @@ class ChartManager:
     def charts(self):
         return self._charts
 
+    def start_symbol(self):
+        return self._start_symbol
+
     def tokens(self):
         return self._tokens
 

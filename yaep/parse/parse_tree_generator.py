@@ -4,7 +4,7 @@ from collections import Counter
 from nltk.compat import unicode_repr
 from nltk.featstruct import TYPE
 from yaep.parse.earley import State, EarleyParser, PermutationEarleyParser, grammar_from_file, Chart, Term, test_unify, \
-    FeatStructNonTerm
+    FeatStructNonTerm, ChartManager
 
 
 class LeafNode:
@@ -192,6 +192,7 @@ class EllipsisState(ExtendedState):
         self._origin_state = origin_state
         self._tree_generator = tree_generator
         # self._requested_state = requested_state
+
     # def __hash__(self):
     #     return hash((type(self), self._i, self._j, self._dot, self._rule, self._requested_state))
 
@@ -201,7 +202,13 @@ class EllipsisEarleyParser(EarleyParser):
         return EllipsisParseTreeGenerator(chart_manager)
 
     def set_sibling_conjunct_chart_manager(self, sibling_conjunct_chart_manager):
-        self._tree_generator =  self.build_tree_generator(sibling_conjunct_chart_manager)
+        charts = sibling_conjunct_chart_manager.charts()
+        non_ellipses_charts = tuple(Chart() for i in range(len(charts)))
+        for index, chart in enumerate(charts):
+            for state in chart.states():
+                if not isinstance(state, EllipsisState):
+                    non_ellipses_charts[index].add_state(state)
+        self._tree_generator = self.build_tree_generator(ChartManager(non_ellipses_charts, sibling_conjunct_chart_manager.start_symbol(), sibling_conjunct_chart_manager.tokens()))
 
     def predictor(self, state, token_index):
         lhs = state.next_symbol()
@@ -477,19 +484,18 @@ class EllipsisParseTreeGenerator(ChartTraverseParseTreeGenerator):
                     result.extend(((EllipsisNode.from_Node(node),) if isinstance(node, Node) else (node,)) + node_rhs for node in state._tree_generator.find_node(cs, set(parent_states), alternative_start_index))
                 else:
                     result.extend((node,) + node_rhs for node in self.find_node(cs, set(parent_states), alternative_start_index))
-
         for children in result:
             yield root.from_Node_and_children(root, children)
 
-    def find_node(self, term, parent_states, start_index):
-        if isinstance(term, Term):
-            for st in self.find_state(term, reversed(self._charts[start_index].states())):
-                if st not in parent_states:
-                    yield from self.countdown(st, set(parent_states), start_index)
-        else:
-            # it is a terminal
-            # current = Node(state.rule().lhs(), state.from_index(), state.to_index())
-            yield LeafNode(term, start_index - 1, start_index)
+    # def find_nonellipsis_node(self, term, parent_states, start_index):
+    #     if isinstance(term, Term):
+    #         for st in self.find_state(term, reversed(tuple(state for state in self._charts[start_index].states() if not isinstance(state, EllipsisState)))):
+    #             if st not in parent_states and not isinstance(st, EllipsisState):
+    #                 yield from self.countdown(st, set(parent_states), start_index)
+    #     else:
+    #         # it is a terminal
+    #         # current = Node(state.rule().lhs(), state.from_index(), state.to_index())
+    #         yield LeafNode(term, start_index - 1, start_index)
 
 
 def print_trees(tokens, grammar, permutations = False):

@@ -293,6 +293,36 @@ def load_grammar(path, filename):
 #             #     pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
 #             TreeTabView(*dominance_structures[:40])
 
+
+def parse_conjunct(grammar, tokens,  sibling_conjunct_chart_manager=None):
+        if sibling_conjunct_chart_manager:
+            earley_parser = EllipsisEarleyParser(grammar)
+            earley_parser.set_sibling_conjunct_chart_manager(sibling_conjunct_chart_manager)
+        else:
+            earley_parser = EarleyParser(grammar)
+        manager = earley_parser.parse(tokens, grammar.start())
+
+        tree_generator = earley_parser.build_tree_generator(manager)
+        trees = tree_generator.parseTrees(manager)
+
+        number_verified_trees = 0
+        number_derivation_trees = 0
+        dominance_structures = []
+        verifier = Counter(tokens)
+        if trees:
+            tree_output = ''
+            for tree in trees:
+                number_derivation_trees += 1
+                if all(item in tree.wordsmap().items() for item in verifier.items()):
+                    number_verified_trees += 1
+                    dominance_structures.append(tree)
+                tree_output += tree.pretty_print(0) + '\n'
+
+            tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
+            print(tree_output)
+            print("Number of dominance structures: {}".format(number_verified_trees))
+        return manager, dominance_structures
+
 def parse_ellipses(grammar, tokens):
     sentence_coordinations = []
     group = []
@@ -308,47 +338,25 @@ def parse_ellipses(grammar, tokens):
         if group:
             token_groups.append(group)
 
-    chart_managers = []
-    sub_dominance_structures = []
-    for index, group in enumerate(token_groups):
-        if index == 0:
-            earley_parser = EarleyParser(grammar)
-        else:
-            earley_parser = EllipsisEarleyParser(grammar)
-            earley_parser.set_sibling_conjunct_chart_manager(chart_managers[0])
-        manager = earley_parser.parse(group, grammar.start())
-        chart_managers.append(manager)
-        print("Parsing of the group {}".format(index))
-        print(manager)
-        print(manager.out())
+    parsing_results = []
+    for group in token_groups:
+        chart_manager, dominance_structures = parse_conjunct(grammar, group, parsing_results[-1][0] if parsing_results else None)
+        print(chart_manager)
+        print(chart_manager.out())
+        parsing_results.append((chart_manager, dominance_structures))
 
-        tree_generator = earley_parser.build_tree_generator(manager)
-        trees = tree_generator.parseTrees(manager)
+    for index, (manager, dominance_structures) in enumerate(parsing_results):
+        if not dominance_structures and index < (len(parsing_results) - 1):
+            new_manager, new_dominanace_structures = parse_conjunct(grammar, token_groups[index], parsing_results[-1][0] if parsing_results else None)
+            print(new_manager)
+            print(new_manager.out())
+            if new_dominanace_structures:
+                parsing_results[index] = (new_manager, new_dominanace_structures)
 
-        number_verified_trees = 0
-        number_derivation_trees = 0
-        dominance_structures = []
-        verifier = Counter(group)
-        if trees:
-            tree_output = ''
-            for tree in trees:
-                number_derivation_trees += 1
-                if all(item in tree.wordsmap().items() for item in verifier.items()):
-                    number_verified_trees += 1
-                    dominance_structures.append(tree)
-                tree_output += tree.pretty_print(0) + '\n'
 
-            tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
-            print(tree_output)
-            print("Number of dominance structures: {}".format(number_verified_trees))
-
-            if dominance_structures:
-                sub_dominance_structures.append(dominance_structures)
-                # TreeTabView(*dominance_structures[:40])
-
-    if len(token_groups) == len(sub_dominance_structures):
-        for prod in product(*sub_dominance_structures, repeat=1):
-            root = Node(FeatStructNonTerm(FeatStructNonterminal("S[gf='expr']")))
+    if all(dominance_structures for manager, dominance_structures in parsing_results):
+        for prod in product(*(dominance_structures for manager, dominance_structures in parsing_results), repeat=1):
+            root = Node(FeatStructNonTerm(FeatStructNonterminal("S[gf='expr']"))) # "S[gf='expr']"
             for index, node in enumerate(prod):
                 root.add_node(node)
                 if index < len(sentence_coordinations):
@@ -381,12 +389,37 @@ if __name__ == "__main__":
     # filename = "Hans_will_schlafen_und_Peter_will_schlafen"
     # input = "Hans will schlafen und Peter"  # auch
 
-    filename = "Meine_Frau_will_ein_Auto_kaufen_und_mein_Sohn_will_ein_Motorrad_kaufen"
     # All elisions         : Meine Frau will_1 ein Auto kaufen_1-b_2 und mein Sohn will-g_1 ein Motorrad kaufen-gl_1_2
     # Reduced sentence     : Meine Frau will_1 ein Auto kaufen_1 und mein Sohn ---g_1 ein Motorrad ---g_1
     # BCR-Alternative      : Meine Frau will_1 ein Auto ---_2 und mein Sohn ---_1 ein Motorrad kaufen_2"""
+    # filename = "Meine_Frau_will_ein_Auto_kaufen_und_mein_Sohn_will_ein_Motorrad_kaufen"
     # input = "Meine Frau will ein Auto kaufen und mein Sohn ein Motorrad"
-    input = "Meine Frau will ein Auto und mein Sohn ein Motorrad kaufen"
+    # input = "Meine Frau will ein Auto und mein Sohn ein Motorrad kaufen"
+
+    # All elisions         : Der Fahrer wurde_1 getötet und die Passagiere wurden-g_1 ernsthaft verletzt
+    # filename = "Der_Fahrer_wurde_getötet_und_die_Passagiere_wurden_ernsthaft_verletzt"
+    # input = "Der Fahrer wurde getötet und die Passagiere ernsthaft verletzt"
+
+    # All elisions         : Hans_1_2 kann_1_2 schlafen und Hans-g_1-f_2 kann-g_1-f_2 träumen
+    # filename = "Hans_kann_schlafen_und_Hans_kann_träumen"
+    # input = " Hans kann schlafen und träumen"
+
+    # Original sentence   7: Ich sehe Hans der schläft im Auto und ich sehe Hans der schläft im Bus
+    # All elisions         : Ich_1_2 sehe_1_2 Hans_1_2 der_1_2 schläft_1_2 im Auto und ich-g_1-f_2 sehe-g_1-f_2 Hans-g_1-f_2 der-g_1-f_2 schläft-g_1-f_2 im Bus
+
+    # TODO: This example doesn't work because using NP Coord instead of S coord S
+    # Original sentence  43: Ich sehe Hans der im Auto schläft und Hans der im Bus schläft
+    # All elisions         : Ich sehe Hans_1 der im Auto schläft-b_2 und Hans-f_1 der im Bus schläft_2
+    # Reduced sentence     : Ich sehe Hans_1 der im Auto ---b_2 und ---f_1 der im Bus schläft_2
+    # (expr S(subj NP 20~[{40},ref=7](head PersPron 21~[{40},ref=7](lex Ich 40~[stem=I,case=1,person=1,number=sg])))(head V 5~[{6},ref=9](lex sehe 26~[stem=see,tense=present,person=1,number=sg,mode=active]))(dobj NP 2~[{4},ref=6](conj NP 33~[subject={10},ref=19,head={11}](head PropN 3~[{4},ref=6](lex Hans 4~[stem=Hans,case=1,person=3,number=sg,gender=masc]))(mod S 7~[subject={10},mod-type=rel,ref=21,head={11}](subj NP 8~[{10},ref=2](head RelP 9~[{10},ref=2](lex der 10~[stem=who,case=1,person=3,number=sg,gender=masc])))(mod PP 12~[{14},mod-type=loc,ref=6](head Prep 5~[{6},ref=13](lex im 6~[stem=in-the]))(obj NP 2~[{4},ref=11](head N 3~[{4}t,ref=11](lex Auto 4~[stem=car,case=3,person=3,number=sg,gender=neuter]))))(head V 5~[{6},ref=11](lex schläft 6~[stem=sleep,tense=present,person=3,number=sg,mode=active]))))(coord C 13~[{12}](lex und 12~[stem=and]))(conj NP 30~[subject={10},ref=20,head={11}](head PropN 3~[{4},ref=6](lex Hans 4~[stem=Hans,case=1,person=3,number=sg,gender=masc]))(mod S 7~[subject={10},mod-type=rel,ref=22,head={11}](subj NP 8~[{10},ref=2](head RelP 9~[{10},ref=2](lex der 10~[stem=who,case=1,person=3,number=sg,gender=masc])))(mod PP 12~[{14},mod-type=loc,ref=36](head Prep 5~[{6},ref=13](lex im 6~[stem=in-the]))(obj NP 2~[{4},ref=31](head N 3~[{4},ref=31](lex Bus 4~[stem=bus,case=3,person=3,number=sg,gender=neuter]))))(head V 5~[{6},ref=11](lex schläft 6~[stem=sleep,tense=present,person=3,number=sg,mode=active]))))))
+    # filename = "Ich_sehe_Hans_der_im_Auto_schläft_und_Hans_der_im_Bus_schläft"
+    # input = "Ich sehe Hans der im Auto schläft und und Hans der im Bus schläft"
+
+    # Original sentence  45: Ich will hoffen dass Hans schläft und du willst hoffen dass Peter schläft
+    # All elisions         : Ich will_1 hoffen_1 dass Hans schläft-b_2 und du willst-g_1 hoffen-g_1 dass Peter schläft_2
+    # Reduced sentence     : Ich will_1 hoffen_1 dass Hans ---b_2 und du ---g_1 ---g_1 dass Peter schläft_2
+    filename = "Ich_will_hoffen_dass_Hans_schläft_und_du_willst_hoffen_dass_Peter_schläft"
+    input = "Ich will hoffen dass Hans und du dass Peter schläft"
 
     grammar = load_grammar('../../fsa/elleipo/grammars/', filename + '.cf')
 
@@ -396,5 +429,6 @@ if __name__ == "__main__":
     # print(" ".join(tokens))
 
     ellipses = tuple(parse_ellipses(grammar, input.split()))
+    print("Number of trees: {}".format(len(ellipses)))
     if ellipses:
         TreeTabView(*ellipses[:40])
