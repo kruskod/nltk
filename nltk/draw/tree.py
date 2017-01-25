@@ -32,7 +32,7 @@ from PIL import Image, ImageTk
 ##//////////////////////////////////////////////////////
 ##  Tree Segment
 ##//////////////////////////////////////////////////////
-from yaep.parse.parse_tree_generator import Node
+from yaep.parse.parse_tree_generator import Node, EllipsisNode
 
 
 class TreeSegmentWidget(CanvasWidget):
@@ -1584,6 +1584,10 @@ class FeatTreeWidget(CanvasWidget):
             #     # '#ccd8e5', 'red'
             #     localnodeattribs = copy.copy(nodeattribs)
             #     localnodeattribs['fill'] = '#BDBDBD'
+
+            if isinstance(t, EllipsisNode):
+                localnodeattribs = copy.copy(nodeattribs)
+                localnodeattribs['fill'] = "#A5D6A7" # "#4CAF50" # "#81C784" #  # '#B9F6CA' #'#BDBDBD'
 
             node = self._make_node(canvas, prefix + label.strip(), justify='center', **localnodeattribs)
             subtrees = [self._make_expanded_tree(canvas, t[i], key + (i,), localnodeattribs, localleafattribs)

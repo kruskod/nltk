@@ -1,10 +1,10 @@
-# testsplitter.py
 import unittest
-# Unit tests
+
 from nltk import CFG
-from yaep.parse.earley import Rule, Grammar, EarleyParser, Grammar, EarleyParser, \
-    nonterminal_to_term
 from nltk.grammar import Nonterminal
+from yaep.parse.earley import Rule, Grammar, EarleyParser, \
+    nonterminal_to_term
+
 
 class TestRule(unittest.TestCase):
 

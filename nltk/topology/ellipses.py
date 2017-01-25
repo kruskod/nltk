@@ -28,10 +28,6 @@ class Ellipse:
     def __init__(self, input=None):
         self.input = input
 
-
-
-
-
 def input_string_preprocessing(print_times=True,
                                print_grammar=False,
                                print_trees=True,
@@ -226,7 +222,6 @@ def gapping(previous_feature_grammar, dominance_structures, fstruct_reader):
 if __name__ == "__main__":
     # input_string_preprocessing("Monopole sollen geknackt und Märkte getrennt werden")
    # input_string_preprocessing(sent="Bücher liest Mary und schreibt Peter") # "Bücher liest Mari und Bücher schreibt Jüri"
-   # input_string_preprocessing(sent="Hans ißt Äpfel und Peter Birnen") # "Bücher liest Mari und Bücher schreibt Jüri"
-   input_string_preprocessing(sent="meine Frau will ein Auto kaufen und mein Sohn ein Motorrad") # "Bücher liest Mari und Bücher schreibt Jüri"
+   input_string_preprocessing(sent="Hans ißt Äpfel und Peter Birnen") # "Bücher liest Mari und Bücher schreibt Jüri"
+   # input_string_preprocessing(sent="meine Frau will ein Auto kaufen und mein Sohn ein Motorrad") # "Bücher liest Mari und Bücher schreibt Jüri"
    # input_string_preprocessing(sent="Frau will Auto kaufen und Sohn Motorrad") # "Bücher liest Mari und Bücher schreibt Jüri"
-

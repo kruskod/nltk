@@ -1,11 +1,7 @@
-import csv
 import os
-import pickle
 import re
-import xml.etree.ElementTree as ET
 from collections import Counter
-from copy import copy
-from operator import itemgetter
+from itertools import product
 from timeit import default_timer
 
 from nltk import TYPE
@@ -13,11 +9,10 @@ from nltk.draw.tree import TreeTabView
 from nltk.featstruct import CelexFeatStructReader
 from nltk.grammar import FeatStructNonterminal, Production, FeatureGrammar
 from nltk.parse.featurechart import celex_preprocessing
-from nltk.topology.orderedSet import OrderedSet
-from nltk.topology.pgsql import get_word_inf, get_lemma, get_wordform
-from yaep.parse.earley import EarleyParser, grammar_from_file, Grammar, Rule, nonterminal_to_term, \
-    feat_struct_nonterminal_to_term
+from yaep.parse.earley import EarleyParser, Grammar, Rule, feat_struct_nonterminal_to_term,  FeatStructNonTerm
+from yaep.parse.parse_tree_generator import Node, LeafNode, EllipsisEarleyParser
 
+COORDINATIONS = ('und', 'oder')
 
 class ElleipoNode:
 
@@ -75,7 +70,7 @@ class ElleipoNode:
         for child in self._children:
             if child._gf == 'lex':
                 lhs.update({k:v for k,v in child.as_features().items() if k not in (TYPE,'gf')} )
-                rhs.append(child._pos.lower())
+                rhs.append(child._pos)
             else:
                 rules.extend(child.to_attribute_grammar())
                 nt = FeatStructNonterminal(child.as_features())
@@ -221,7 +216,7 @@ def load_grammar(path, filename):
     grammar = FeatureGrammar.fromstring(celex_preprocessing(path + filename), logic_parser=None, fstruct_reader=fstruct_reader, encoding=None)
 
     # filter features
-    FEATURES_TO_FILTER = ('ref',)
+    FEATURES_TO_FILTER = ('ref','subject', 'head')
     filtered_productions = []
     for rule in grammar.productions():
         lhs = rule.lhs().filter_feature(*FEATURES_TO_FILTER)
@@ -232,67 +227,174 @@ def load_grammar(path, filename):
         filtered_productions.append(Production(lhs,rhs))
 
     # return FeatureGrammar(grammar.start().filter_feature(*FEATURES_TO_FILTER), filtered_productions)
-    start_nonterminal = feat_struct_nonterminal_to_term(grammar.start().filter_feature(*FEATURES_TO_FILTER))
+    # start_nonterminal = feat_struct_nonterminal_to_term(grammar.start().filter_feature(*FEATURES_TO_FILTER))
+    start_nonterminal = feat_struct_nonterminal_to_term(FeatStructNonterminal("S[gf = 'conj']"))
     return Grammar((Rule(feat_struct_nonterminal_to_term(production.lhs()),
                                        (feat_struct_nonterminal_to_term(fs) for fs in production.rhs())) for production
                                   in filtered_productions), None, start_nonterminal)
+
+# if __name__ == "__main__":
+#     # docTEST this
+#     import doctest
+#     doctest.testmod()
+#
+#     extract_grammar('../../fsa/elleipo/', 'german-sent-struc_utf.txt')
+#     # filename = 'Ich_schlafe_und_du_schläfst'
+#     # filename = 'Gestern_bist_du_gegangen_und_gestern_hast_du_mich_nicht_gewarnt'
+#     filename = 'Hans_ißt_Äpfel_und_Peter_ißt_Birnen'
+#     # filename = 'Mit_Bier_und_mit_Würstchen_und_mit_Kartoffelsalat_grillt_Hans_mit_Maria_vor_dem_Haus_und_neben_dem_Haus_und_hinter_dem_Haus'
+#     tokens = tuple(token.lower() for token in filename.split('_'))
+#     grammar = load_grammar('../../fsa/elleipo/grammars/', filename + '.cf')
+#
+#     load_grammar_timer = default_timer()
+#
+#     earley_parser = EarleyParser(grammar)
+#
+#     manager = earley_parser.parse(tokens, grammar.start())
+#     end_time = default_timer()
+#     print(manager.pretty_print(filename))
+#     print("Final states:")
+#     final_states = tuple(manager.final_states())
+#     if final_states:
+#         for state in final_states:
+#             print(state.str(state.dot() - 1))
+#     else:
+#         print(None)
+#     print("Recognition time: {:.3f}s.".format(end_time - load_grammar_timer))
+#
+#     print(manager)
+#     print(manager.out())
+#
+#     tree_generator = earley_parser.build_tree_generator()
+#     trees = tree_generator.parseTrees(manager)
+#     # for tree in tree_generator.parseTrees(manager):
+#     #     print(tree.pretty_print(0))
+#     #     number_trees += 1
+#     # print("Number of trees: {}".format(number_trees))
+#     number_trees = 0
+#     number_derivation_trees = 0
+#     dominance_structures = []
+#     verifier = Counter(tokens)
+#     end_time = default_timer()
+#     if trees:
+#         tree_output = ''
+#         for tree in trees:
+#             number_derivation_trees += 1
+#             if tree.wordsmap() == verifier:
+#                 number_trees += 1
+#                 dominance_structures.append(tree)
+#             tree_output += tree.pretty_print(0) + '\n'
+#         tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
+#         print(tree_output)
+#         print("Number of dominance structures: {}".format(number_trees))
+#         print("Time: {:.3f}s.\n".format(end_time - load_grammar_timer))
+#         if dominance_structures:
+#             # with open('../../fsa/dominance_structures.dump', 'wb') as f:
+#             #     pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
+#             TreeTabView(*dominance_structures[:40])
+
+def parse_ellipses(grammar, tokens):
+    sentence_coordinations = []
+    group = []
+    token_groups = []
+    for token in tokens:
+        if token not in COORDINATIONS:
+            group.append(token)
+        else:
+            sentence_coordinations.append(token)
+            token_groups.append(group)
+            group = []
+    else:
+        if group:
+            token_groups.append(group)
+
+    chart_managers = []
+    sub_dominance_structures = []
+    for index, group in enumerate(token_groups):
+        if index == 0:
+            earley_parser = EarleyParser(grammar)
+        else:
+            earley_parser = EllipsisEarleyParser(grammar)
+            earley_parser.set_sibling_conjunct_chart_manager(chart_managers[0])
+        manager = earley_parser.parse(group, grammar.start())
+        chart_managers.append(manager)
+        print("Parsing of the group {}".format(index))
+        print(manager)
+        print(manager.out())
+
+        tree_generator = earley_parser.build_tree_generator(manager)
+        trees = tree_generator.parseTrees(manager)
+
+        number_verified_trees = 0
+        number_derivation_trees = 0
+        dominance_structures = []
+        verifier = Counter(group)
+        if trees:
+            tree_output = ''
+            for tree in trees:
+                number_derivation_trees += 1
+                if all(item in tree.wordsmap().items() for item in verifier.items()):
+                    number_verified_trees += 1
+                    dominance_structures.append(tree)
+                tree_output += tree.pretty_print(0) + '\n'
+
+            tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
+            print(tree_output)
+            print("Number of dominance structures: {}".format(number_verified_trees))
+
+            if dominance_structures:
+                sub_dominance_structures.append(dominance_structures)
+                # TreeTabView(*dominance_structures[:40])
+
+    if len(token_groups) == len(sub_dominance_structures):
+        for prod in product(*sub_dominance_structures, repeat=1):
+            root = Node(FeatStructNonTerm(FeatStructNonterminal("S[gf='expr']")))
+            for index, node in enumerate(prod):
+                root.add_node(node)
+                if index < len(sentence_coordinations):
+                    coord = Node(FeatStructNonTerm(FeatStructNonterminal("C[gf='coord']")))
+                    coord.add_node(LeafNode(sentence_coordinations[index]))
+                    root.add_node(coord)
+            yield root
 
 if __name__ == "__main__":
     # docTEST this
     import doctest
     doctest.testmod()
 
-    extract_grammar('../../fsa/elleipo/', 'german-sent-struc_utf.txt')
+    # uncomment this line extract grammar from the syntactic trees
+    # extract_grammar('../../fsa/elleipo/', 'german-sent-struc_utf.txt')
+
     # filename = 'Ich_schlafe_und_du_schläfst'
-    filename = 'Gestern_bist_du_gegangen_und_gestern_hast_du_mich_nicht_gewarnt'
+    # input = "Ich schlafe und du" # auch
+
     # filename = 'Hans_ißt_Äpfel_und_Peter_ißt_Birnen'
+    # input = 'Hans ißt Äpfel und Peter Birnen'
+    # input = 'Hans ißt Äpfel und Peter' # auch
+
+    # filename = 'Gestern_bist_du_gegangen_und_gestern_hast_du_mich_nicht_gewarnt'
     # filename = 'Mit_Bier_und_mit_Würstchen_und_mit_Kartoffelsalat_grillt_Hans_mit_Maria_vor_dem_Haus_und_neben_dem_Haus_und_hinter_dem_Haus'
-    tokens = tuple(token.lower() for token in filename.split('_'))
+
+    # filename = 'Hans_schläft_und_Peter_schläft'
+    # input = "Hans schläft und Peter"  # auch
+
+    # filename = "Hans_will_schlafen_und_Peter_will_schlafen"
+    # input = "Hans will schlafen und Peter"  # auch
+
+    filename = "Meine_Frau_will_ein_Auto_kaufen_und_mein_Sohn_will_ein_Motorrad_kaufen"
+    # All elisions         : Meine Frau will_1 ein Auto kaufen_1-b_2 und mein Sohn will-g_1 ein Motorrad kaufen-gl_1_2
+    # Reduced sentence     : Meine Frau will_1 ein Auto kaufen_1 und mein Sohn ---g_1 ein Motorrad ---g_1
+    # BCR-Alternative      : Meine Frau will_1 ein Auto ---_2 und mein Sohn ---_1 ein Motorrad kaufen_2"""
+    # input = "Meine Frau will ein Auto kaufen und mein Sohn ein Motorrad"
+    input = "Meine Frau will ein Auto und mein Sohn ein Motorrad kaufen"
+
     grammar = load_grammar('../../fsa/elleipo/grammars/', filename + '.cf')
 
-    load_grammar_timer = default_timer()
+    # tokens = tuple(token for token in filename.split('_'))
+    # # tokens = tokens[0:4]
+    # # tokens = tokens[0:5] + tokens[6:]
+    # print(" ".join(tokens))
 
-    earley_parser = EarleyParser(grammar)
-
-    manager = earley_parser.parse(tokens, grammar.start())
-    end_time = default_timer()
-    print(manager.pretty_print(filename))
-    print("Final states:")
-    final_states = tuple(manager.final_states())
-    if final_states:
-        for state in final_states:
-            print(state.str(state.dot() - 1))
-    else:
-        print(None)
-    print("Recognition time: {:.3f}s.".format(end_time - load_grammar_timer))
-
-    print(manager)
-    print(manager.out())
-
-    tree_generator = earley_parser.build_tree_generator()
-    trees = tree_generator.parseTrees(manager)
-    # for tree in tree_generator.parseTrees(manager):
-    #     print(tree.pretty_print(0))
-    #     number_trees += 1
-    # print("Number of trees: {}".format(number_trees))
-    number_trees = 0
-    number_derivation_trees = 0
-    dominance_structures = []
-    verifier = Counter(tokens)
-    end_time = default_timer()
-    if trees:
-        tree_output = ''
-        for tree in trees:
-            number_derivation_trees += 1
-            if tree.wordsmap() == verifier:
-                number_trees += 1
-                dominance_structures.append(tree)
-            tree_output += tree.pretty_print(0) + '\n'
-        tree_output += "Number of derivation trees: {}".format(number_derivation_trees)
-        print(tree_output)
-        print("Number of dominance structures: {}".format(number_trees))
-        print("Time: {:.3f}s.\n".format(end_time - load_grammar_timer))
-        if dominance_structures:
-            # with open('../../fsa/dominance_structures.dump', 'wb') as f:
-            #     pickle.dump(dominance_structures, f, pickle.HIGHEST_PROTOCOL)
-            TreeTabView(*dominance_structures[:40])
+    ellipses = tuple(parse_ellipses(grammar, input.split()))
+    if ellipses:
+        TreeTabView(*ellipses[:40])

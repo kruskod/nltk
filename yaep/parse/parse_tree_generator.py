@@ -3,7 +3,8 @@ from collections import Counter
 
 from nltk.compat import unicode_repr
 from nltk.featstruct import TYPE
-from yaep.parse.earley import State, EarleyParser, PermutationEarleyParser, grammar_from_file, Chart, Term, test_unify
+from yaep.parse.earley import State, EarleyParser, PermutationEarleyParser, grammar_from_file, Chart, Term, test_unify, \
+    FeatStructNonTerm
 
 
 class LeafNode:
@@ -61,7 +62,7 @@ class LeafNode:
 
 class Node(LeafNode):
 
-    def __init__(self, sybmbol, i=None, j=None, init_collections = True):
+    def __init__(self, sybmbol, i=None, j=None, init_collections=True):
         super().__init__(sybmbol, i=i, j=j)
         if init_collections:
             self._children = []
@@ -105,11 +106,11 @@ class Node(LeafNode):
             return None
         return self._children[-1]._j
 
-    def pretty_print(self, level):
+    def pretty_print(self, level, print_counter=False):
         padding = '\n' + '\t' * level
         children_str = " ".join(c.pretty_print(level + 1) for c in self._children)
         out = "{}([{}:{}] {} {})".format(padding, self._i, self._j, unicode_repr(self._symbol), children_str if self._children else '')
-        if level == 0:
+        if print_counter:
             out += '\n' + str(self._wordsmap)
         return out
 
@@ -150,6 +151,16 @@ class Node(LeafNode):
     def __delitem__(self, index):
         return NotImplemented
 
+class EllipsisNode(Node):
+
+    @classmethod
+    def from_Node_and_children(cls, node, children):
+        new_node = cls.from_Node(node)
+        for child in children:
+            new_node.add_node(child)
+        return new_node
+
+
 class ExtendedState(State):
 
     def __init__(self, state, j):
@@ -172,6 +183,62 @@ class ExtendedState(State):
 
     def __hash__(self):
         return hash((type(self), self._i, self._j, self._dot, self._rule))
+
+class EllipsisState(ExtendedState):
+
+    def __init__(self, origin_state, tree_generator, token_index=None, j=None):
+        State.__init__(self, origin_state.rule(), token_index, origin_state.dot())
+        self._j = j
+        self._origin_state = origin_state
+        self._tree_generator = tree_generator
+        # self._requested_state = requested_state
+    # def __hash__(self):
+    #     return hash((type(self), self._i, self._j, self._dot, self._rule, self._requested_state))
+
+class EllipsisEarleyParser(EarleyParser):
+
+    def build_tree_generator(self, chart_manager):
+        return EllipsisParseTreeGenerator(chart_manager)
+
+    def set_sibling_conjunct_chart_manager(self, sibling_conjunct_chart_manager):
+        self._tree_generator =  self.build_tree_generator(sibling_conjunct_chart_manager)
+
+    def predictor(self, state, token_index):
+        lhs = state.next_symbol()
+        self.predictor_non_terminal(lhs, token_index)
+        chart = self._charts[token_index]
+        if lhs.is_nullable():
+            chart.add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+        # iff state.lhs is S we look for the ellipses
+        # find in the dependent chart manager, iff this rule was completed in an other conjunct, add that
+        # completed rule to the current chart
+        state_lhs = state.rule().lhs()
+        if 'S' != lhs.key() and 'S' == state_lhs.key():
+            for finished_state in self._tree_generator.finished_states():
+                finished_state_lhs = finished_state.rule().lhs()
+                # gapping need lemma identity (and to be precise contrastiveness too) =>
+                if lhs.key() == finished_state_lhs.key():
+                    finished_state_lhs_gapping = finished_state_lhs.term().filter_feature('number', 'person')
+                    if lhs.test_unify(FeatStructNonTerm(finished_state_lhs_gapping)):
+                        ellipsis_state = EllipsisState(finished_state, self._tree_generator, token_index=token_index)
+                        chart.remove_state_if_present(ellipsis_state)
+                        chart.add_state(ellipsis_state)
+
+    # def scanner(self, state, token_index):
+    #     if self._tokens[token_index] == state.next_symbol():
+    #         self._charts[token_index + 1].add_state(State(state.rule(), state.from_index(), state.dot() + 1))
+    #     else:
+    #         # find in the dependent chart manager, iff this rule was completed in an other conjunct, add that
+    #         # completed rule to the current chart
+    #         if self._chart_manager:
+    #             state_lhs = state.rule().lhs()
+    #             for finished_state in self._chart_manager.finished_states():
+    #                 lhs = finished_state.rule().lhs()
+    #                 # gapping need lemma identity (and to be precise contrastiveness too) =>
+    #                 if lhs.key() == state_lhs.key():
+    #                     lhs_gapping = lhs.term().filter_feature('number', 'person')
+    #                     if state_lhs.test_unify(FeatStructNonTerm(lhs_gapping)):
+    #                         self._charts[token_index].add_state(EllipsisState(finished_state.rule(), finished_state.from_index(), finished_state.dot(), self._chart_manager))
 
 class AbstractParseTreeGenerator:
 
@@ -303,19 +370,23 @@ class PermutationParseTreeGenerator(AbstractParseTreeGenerator):
 
         return (node for node in result if node.has_consistent_children())
 
-class ChartTraverseParseTreeGenerator():
 
-    def parseTrees(self, chart_manager):
+class ChartTraverseParseTreeGenerator:
+
+    def __init__(self, chart_manager):
         parser_charts = chart_manager.charts()
         self._charts = tuple(Chart() for i in range(len(parser_charts)))
-        for i, chart in enumerate(parser_charts,0):
-            filtered_chart = self._charts[i]
+        self._tokens_number = len(chart_manager.tokens())
+        for i, chart in enumerate(parser_charts, 0):
             for state in chart.states():
                 if state.is_finished():
-                    filtered_chart.add_state(ExtendedState(state, i))
-        j = len(chart_manager.tokens())
-        result = tuple(itertools.chain.from_iterable(self.countDown(ExtendedState(st, j), set(), j) for st in chart_manager.final_states()))
-        return result
+                    self._charts[i].add_state(ExtendedState(state, i))
+
+    def parseTrees(self, chart_manager):
+        return itertools.chain.from_iterable(self.countdown(ExtendedState(st, self._tokens_number), set(), self._tokens_number) for st in chart_manager.final_states())
+
+    def parseState(self, state):
+        yield from self.countdown(state, set(), state.to_index())
 
     def find_state(self, non_terminal, states):
         for st in states:
@@ -323,7 +394,7 @@ class ChartTraverseParseTreeGenerator():
             if lhs.key() == non_terminal.key() and non_terminal.unify(lhs):
                 yield st
 
-    def countDown(self, state, parent_states, start):
+    def countdown(self, state, parent_states, start):
         parent_states.add(state)
         root = Node(state.rule().lhs(), state.from_index(), state.to_index())
         result = []
@@ -349,7 +420,72 @@ class ChartTraverseParseTreeGenerator():
         if isinstance(term, Term):
             for st in self.find_state(term, reversed(self._charts[start_index].states())):
                 if st not in parent_states:
-                    yield from self.countDown(st, set(parent_states), start_index)
+                    yield from self.countdown(st, set(parent_states), start_index)
+        else:
+            # it is a terminal
+            # current = Node(state.rule().lhs(), state.from_index(), state.to_index())
+            yield LeafNode(term, start_index - 1, start_index)
+
+
+class EllipsisParseTreeGenerator(ChartTraverseParseTreeGenerator):
+
+    def __init__(self, chart_manager):
+        self._tokens_number = len(chart_manager.tokens())
+        parser_charts = chart_manager.charts()
+        self._charts = tuple(Chart() for i in range(len(parser_charts)))
+        for i, chart in enumerate(parser_charts, 0):
+            for state in chart.states():
+                if state.is_finished():
+                    if isinstance(state, EllipsisState):
+                        state._j = i
+                        self._charts[i].add_state(state)
+                    else:
+                        self._charts[i].add_state(ExtendedState(state, i))
+
+    def finished_states(self):
+        for index, chart in enumerate(self._charts):
+            for state in chart.states():
+                yield ExtendedState(state, index)
+
+
+    def countdown(self, state, parent_states, start_index):
+        parent_states.add(state)
+
+        result = []
+        old_result = []
+        reversed_rhs = tuple(reversed(state.rule().rhs()))
+        is_ellipsis_state = isinstance(state, EllipsisState)
+        root = Node(state.rule().lhs(), state.from_index(), state.to_index())
+        if is_ellipsis_state:
+            root = EllipsisNode.from_Node(root)
+
+        for cs in reversed_rhs:
+            if result:
+                old_result = list(result)
+                result.clear()
+            else:
+                if is_ellipsis_state:
+                    ellipse_start_index = state._origin_state.to_index()
+                    result.extend((EllipsisNode.from_Node(node),) if isinstance(node, Node) else (node,) for node in state._tree_generator.find_node(cs, set(parent_states), ellipse_start_index))
+                else:
+                    result.extend((node,) for node in self.find_node(cs, set(parent_states), start_index))
+
+            for node_rhs in old_result:
+                alternative_start_index = node_rhs[0].from_index()
+                if is_ellipsis_state:
+                    ellipse_start_index = state._origin_state.to_index()
+                    result.extend(((EllipsisNode.from_Node(node),) if isinstance(node, Node) else (node,)) + node_rhs for node in state._tree_generator.find_node(cs, set(parent_states), alternative_start_index))
+                else:
+                    result.extend((node,) + node_rhs for node in self.find_node(cs, set(parent_states), alternative_start_index))
+
+        for children in result:
+            yield root.from_Node_and_children(root, children)
+
+    def find_node(self, term, parent_states, start_index):
+        if isinstance(term, Term):
+            for st in self.find_state(term, reversed(self._charts[start_index].states())):
+                if st not in parent_states:
+                    yield from self.countdown(st, set(parent_states), start_index)
         else:
             # it is a terminal
             # current = Node(state.rule().lhs(), state.from_index(), state.to_index())

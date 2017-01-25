@@ -365,7 +365,7 @@ def permutation_parse_trees_builder(tokens, grammar, parser):
     return itertools.chain(*pool.map(lambda t: parse_tokens(t, grammar, parser, verifier), itertools.permutations(tokens)))
 
 
-def print_nw_trees(tokens, grammar, permutations=False):
+def print_trees_parallel(tokens, grammar, permutations=False):
     parser = BindingsEarleyParser(grammar) if permutations else EarleyParser(grammar)
     start_time = default_timer()
     dominance_structures = tuple(permutation_parse_trees_builder(tokens, grammar, parser))

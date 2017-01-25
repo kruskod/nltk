@@ -2,6 +2,7 @@ import pickle
 
 from nltk.draw.tree import Graphview, TreeTabView
 from nltk.topology.FeatTree import FeatTree
+from nltk.topology.orderedSet import OrderedSet
 from nltk.topology.topology import process_dominance, build_topologies
 from yaep.parse.parse_tree_generator import Node
 
@@ -12,7 +13,6 @@ def wordorder_alternatives(feat_tree, topologies):
     feat_tree.alternatives()
     # print(*feat_tree.bfs())
     alternatives = feat_tree.split_alternatives()
-
     shared_alternatives = []
 
     for alternative in alternatives:
@@ -25,6 +25,7 @@ def wordorder_alternatives(feat_tree, topologies):
         isvalid = validate_alternative(alternative)
         print("{}\t{}\t{}:\t{}".format(index, " ".join(alternative.leaves()), repr(alternative.topologies), isvalid ))
         if isvalid:
+
             yield alternative
 
 
@@ -37,7 +38,7 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
     topologies = build_topologies()
 
     alternatives = []
-    for tree in (dumped_trees[0],):
+    for tree in dumped_trees[-2:]:
         # print(tree.pretty_print(0))
         if isinstance(tree, Node):
             feat_tree = FeatTree.from_node(tree)
@@ -47,9 +48,11 @@ def demo(dump_path='../../fsa/dominance_structures.dump'):
         alternatives.extend(wordorder_alternatives(feat_tree, topologies))
 
     if alternatives:
+        # with open('../../fsa/tree_matching/sentences', 'w') as f:
+        #     for sentence in sorted(set(" ".join(sentence.leaves()) for sentence in set(alternatives))):
+        #         f.write(sentence + "\n")
+
         # print(alternatives[6].leaves())
-        # for alternative in sorted_alternatives:
-        #     print("\t" + " ".join(alternative.leaves()))
         Graphview(*alternatives[:30])
     # ps2pdf -dEPSCrop Monopole_tree.ps
 

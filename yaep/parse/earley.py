@@ -182,9 +182,10 @@ class Rule:
     def __hash__(self):
         return self._hash
 
+
 class State:
 
-    def __init__(self, rule, i , dot):
+    def __init__(self, rule, i, dot):
         self._rule = rule
         self._i = i
         self._dot = dot
@@ -239,11 +240,17 @@ class Chart:
         # if state not in self._states:
         self._states.add(state)
 
+    def remove_state_if_present(self, state):
+        self.states().discard(state)
+
     def get_state(self, i):
         return self._states[i]
 
     def states(self):
         return self._states
+
+    def finished_states(self):
+        return (state for state in self._states if state.is_finished())
 
     def __len__(self):
         return len(self._states)
@@ -260,6 +267,7 @@ class Chart:
             out += state.str(j) + '\n'
         return out
 
+
 class ChartManager:
 
     def __init__(self, charts, start_symbol, tokens):
@@ -274,6 +282,19 @@ class ChartManager:
     def final_states(self):
         if self._charts and (len(self._charts) == len(self._tokens) + 1) and self._start_symbol:
             return (state for state in self._charts[-1].states() if state.from_index() == 0 and state.is_finished() and self._start_symbol.unify(state.rule().lhs()))
+
+    def finished_states(self):
+        for chart in self._charts:
+            yield from chart.finished_states()
+
+    def find_finished_state(self, non_terminal):
+        assert non_terminal is not None
+
+        for chart in self._charts:
+            for finished_state in chart.finished_states():
+                lhs = finished_state.rule().lhs()
+                if lhs.key() == non_terminal.key() and non_terminal.unify(lhs):
+                    yield finished_state
 
     def is_recognized(self):
         return next(self.final_states(), None) is not None
@@ -291,18 +312,19 @@ class ChartManager:
 
     def pretty_print_filtered(self, input):
         out = "Filtered charts produced by the sentence: " + input + "\n\n"
-        out += "\n".join("Chart {index}:\n{chart}".format_map({'index':i, 'chart': chart.str(i, filtered=True)}) for i,chart in enumerate(self._charts, 0))
+        out += "\n".join("Chart {index}:\n{chart}".format_map({'index':i, 'chart': chart.str(i, filtered=True)}) for i, chart in enumerate(self._charts, 0))
         return out
 
     def __str__(self):
         return self.pretty_print(" ".join(self._tokens))
 
     def out(self):
-        out = "Final states:\n"
         final_states = tuple(self.final_states())
         if final_states:
+            out = "Final states:\n"
             out += "\n".join(st.str(len(self.charts()) - 1) for st in final_states)
-        return out
+            return out
+
 
 class Grammar:
 
@@ -338,10 +360,9 @@ class AbstractEarley:
     def parse(self, input):
         if not input:
             raise ValueError("parser input is empty")
-        tokens = input.split()
-        return self.parse(tokens)
+        return self.parse(input.split())
 
-    def parse(self, tokens, start_symbol = None):
+    def parse(self, tokens, start_symbol=None):
         if not tokens or not start_symbol:
             raise ValueError("Empty argument tokens:{} start:{}".format(tokens,start_symbol))
 
@@ -349,9 +370,7 @@ class AbstractEarley:
         self.predictor_non_terminal(start_symbol, 0)
 
         for i, current_chart in enumerate(self._charts, 0):
-            j = 0
-            while j < len(current_chart):
-                state = current_chart.get_state(j)
+            for state in current_chart.states():
                 if state.is_finished():
                     self.completer(state, i)
                 elif state.is_next_symbol_nonterminal():
@@ -359,7 +378,17 @@ class AbstractEarley:
                 # do not call scanner for the last chart
                 elif i < len(tokens):
                     self.scanner(state, i)
-                j += 1
+            # j = 0
+            # while j < len(current_chart):
+            #     state = current_chart.get_state(j)
+            #     if state.is_finished():
+            #         self.completer(state, i)
+            #     elif state.is_next_symbol_nonterminal():
+            #         self.predictor(state, i)
+            #     # do not call scanner for the last chart
+            #     elif i < len(tokens):
+            #         self.scanner(state, i)
+            #     j += 1
         return ChartManager(self._charts, start_symbol, tokens)
 
     def init(self, tokens):
@@ -378,6 +407,8 @@ class AbstractEarley:
     def completer(self, origin_state, token_index):
         lhs = origin_state.rule().lhs()
         current_chart = self._charts[token_index]
+        # if isinstance(origin_state, EllipsisState):
+            # print(state)
         for temp_state in self._charts[origin_state.from_index()].states():
             if (not temp_state.is_finished()) and is_nonterminal(temp_state.next_symbol()) and lhs.unify(temp_state.next_symbol()):
                 current_chart.add_state(State(temp_state.rule(), temp_state.from_index(), temp_state.dot() + 1))
@@ -385,16 +416,17 @@ class AbstractEarley:
     def scanner (self, state, token_index):
         raise NotImplementedError
 
+
 class EarleyParser(AbstractEarley):
 
     def init(self, tokens):
         self._tokens = tokens
         self._charts = tuple(Chart() for i in range(len(tokens) + 1))
 
-    def build_tree_generator(self):
+    def build_tree_generator(self, chart_manager):
         # return ParseTreeGenerator()
         from yaep.parse.parse_tree_generator import ChartTraverseParseTreeGenerator
-        return ChartTraverseParseTreeGenerator()
+        return ChartTraverseParseTreeGenerator(chart_manager)
 
     def scanner(self, state, token_index):
         if self._tokens[token_index] == state.next_symbol():
@@ -407,7 +439,7 @@ class PermutationEarleyParser(AbstractEarley):
         self._words_map = Counter(tokens)
         self._charts = tuple(Chart() for i in range(len(tokens) + 1))
 
-    def build_tree_generator(self):
+    def build_tree_generator(self, chart_manager):
         from yaep.parse.parse_tree_generator import PermutationParseTreeGenerator
         return PermutationParseTreeGenerator(self._words_map)
 

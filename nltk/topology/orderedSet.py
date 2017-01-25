@@ -73,3 +73,6 @@ if __name__ == '__main__':
     print(s | t)
     print(s & t)
     print(s - t)
+    for temp in s:
+        s.discard('a')
+    print(s)
